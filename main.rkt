@@ -67,7 +67,9 @@
 (define (literal-read in)
   (syntax->datum
    (literal-read-syntax #f in)))
- 
+
+
+
 (define (literal-read-syntax src in)
   
   (define lst-code (process-input-code-tail-rec in))
@@ -93,9 +95,17 @@
 ;;       (cons result (process-input-code-rec in))))
 
 
+
 ;; read all the expression of program
 ;; a tail recursive version
 (define (process-input-code-tail-rec in) ;; in: port
+
+  (define (process-input-code-rec-tail-recursive acc)
+    (define result (curly-infix-read in))  ;; read an expression
+    (if (eof-object? result)
+	(reverse acc)
+	(process-input-code-rec-tail-recursive (cons result acc))))
+
 
   (display "SRFI-105 Curly Infix parser for Racket Scheme by Damien MATTEI") (newline)
   (display "(based on code from David A. Wheeler and Alan Manuel K. Gloria.)") (newline) (newline)
@@ -108,7 +118,7 @@
 
   (when (regexp-try-match #px"^#!r6rs[[:blank:]]*\n" in)
 	(set! flag-r6rs #t)
-	(display "Detected R6RS code. (#!r6rs)") (newline) (newline))
+	(display "Detected R6RS code: #!r6rs") (newline) (newline))
 
   (define lc '())
   (define cc '())
@@ -121,28 +131,51 @@
   
   (display "Parsed curly infix code result = ") (newline) (newline)
   
-  ;;(define (process-input acc)
 
-  (when flag-r6rs
+  (if flag-r6rs
+      
+      (let ((result (curly-infix-read in))) ;; read an expression
+	
+	(when (eof-object? result)
+	    (error "ERROR: EOF : End Of File : " result))
 	(display "(module aschemeplusr6rsprogram r6rs")
-	(newline))
-  
-  (define result (curly-infix-read in))  ;; read an expression
-  
-  (if (eof-object? result)
-      (error "ERROR: EOF : End Of File : " result)
-      (begin
+	(newline)
+ 	
 	(pretty-print result
 		      (current-output-port)
 		      1)
 	;;(write result)
 	(newline)
-	(when flag-r6rs
-	      (display ")")
-	      (newline))
-	result)))
+	(display ")")
+	(newline)
+	result)
 
-  ;;(process-input (cons result acc)))))
+      ;; r5rs
+      (let ((result (process-input-code-rec-tail-recursive '())))
+	(when (null? result)
+	  (error "ERROR: Empty program."))
+
+	(for/list ([expr result])
+		  (pretty-print expr
+				(current-output-port)
+				1))
+	
+	(if (not (null? (cdr result)))
+	    ;; put them in a module
+	    `(module aschemeplusprogram racket ,@result)
+	    ;; only one
+	    (let ((fst (car result)))
+	      ;; searching for a module
+	      (if (and (list? fst)
+		       (not (null? fst))
+		       (equal? 'module (car fst)))
+		  fst ; is the result module
+		  `(module aschemeplusprogram racket ,fst)))))))
+		       
+	
+	
+
+  
 
   ;; (display "(module aschemeplusprogram racket ")
   ;; (newline)
