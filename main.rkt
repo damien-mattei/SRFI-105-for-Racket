@@ -10,45 +10,26 @@
 
 ;; modification for Racket by Damien Mattei
 
-;; use with: #lang reader "SRFI-105.rkt"
+;; use with: #lang reader SRFI-105
 
-;; example in DrRacket :
-;; #lang reader "Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/SRFI/SRFI-105.rkt"
 
 (require syntax/strip-context) ;; is this useful?
-
-(require srfi/31) ;; for 'rec in def.scm
-
-(require (only-in racket/base [do do-scheme])) ; backup original do
 
 (provide (rename-out [literal-read read]
                      [literal-read-syntax read-syntax]))
 
-(include "operation-redux.scm")
-(include "optimize-infix.scm")
-(include "assignment-light.scm")
-(include "block.scm")
-(include "declare.scm")
-(include "slice.scm")
-(include "def.scm")
-(include "optimize-infix-slice.scm")
-
-(include "when-unless.rkt")
-(include "while-do.scm")
-
-(include "condx.scm")
-
-(include "SRFI-105.scm")
+(include "src/SRFI-105.scm")
 
 (define flag-r6rs #f)
 
-(define (test-blank-lines-or-comments li)
-  (display "test-blank-lines-or-comments :$") (display li) (display "$") (newline)
-  (define bl (or (not (non-empty-string? li)) ; empty line
-		 (regexp-match #px"^[[:blank:]]*$" li) ; only spaces, tabs
-		 (regexp-match #px"^[[:blank:]]*;+" li))) ; space,tabs, comments
-  (display "bl = ") (display bl) (newline) (newline)
-  bl)
+;; DEPRECATED
+;; (define (test-blank-lines-or-comments li)
+;;   (display "test-blank-lines-or-comments :$") (display li) (display "$") (newline)
+;;   (define bl (or (not (non-empty-string? li)) ; empty line
+;; 		 (regexp-match #px"^[[:blank:]]*$" li) ; only spaces, tabs
+;; 		 (regexp-match #px"^[[:blank:]]*;+" li))) ; space,tabs, comments
+;;   (display "bl = ") (display bl) (newline) (newline)
+;;   bl)
 
       
 
@@ -66,9 +47,14 @@
   
   ;; (file-position in fpos) ;; rewind to the code to parse after comments or spaces
 
-  (do
-      while (or (regexp-try-match #px"^[[:space:]]" in)  ; skip space,tab,new line,...
-		(regexp-try-match #px"^;[^\n]*\n" in)))  ; and also comments
+  ;; (do
+  ;;     while (or (regexp-try-match #px"^[[:space:]]" in)  ; skip space,tab,new line,...
+  ;; 		(regexp-try-match #px"^;[^\n]*\n" in)))  ; and also comments
+
+  (let loop ()
+    (when  (or (regexp-try-match #px"^[[:space:]]" in)  ; skip space,tab,new line,...
+	       (regexp-try-match #px"^;[^\n]*\n" in))
+      (loop)))  ; and also comments
 
 	   
   ;; (display "SRFI-105.rkt : skip-comments-and-empty-lines : number of skipped lines (comments, spaces) at beginning : ")
@@ -111,30 +97,22 @@
 ;; a tail recursive version
 (define (process-input-code-tail-rec in) ;; in: port
 
-  (display "SRFI-105 Curly Infix parser with optimization by Damien MATTEI") (newline)
+  (display "SRFI-105 Curly Infix parser for Racket Scheme by Damien MATTEI") (newline)
   (display "(based on code from David A. Wheeler and Alan Manuel K. Gloria.)") (newline) (newline)
-  (display "Options :") (newline) (newline)
-  (if nfx-optim
-      (display "Infix optimizer is ON.")
-      (display "Infix optimizer is OFF."))
-  (newline)
-
-  (if slice-optim
-      (display "Infix optimizer on sliced containers is ON.")
-      (display "Infix optimizer on sliced containers is OFF."))
-  (newline)
-  (newline)
-
+  
   (port-count-lines! in) ; turn on counting on port
   
   (display "Possibly skipping some header's lines containing space,tabs,new line,etc  or comments.") (newline) (newline)
+  
   (skip-comments-and-empty-lines in)
 
   (when (regexp-try-match #px"^#!r6rs[[:blank:]]*\n" in)
 	(set! flag-r6rs #t)
 	(display "Detected R6RS code. (#!r6rs)") (newline) (newline))
 
-  (declare lc cc pc)
+  (define lc '())
+  (define cc '())
+  (define pc '())
   (set!-values (lc cc pc) (port-next-location in))
   (display "SRFI-105.rkt : number of skipped lines (comments, spaces, directives,...) at header's beginning : ")
   (display lc)
@@ -155,8 +133,8 @@
       (error "ERROR: EOF : End Of File : " result)
       (begin
 	(pretty-print result
-			(current-output-port)
-			1)
+		      (current-output-port)
+		      1)
 	;;(write result)
 	(newline)
 	(when flag-r6rs
