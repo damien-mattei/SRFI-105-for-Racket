@@ -261,18 +261,22 @@
         ((or (char=? c #\+) (char=? c #\-))  ; Initial + or -
           (read-char port)
           (if (ismember? (peek-char port) digits)
-            (read-number port (list c))
-            (string->symbol (fold-case-maybe port
-              (list->string (cons c
-                (read-until-delim port neoteric-delimiters)))))))
+              (read-number port (list c))
+              (string->symbol
+	       (fold-case-maybe port
+				(list->string (cons c
+						    (read-until-delim port neoteric-delimiters)))))))
         (#t ; Nothing else.  Must be a symbol start.
-          (string->symbol (fold-case-maybe port
-            (list->string
-              (read-until-delim port neoteric-delimiters))))))))
+         (string->symbol
+	  (fold-case-maybe port
+			   (list->string
+			    (read-until-delim port neoteric-delimiters))))))))
 
   (define (curly-infix-read-real port)
     (underlying-read curly-infix-read-real port))
 
+
+  ;; this is the entry routine
   (define (curly-infix-read . port)
     (if (null? port)
       (curly-infix-read-real (current-input-port))

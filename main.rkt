@@ -96,6 +96,9 @@
 
 
 
+
+
+
 ;; read all the expression of program
 ;; a tail recursive version
 (define (process-input-code-tail-rec in) ;; in: port
@@ -107,6 +110,7 @@
 	(process-input-code-rec-tail-recursive (cons result acc))))
 
 
+  
   (display "SRFI-105 Curly Infix parser for Racket Scheme by Damien MATTEI") (newline)
   (display "(based on code from David A. Wheeler and Alan Manuel K. Gloria.)") (newline) (newline)
   
@@ -148,7 +152,8 @@
 	(newline)
 	(display ")")
 	(newline)
-	result)
+	
+	result) ;; return one expression in R6RS
 
       ;; r5rs
       (let ((result (process-input-code-rec-tail-recursive '())))
@@ -190,6 +195,10 @@
 (define (literal-read-syntax-for-repl src in)
 
   (define result (curly-infix-read in))
+
+  (pretty-print result
+		(current-output-port)
+		1)
   
   (if (eof-object? result)
       ;;(begin (display "eof") (newline) result)
