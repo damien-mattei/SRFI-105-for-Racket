@@ -253,24 +253,49 @@
                 (read-char port)
                 (list 'unquote-splicing (my-read port)))
               (#t
-                (list 'unquote (my-read port)))))
-        ((ismember? c digits) ; Initial digit.
-          (read-number port '()))
+	       (list 'unquote (my-read port)))))
+	
+        ;; ((ismember? c digits) ; Initial digit.
+	;;  (read-number port '()))
+	
         ((char=? c #\#) (process-sharp my-read port))
         ((char=? c #\.) (process-period port))
+	
         ((or (char=? c #\+) (char=? c #\-))  ; Initial + or -
           (read-char port)
           (if (ismember? (peek-char port) digits)
-              (read-number port (list c))
-              (string->symbol
-	       (fold-case-maybe port
-				(list->string (cons c
-						    (read-until-delim port neoteric-delimiters)))))))
+	      ;;(let ((tmp
+		     (read-number port (list c))
+		;;     ))
+		;; (newline (current-error-port))
+		;; (display tmp (current-error-port))
+		;; (newline (current-error-port))
+		;; tmp)
+	      
+	      ;;(let ((tmp
+		     (string->symbol
+		      (fold-case-maybe port
+				       (list->string (cons c
+							   (read-until-delim port neoteric-delimiters)))))
+		;;     )) ;end declarative let
+		;; (newline (current-error-port))
+		;; (display tmp (current-error-port))
+		;; (newline (current-error-port))
+		;; tmp)
+		))
+
+	((ismember? c digits) ; Initial digit. (without + or - and not starting with . but could be an identifier starting with digits...)
+	 (read-number-or-identifier-starting-with-digits port '()))
+	   
+	
         (#t ; Nothing else.  Must be a symbol start.
          (string->symbol
 	  (fold-case-maybe port
 			   (list->string
 			    (read-until-delim port neoteric-delimiters))))))))
+
+
+
 
   (define (curly-infix-read-real port)
     (underlying-read curly-infix-read-real port))
@@ -388,6 +413,9 @@
     ; Do not consume the eof or delimiter.
     ; Returns the list of chars that were read.
     (let ((c (peek-char port)))
+      ;; (newline (current-error-port))
+      ;; (display c (current-error-port))
+      ;; (newline (current-error-port))
       (cond
          ((eof-object? c) '())
          ((ismember? c delims) '())
@@ -400,10 +428,32 @@
     (error message)
     '())
 
-  (define (read-number port starting-lyst)
-    (string->number (list->string
-      (append starting-lyst
-        (read-until-delim port neoteric-delimiters)))))
+(define (read-number port starting-lyst)
+  ;;(newline (current-error-port))
+  ;;(display starting-lyst (current-error-port)) (newline (current-error-port))
+
+  ;;(let ((tmp 
+	 (string->number (list->string
+			  (append starting-lyst
+				  (read-until-delim port neoteric-delimiters))))   ;;)) ; end declarative let
+    ;; (newline (current-error-port))
+    ;; (display tmp (current-error-port))
+    ;; (newline (current-error-port))
+    ;; tmp)
+	 )
+
+(define (read-number-or-identifier-starting-with-digits port starting-lyst)
+  ;;(newline (current-error-port))
+  ;;(display starting-lyst (current-error-port)) (newline (current-error-port))
+
+  (let* ((str-number-or-identifier (list->string
+				    (append starting-lyst
+					    (read-until-delim port neoteric-delimiters))))
+	 (number (string->number str-number-or-identifier))) ; end declarative let
+    (if number ; string->number return #f if it was not possible to convert it in a number
+	number
+	(string->symbol str-number-or-identifier))))
+
 
   ; detect #| or |#
   (define (nest-comment port)
@@ -436,6 +486,7 @@
           (cond
             ((char-ci=? c #\t)  #t)
             ((char-ci=? c #\f)  #f)
+	    ;; should be for parsing binary,octal,hexadecimal,etc numbers
             ((ismember? c '(#\i #\e #\b #\o #\d #\x
                             #\I #\E #\B #\O #\D #\X))
               (read-number port (list #\# (char-downcase c))))
@@ -516,7 +567,7 @@
        ((eof-object? c) (string->symbol (string #\.)))  ;; only this one works with Racket Scheme
         ;;((eof-object? c) '.) ; period eof; return period. ;; do not works with Racket Scheme
        ;;((eof-object? c) 'period) ;; this one annihilate the processing using dummy 'period !
-        ((ismember? c digits)
+        ((ismember? c digits)  ; in case it wasn't a single . but the starting of a number
           (read-number port (list #\.)))  ; period digit - it's a number.
         (#t
           ; At this point, Scheme only requires support for "." or "...".
