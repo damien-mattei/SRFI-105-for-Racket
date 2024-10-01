@@ -196,7 +196,9 @@
 (define (literal-read-syntax-for-repl src in)
 
   (define result (curly-infix-read in))
-
+  ;; usefull only in CLI
+  (newline) 
+  (write-char (integer->char 13)) ; put a Carriage Return
   (pretty-print result
 		(current-output-port)
 		1)
