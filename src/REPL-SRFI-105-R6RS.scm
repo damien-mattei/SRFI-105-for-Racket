@@ -1,3 +1,7 @@
+#! /usr/bin/env -S racket --load REPL-SRFI-105-R6RS.scm --repl
+;; the above line is only used when launching from command line
+
+
 #lang reader SRFI-105 ; SRFI-105 Curly-infix-expressions
 
 
