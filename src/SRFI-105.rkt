@@ -6,9 +6,17 @@
 
 ;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-;; modification and optimisation for Scheme implementations (Racket,...) and Scheme+ by Damien Mattei - 2024
+;; modification for Scheme implementations (Racket,...) and Scheme+ by Damien Mattei - 2024
 
 
+
+(module SRFI-105-curly-infix racket
+
+	(provide curly-infix-read
+		 ;;even-and-op-prefix?
+		 ;;simple-infix-list?
+		 alternating-parameters
+		 )
 
 
 ;; library procedures and macro
@@ -69,9 +77,21 @@
      ((null? (cdr lyst)) ; Map {a} to a.
        (car lyst))
      ((and (pair? (cdr lyst)) (null? (cddr lyst))) ; Map {a b} to (a b).
-       lyst)
-     ((simple-infix-list? lyst) ; Map {a OP b [OP c...]} to (OP a b [c...])
-       (cons (cadr lyst) (alternating-parameters lyst)))
+      lyst)
+
+     ;; TODO: deal quoted and quasi-quoted the old way
+     ;; ((simple-infix-list? lyst) ; Map {a OP b [OP c...]} to (OP a b [c...])
+     ;;   (cons (cadr lyst) (alternating-parameters lyst)))
+     ;; comment force:
+     ;; > '{(2 + 3) - (5 - 7) - 2}
+     ;; '($nfx$ (2 + 3) - (5 - 7) - 2)
+     ;; '($nfx$ (2 + 3) - (5 - 7) - 2)
+
+     ;; #<eof>
+     ;; > '{(2 + 3) - (5 - 7)}
+
+     ;; '($nfx$ (2 + 3) - (5 - 7))
+     ;; '($nfx$ (2 + 3) - (5 - 7))
      (#t  (transform-mixed-infix lyst))))
 
 
@@ -239,13 +259,15 @@
           (read-error "Closing brace without opening")
           (my-read port))
         ((char=? c #\") ; Strings are delimited by ", so can call directly
-          (default-scheme-read port))
+	 (default-scheme-read port))
+	
         ((char=? c #\')
           (read-char port)
           (list 'quote (my-read port)))
         ((char=? c #\`)
           (read-char port)
           (list 'quasiquote (my-read port)))
+	
         ((char=? c #\,)
           (read-char port)
             (cond
@@ -442,6 +464,7 @@
     ;; tmp)
 	 )
 
+;; added by D.MATTEI
 (define (read-number-or-identifier-starting-with-digits port starting-lyst)
   ;;(newline (current-error-port))
   ;;(display starting-lyst (current-error-port)) (newline (current-error-port))
@@ -614,3 +637,4 @@
 ;; Record the original read location, in case it's changed later:
 (define default-scheme-read read)
 
+) ; end module

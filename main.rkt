@@ -1,4 +1,3 @@
-#lang racket
 
 ;; Copyright (C) 2012 David A. Wheeler and Alan Manuel K. Gloria. All Rights Reserved.
 
@@ -14,12 +13,22 @@
 
 
 
-(require syntax/strip-context) ;; is this useful?
+(module SRFI-105 racket
+	
+
+;;(require syntax/strip-context) ;; is this useful?
 
 (provide (rename-out [literal-read read]
-                     [literal-read-syntax read-syntax]))
+                     [literal-read-syntax read-syntax])
+	 ;;even-and-op-prefix?
+	 ;;simple-infix-list?
+	 alternating-parameters
+	 )
 
-(include "src/SRFI-105.scm")
+
+(require "src/SRFI-105.rkt")
+
+
 
 (define flag-r6rs #f)
 
@@ -215,10 +224,6 @@
   ; Demo of reader
   ; --------------
 
-;; (define-namespace-anchor a)
-;; (define ns (namespace-anchor->namespace a))
-
-
 
 
 
@@ -246,3 +251,4 @@
 (current-read-interaction literal-read-syntax-for-repl) ;; this procedure will be used by Racket REPL:
  ;; the current read interaction handler, which is procedure that takes an arbitrary value and an input port 
 
+)
