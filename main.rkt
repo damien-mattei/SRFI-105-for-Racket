@@ -20,14 +20,12 @@
 
 (provide (rename-out [literal-read read]
                      [literal-read-syntax read-syntax])
-	 ;;even-and-op-prefix?
-	 ;;simple-infix-list?
-	 alternating-parameters
+	 ;;alternating-parameters
 	 )
 
 
-(require "src/SRFI-105.rkt")
-
+;;(require "src/SRFI-105.rkt")
+(require SRFI-105/SRFI-105-curly-infix)
 
 
 (define flag-r6rs #f)

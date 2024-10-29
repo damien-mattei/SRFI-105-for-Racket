@@ -13,10 +13,8 @@
 (module SRFI-105-curly-infix racket
 
 	(provide curly-infix-read
-		 ;;even-and-op-prefix?
-		 ;;simple-infix-list?
-		 alternating-parameters
-		 )
+		 alternating-parameters)
+
 
 
 ;; library procedures and macro
@@ -27,6 +25,25 @@
   (syntax-rules ()
     ((_ expr var)
      (set! var (insert expr var)))))
+
+
+
+;; variable to deal with quoted/quasiquoted binary curly infix regions
+;; instantiate an empty stack and provide methods (push,pop...)
+
+(define stack '())
+(define (push x) (set! stack (cons x stack)))
+(define (pop) 
+  (define x (car stack))
+  (set! stack (cdr stack))
+  x)
+
+(define region-quote #f) ; at the beginning we are not in a quoted or quasiquoted region
+
+(define (find-quote)
+  (push #t)
+  (set! region-quote #t))
+
 
 
   ; ------------------------------
@@ -79,9 +96,14 @@
      ((and (pair? (cdr lyst)) (null? (cddr lyst))) ; Map {a b} to (a b).
       lyst)
 
-     ;; TODO: deal quoted and quasi-quoted the old way
-     ;; ((simple-infix-list? lyst) ; Map {a OP b [OP c...]} to (OP a b [c...])
-     ;;   (cons (cadr lyst) (alternating-parameters lyst)))
+     
+     ;; deal quoted and quasi-quoted the old way
+     
+     ((and region-quote
+	   (simple-infix-list? lyst)) ; Map {a OP b [OP c...]} to (OP a b [c...])
+      
+       (cons (cadr lyst) (alternating-parameters lyst)))
+     
      ;; comment force:
      ;; > '{(2 + 3) - (5 - 7) - 2}
      ;; '($nfx$ (2 + 3) - (5 - 7) - 2)
@@ -92,10 +114,20 @@
 
      ;; '($nfx$ (2 + 3) - (5 - 7))
      ;; '($nfx$ (2 + 3) - (5 - 7))
+     
      (#t  (transform-mixed-infix lyst))))
 
 
+  ;; `{{2 + 3} - ,{2 + 1}}
 
+  ;; `($nfx$ ($nfx$ 2 + 3) - ,($nfx$ 2 + 1))
+  ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:65:69 (2 + 1)>
+  ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax 2> .#<syntax +> .#<syntax 1>)
+  ;; $nfx$ : parsed-args=.#<syntax (+ 2 1)>
+  ;; '($nfx$ ($nfx$ 2 + 3) - 3)
+
+
+  
 
   ; ------------------------------------------------
   ; Key procedures to implement neoteric-expressions
@@ -107,33 +139,40 @@
   ; This implements a useful extension: (. b) returns b.
   (define (my-read-delimited-list my-read stop-char port)
     (let*
-      ((c   (peek-char port)))
+      ((c   (peek-char port))) ; peek a chat without really getting it out of the port
       (cond
-        ((eof-object? c) (read-error "EOF in middle of list") '())
-        ((eqv? c #\;)
+       ((eof-object? c) (read-error "EOF in middle of list") '()) ; error EOF
+       
+        ((eqv? c #\;) ; read a comment until end of line
           (consume-to-eol port)
           (my-read-delimited-list my-read stop-char port))
-        ((my-char-whitespace? c)
-          (read-char port)
+	
+        ((my-char-whitespace? c) ; skip the white space
+          (read-char port) ; really read the white space
           (my-read-delimited-list my-read stop-char port))
-        ((char=? c stop-char)
-          (read-char port)
+	
+        ((char=? c stop-char) ; stop char ,return '() ? perheaps for non empty statement or because we really have an empty list
+          (read-char port) ; really read the stop char
           '())
-        ((or (eq? c #\)) (eq? c #\]) (eq? c #\}))
-          (read-char port)
+	
+        ((or (eq? c #\)) (eq? c #\]) (eq? c #\})) ; if it was not one of the previous cases it is bad
+          (read-char port) ; really read the bad char
           (read-error "Bad closing character"))
 
-	(#t
+	(#t ; here we should be ready to read something serious (token, expression,...)
 	 
-          (let ((datum (my-read port)))
+         (let ((datum (my-read port))) ; should read a token
+
+	    ;;(display "datum=") (display datum)(newline) ; datum would contain quote,quasiquote,unquote,unquote-splicing,etc... push
 
 	    (cond 
 
 	     ;; here we got chars ... (not symbols)
 	     ;; processing period . is important for functions with variable numbers of parameters: (fct arg1 . restargs)
 	     ((eq? datum (string->symbol (string #\.))) ;; only this one works
+	      
                  (let ((datum2 (my-read port)))
-                   (consume-whitespace port)
+                   (consume-whitespace port) ; reading white space between . restargs ?
                    (cond
                      ((eof-object? datum2)
                       (read-error "Early eof in (... .)\n")
@@ -144,10 +183,15 @@
                        (read-char port)
                        datum2))))
 	     
+	     
 	     (#t
-	      ;; here we get a symbolic scheme expression
-	       (cons datum
-		     (my-read-delimited-list my-read stop-char port)))))))))
+	      ;; here we get the symbolic scheme expression (but it is constructed recursively,only at the end we get the correct full expression)
+	      
+	      (let ((expression 
+		     (cons datum
+			   (my-read-delimited-list my-read stop-char port))))
+		;;(display "expression=") (display expression) (newline) ; here we have finished a quoted region ,pop
+		expression))))))))
 
 
 
@@ -230,9 +274,11 @@
         ((my-char-whitespace? c)
           (read-char port)
           (my-read port))
-        ((char=? c #\( )
+	
+        ((char=? c #\( ) ; start parsing list
           (read-char port)
           (my-read-delimited-list my-read #\) port))
+	
 
         ((char=? c #\[ )
 
@@ -240,11 +286,13 @@
 
           (read-char port)
           (my-read-delimited-list my-read #\] port))
+	
 
 	((char=? c #\{ )
           (read-char port)
           (process-curly
-            (my-read-delimited-list neoteric-read-real #\} port)))
+           (my-read-delimited-list neoteric-read-real #\} port)))
+	
         ; Handle missing (, [, { :
         ((char=? c #\) )
           (read-char port)
