@@ -28,21 +28,76 @@
 
 
 
-;; variable to deal with quoted/quasiquoted binary curly infix regions
+;; procedures and global variables to deal with quoted,quasiquoted,unquoted,etc binary curly infix regions
+
+;; Notes on the modified algorithm:
+;; the original curly infix parser of SRFI 105 is written in a style which is functional recursive
+;; instead of using some stack. Modifying this algorithm should have be by adding an extra parameter
+;; defining the region context (quoted/unquoted) but this schema would have cause to pass
+;; an extra parameter in a lot of functions with the risk of an error in coding and a lot of work.
+;; I had intially and preferred to add a more complex stack but with less modifications in
+;; existing code. Then the modifications are only in parts dealing with quote,quasiquote,unquote
+;; unquote-splacing , sexpr,and of course process-curly but not in neoteric expressions
+;; and others intermediate procedures.
+
 ;; instantiate an empty stack and provide methods (push,pop...)
 
+;; note: the stack code is so simple that it is better inlined and hard to put in a module
 (define stack '())
+
 (define (push x) (set! stack (cons x stack)))
-(define (pop) 
+
+(define (pop)
+  (when (null? stack)
+    (error "SRFI-105-curly-infix : pop : EMPTY STACK ERROR")) 
   (define x (car stack))
   (set! stack (cdr stack))
   x)
 
-(define region-quote #f) ; at the beginning we are not in a quoted or quasiquoted region
 
-(define (find-quote)
-  (push #t)
+;; definitions for forcing or releasing the parsing of quoted (pseudoquoted too) expressions
+
+;; #t : quoted region (quote,quasiquote)
+;; #f : unquoted region (unquote,unquote-splicing)
+(define region-quote #f) ; intial value at launching
+
+(define (find*quote) ; quote , quasiquote but NOT unquote
+  (push region-quote) ; store the current mode on top of the stack
   (set! region-quote #t))
+
+(define (find-unquote*)
+  (push region-quote) ; store the current mode on top of the stack
+  (set! region-quote #f))
+
+(define (end-region) ; called when we find the end of a region
+  (set! region-quote (pop))) ; fallback to the previous mode stored on the stack
+
+
+
+;; definitions for testing equality to quoted regions
+(define (quote-or-quasi? datum)
+  (or (equal? datum 'quote)
+      (equal? datum 'quasiquote)))
+
+;; definitions for testing equality to unquoted regions and setting and storing the region modes
+(define (unquote-or-splicing? datum)
+  (or (equal? datum 'unquote)
+      (equal? datum 'unquote-splicing)))
+
+(define (check*quote datum)
+  (if (quote-or-quasi? datum)
+      (find*quote) ; return unspecified which is true
+      #f))
+
+(define (check-unquote* datum)
+  (if (unquote-or-splicing? datum)
+      (find-unquote*) ; return unspecified which is true
+      #f))
+
+(define (check*quote* datum)
+  (or (check*quote datum)
+      (check-unquote* datum)))
+
 
 
 
@@ -98,35 +153,134 @@
 
      
      ;; deal quoted and quasi-quoted the old way
+     ;; '{(2 + 3) - (5 - 7) - 2}
+     ;; '(- (2 + 3) (5 - 7) 2)
      
+     ;; '{(2 + 3) - (5 - 7)}
+     ;; '(- (2 + 3) (5 - 7))
      ((and region-quote
 	   (simple-infix-list? lyst)) ; Map {a OP b [OP c...]} to (OP a b [c...])
       
        (cons (cadr lyst) (alternating-parameters lyst)))
      
-     ;; comment force:
+     ;; comment above force this (which is not what i want):
      ;; > '{(2 + 3) - (5 - 7) - 2}
      ;; '($nfx$ (2 + 3) - (5 - 7) - 2)
-     ;; '($nfx$ (2 + 3) - (5 - 7) - 2)
 
-     ;; #<eof>
-     ;; > '{(2 + 3) - (5 - 7)}
+      ;; > '{(2 + 3) - (5 - 7)}
+     ;; '($nfx$ (2 + 3) - (5 - 7))
 
-     ;; '($nfx$ (2 + 3) - (5 - 7))
-     ;; '($nfx$ (2 + 3) - (5 - 7))
+     ;; `{{2 + 3} - ,{2 + 1}}
+     ;; `($nfx$ ($nfx$ 2 + 3) - ,($nfx$ 2 + 1))
+     ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:65:69 (2 + 1)>
+     ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax 2> .#<syntax +> .#<syntax 1>)
+     ;; $nfx$ : parsed-args=.#<syntax (+ 2 1)>
+     ;; '($nfx$ ($nfx$ 2 + 3) - 3)
      
      (#t  (transform-mixed-infix lyst))))
 
-
-  ;; `{{2 + 3} - ,{2 + 1}}
-
-  ;; `($nfx$ ($nfx$ 2 + 3) - ,($nfx$ 2 + 1))
-  ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:65:69 (2 + 1)>
+  ;; > `{{2 + 3} - ,{2 + 1}}
+  ;; `(- (+ 2 3) ,($nfx$ 2 + 1))
+  ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:66:69 (2 + 1)>
   ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax 2> .#<syntax +> .#<syntax 1>)
   ;; $nfx$ : parsed-args=.#<syntax (+ 2 1)>
-  ;; '($nfx$ ($nfx$ 2 + 3) - 3)
+  ;; '(- (+ 2 3) 3)
+
+  ;; > {x <- (1 + 2 + 3) - (4 + 5)}
+  ;; ($nfx$ x <- (1 + 2 + 3) - (4 + 5))
+  ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:66:69 (x <- (1 + 2 + 3) - (4 + 5))>
+  ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax x> .#<syntax <-> .#<syntax (1 + 2 + 3)> .#<syntax -> .#<syntax (4 + 5)>)
+  ;; $nfx$ : parsed-args=.#<syntax (<- x (- (+ 1 2 3) (+ 4 5)))>
+  ;; #<eof>
+  ;; > x
+  ;; x
+  ;; -3
+
+  
+
+  ;; > '{{(not a) and (not b) and (not c) and (not d)} or {(not a) and (not b) and (not c) and d} or {(not a) and (not b) and c and (not d)} or {(not a) and b and (not c) and d} or {(not a) and b and c and (not d)} or {(not a) and b and c and d} or {a and (not b) and (not c) and (not d)} or {a and (not b) and (not c) and d} or {a and (not b) and c and (not d)} or {c and (not d)}}
 
 
+  ;; '(or (and (not a) (not b) (not c) (not d))
+  ;;      (and (not a) (not b) (not c) d)
+  ;;      (and (not a) (not b) c (not d))
+  ;;      (and (not a) b (not c) d)
+  ;;      (and (not a) b c (not d))
+  ;;      (and (not a) b c d)
+  ;;      (and a (not b) (not c) (not d))
+  ;;      (and a (not b) (not c) d)
+  ;;      (and a (not b) c (not d))
+  ;;      (and c (not d)))
+  ;; '(or (and (not a) (not b) (not c) (not d))
+  ;;      (and (not a) (not b) (not c) d)
+  ;;      (and (not a) (not b) c (not d))
+  ;;      (and (not a) b (not c) d)
+  ;;      (and (not a) b c (not d))
+  ;;      (and (not a) b c d)
+  ;;      (and a (not b) (not c) (not d))
+  ;;      (and a (not b) (not c) d)
+  ;;      (and a (not b) c (not d))
+  ;;      (and c (not d)))
+
+
+  ;; #<eof>
+  ;; > {expr <- '(((not a) and (not b) and (not c) and (not d)) or ((not a) and (not b) and (not c) and d) or ((not a) and (not b) and c and (not d)) or ((not a) and b and (not c) and d) or ((not a) and b and c and (not d)) or ((not a) and b and c and d) or (a and (not b) and (not c) and (not d)) or (a and (not b) and (not c) and d) or (a and (not b) and c and (not d)) or (c and (not d)))}
+
+
+  ;; ($nfx$
+  ;;  expr
+  ;;  <-
+  ;;  '(((not a) and (not b) and (not c) and (not d))
+  ;;    or
+  ;;    ((not a) and (not b) and (not c) and d)
+  ;;    or
+  ;;    ((not a) and (not b) and c and (not d))
+  ;;    or
+  ;;    ((not a) and b and (not c) and d)
+  ;;    or
+  ;;    ((not a) and b and c and (not d))
+  ;;    or
+  ;;    ((not a) and b and c and d)
+  ;;    or
+  ;;    (a and (not b) and (not c) and (not d))
+  ;;    or
+  ;;    (a and (not b) and (not c) and d)
+  ;;    or
+  ;;    (a and (not b) and c and (not d))
+  ;;    or
+  ;;    (c and (not d))))
+  ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:66:69 (expr <- (quote (((not a) and...>
+  ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax expr> .#<syntax <-> .#<syntax (quote (((not a) and (not b) ...>)
+  ;; $nfx$ : parsed-args=.#<syntax (<- expr (quote (((not a) and...>
+
+
+  ;; #<eof>
+  ;; > expr
+
+
+  ;; expr
+  ;; '(((not a) and (not b) and (not c) and (not d))
+  ;;   or
+  ;;   ((not a) and (not b) and (not c) and d)
+  ;;   or
+  ;;   ((not a) and (not b) and c and (not d))
+  ;;   or
+  ;;   ((not a) and b and (not c) and d)
+  ;;   or
+  ;;   ((not a) and b and c and (not d))
+  ;;   or
+  ;;   ((not a) and b and c and d)
+  ;;   or
+  ;;   (a and (not b) and (not c) and (not d))
+  ;;   or
+  ;;   (a and (not b) and (not c) and d)
+  ;;   or
+  ;;   (a and (not b) and c and (not d))
+  ;;   or
+  ;;   (c and (not d)))
+
+
+  ;; #<eof>
   
 
   ; ------------------------------------------------
@@ -161,9 +315,12 @@
 
 	(#t ; here we should be ready to read something serious (token, expression,...)
 	 
-         (let ((datum (my-read port))) ; should read a token
+         (let* ((datum (my-read port)) ; should read a token
+		(q-reg (check*quote* datum))) ; *quote* region and also set a local flag for entering a critical region
 
-	    ;;(display "datum=") (display datum)(newline) ; datum would contain quote,quasiquote,unquote,unquote-splicing,etc... push
+	   ;;(when q-reg
+	     ;;(display "datum=") (display datum)(newline)) ; datum would contain quote,quasiquote,unquote,unquote-splicing,etc... push
+
 
 	    (cond 
 
@@ -190,7 +347,11 @@
 	      (let ((expression 
 		     (cons datum
 			   (my-read-delimited-list my-read stop-char port))))
-		;;(display "expression=") (display expression) (newline) ; here we have finished a quoted region ,pop
+		
+		(when q-reg
+		  ;;(display "expression=") (display expression) (newline) ; here we possibly have finished a *quote* region ,pop
+		  (end-region))
+		
 		expression))))))))
 
 
@@ -230,7 +391,7 @@
             (read-char port)
             (neoteric-process-tail port
               (let ((tail (process-curly
-                      (my-read-delimited-list neoteric-read-real #\} port))))
+			   (my-read-delimited-list neoteric-read-real #\} port))))
                 (if (eqv? tail '())
                   (list prefix) ; Map f{} to (f), not (f ()).
                   (list prefix tail)))))
@@ -308,22 +469,69 @@
           (my-read port))
         ((char=? c #\") ; Strings are delimited by ", so can call directly
 	 (default-scheme-read port))
+
 	
-        ((char=? c #\')
-          (read-char port)
-          (list 'quote (my-read port)))
-        ((char=? c #\`)
-          (read-char port)
-          (list 'quasiquote (my-read port)))
+	;; here we should 'push' as it is quoted or backquoted (pseudoquote,quasiquote)
+        ((char=? c #\') ; quote
+         (read-char port)
+	 ;;(display "char=") (display #\') (newline)
+	 (find*quote)
+	 (let ((mrp (my-read port)))
+	   (end-region)
+           (list 'quote mrp)))
 	
-        ((char=? c #\,)
-          (read-char port)
-            (cond
-              ((char=? #\@ (peek-char port))
-                (read-char port)
-                (list 'unquote-splicing (my-read port)))
+        ((char=? c #\`) ; quasiquote
+         (read-char port)
+	 ;;(display "char=") (display #\`) (newline)
+	 (find*quote)
+	 (let ((mrp (my-read port)))
+	   (end-region)
+           (list 'quasiquote mrp)))
+
+	;; > (quasiquote (,(sin 0.3) 3))
+	;; datum=quasiquote
+	;; char=,
+	;; expression=`(,(sin 0.3) 3)
+
+
+	;; `(,(sin 0.3) 3)
+	;; '(0.29552020666133955 3)
+
+
+	;; #<eof>
+	;; > (quasiquote (,'(sin 0.3) 3))
+	;; datum=quasiquote
+	;; char=,
+	;; char='
+	;; expression=`(,'(sin 0.3) 3)
+
+
+	;; `(,'(sin 0.3) 3)
+	;; '((sin 0.3) 3)
+
+
+	;; here we should 'pop' as we have to eval with unquote or unquote-splicing
+        ((char=? c #\,) ; unquote
+         (read-char port)
+	 ;;(display "char=") (display #\,)
+	 (find-unquote*)
+	 
+         (cond
+	  
+              ((char=? #\@ (peek-char port)) ; splicing
+               (read-char port)
+	       ;;(display #\@) (newline)
+	       (let ((mrp (my-read port)))
+		 (end-region)
+		 (list 'unquote-splicing mrp)))
+	      
               (#t
-	       (list 'unquote (my-read port)))))
+	       ;;(newline)
+	       (let ((mrp (my-read port)))
+		 (end-region)
+		 (list 'unquote mrp)))))
+
+
 	
         ;; ((ismember? c digits) ; Initial digit.
 	;;  (read-number port '()))

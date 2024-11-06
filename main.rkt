@@ -119,7 +119,7 @@
 
 
   
-  (display "SRFI-105 Curly Infix parser for Racket Scheme by Damien MATTEI") (newline)
+  (display "SRFI-105 Curly Infix parser for Racket Scheme and R6RS by Damien MATTEI") (newline)
   (display "(based on code from David A. Wheeler and Alan Manuel K. Gloria.)") (newline) (newline)
   
   (port-count-lines! in) ; turn on counting on port
