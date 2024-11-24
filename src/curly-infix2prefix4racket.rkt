@@ -40,11 +40,13 @@
 
 (require srfi/31) ;; for 'rec in def.scm
 
+(require SRFI-105/SRFI-105-curly-infix)
 
 (define stderr (current-error-port))
 
+(define stdout (current-output-port))
 
-(include "SRFI-105.scm")
+
 
 (define srfi-105 #f)
 
@@ -126,24 +128,40 @@
   
   (skip-comments-and-empty-lines in)
 
+  ;; search for executable in racket
+  (let loop ()
+    (define try-read (regexp-try-match #px"^#![[:print:]]*racket" in))
+    (when  try-read
+	   (when verbose
+		 (display "try-read : |" stderr) (display try-read stderr) (display "|" stderr) (newline stderr))
+	   (display (car try-read) stdout)  ; re-put it on the output port as we need it in the parsed generated file
+	   (newline stdout)
+	   (loop)))
+
+  (skip-comments-and-empty-lines in)
+
+  ;; search for curly infix
   (let loop ()
     (when  (regexp-try-match #px"^#!curly-infix[[:blank:]]*\n" in)
       (loop)))
 
   (skip-comments-and-empty-lines in)
 
+  ;; search for a reader 
   (let loop ()
     (when  (regexp-try-match #px"^#lang reader SRFI-105[[:blank:]]*\n" in)
       ;;(display "srfi 105") (newline)
       (loop)))
 
   (skip-comments-and-empty-lines in)
-  
+
+  ;; search for R6RS
   (when (regexp-try-match #px"^#!r6rs[[:blank:]]*\n" in)
 	(set! flag-r6rs #t)
 	(display "Detected R6RS code: #!r6rs" stderr) (newline stderr) (newline stderr))
 
-  (define lc '())
+  ;; find where the port is set ,line ,column,etc
+  (define lc '()) ; line number
   (define cc '())
   (define pc '())
   (set!-values (lc cc pc) (port-next-location in))
@@ -168,7 +186,7 @@
 	(newline)
  	
 	(pretty-print result
-		      (current-output-port)
+		      stdout
 		      1)
 	;;(write result)
 	;;(newline)
@@ -185,7 +203,7 @@
 
 	(for/list ([expr result])
 		  (pretty-print expr
-				(current-output-port)
+				stdout
 				1))
 	
 	;; (if (not (null? (cdr result)))
@@ -250,7 +268,7 @@
 
 ;; (if lang-reader
 ;;     (pretty-print code-lst
-;; 		  (current-output-port)
+;; 		  stdout
 ;; 		  1) ;; quote-depth : remove global quote of expression
 
 
@@ -261,7 +279,7 @@
 ;; (display code-lst) (newline) (newline)
 
 ;; (for-each (lambda (expr) (pretty-print expr
-;; 				       (current-output-port)
+;; 				       stdout
 ;; 				       1)) ;; quote-depth : remove global quote of
 ;; 	  code-lst)
 

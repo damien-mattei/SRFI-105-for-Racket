@@ -16,6 +16,18 @@
 		 alternating-parameters)
 
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; globals variables that can be modified by coder
+(define srfi-strict #f) ; enable strict compatibility with SRFI 105
+
+(define care-of-quote #f) ; keep quoting expression (no $nfx$ will be inserted),
+;; usefull to use symbolic expressions
+;; (but makes debugging harder because quoted expression to debug will not be the same as executed)	
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
 
 ;; library procedures and macro
 (define insert cons)
@@ -143,11 +155,15 @@
 
 
   ; Given curly-infix lyst, map it to its final internal format.
-  (define (process-curly lyst)
-    (cond
-     ((not (pair? lyst)) lyst) ; E.G., map {} to ().
+(define (process-curly lyst)
+  
+  (cond
+   
+   ((not (pair? lyst)) lyst) ; E.G., map {} to ().
+   
      ((null? (cdr lyst)) ; Map {a} to a.
-       (car lyst))
+      (car lyst))
+     
      ((and (pair? (cdr lyst)) (null? (cddr lyst))) ; Map {a b} to (a b).
       lyst)
 
@@ -158,10 +174,12 @@
      
      ;; '{(2 + 3) - (5 - 7)}
      ;; '(- (2 + 3) (5 - 7))
-     ((and region-quote
-	   (simple-infix-list? lyst)) ; Map {a OP b [OP c...]} to (OP a b [c...])
+     ((and (simple-infix-list? lyst)
+	   (or (and care-of-quote
+		    region-quote)
+	       srfi-strict)) ; Map {a OP b [OP c...]} to (OP a b [c...])
       
-       (cons (cadr lyst) (alternating-parameters lyst)))
+      (cons (cadr lyst) (alternating-parameters lyst)))
      
      ;; comment above force this (which is not what i want):
      ;; > '{(2 + 3) - (5 - 7) - 2}
