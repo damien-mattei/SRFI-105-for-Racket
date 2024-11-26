@@ -1,4 +1,4 @@
-SRFI-105 Curly Infix version 9.5 for Racket and R6RS (autodetection)
+SRFI-105 Curly Infix version 9.7 for Racket and R6RS (autodetection)
 
 Install as a package.
  
@@ -17,4 +17,6 @@ Also provide the parser curly-infix2prefix4racket.scm:
 
 
 Some REPL (Read Eval Print Loop) are available in src/ subdirectory.
+
+A Makefile is also available in the same subdirectory, to parse Scheme+ file in standart Scheme,allowing the debugging of parsed files in Racket GUI or command line.
 
