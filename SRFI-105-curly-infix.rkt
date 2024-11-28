@@ -21,9 +21,9 @@
 ;; globals variables that can be modified by coder
 (define srfi-strict #f) ; enable strict compatibility with SRFI 105
 
-(define care-of-quote #t) ; keep quoting expression (no $nfx$ will be inserted),
+(define care-of-quote #t) ; keep quoted expression (no $nfx$ will be inserted in curly infix expressions),
 ;; usefull to use symbolic expressions
-;; (but makes debugging harder because quoted expression to debug will not be the same as executed)	
+;; (but makes debugging harder because quoted expression to debug will not be the same as evaluated unquoted ones)	
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
