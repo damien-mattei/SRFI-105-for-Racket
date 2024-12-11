@@ -21,7 +21,7 @@
 ;; globals variables that can be modified by coder
 (define srfi-strict #f) ; enable strict compatibility with SRFI 105
 
-(define care-of-quote #t) ; keep quoted expression (no $nfx$ will be inserted in curly infix expressions),
+(define care-of-quote #f) ; keep quoted expression when #t (no $nfx$ will be inserted in curly infix expressions),
 ;; usefull to use symbolic expressions
 ;; (but makes debugging harder because quoted expression to debug will not be the same as evaluated unquoted ones)	
 
@@ -159,13 +159,38 @@
   
   (cond
    
-   ((not (pair? lyst)) lyst) ; E.G., map {} to ().
+     ((not (pair? lyst)) lyst) ; E.G., map {} to ().
    
      ((null? (cdr lyst)) ; Map {a} to a.
-      (car lyst))
+      ;;(car lyst))
+
+      ;; {(3.7 + 1)}
+      ;; ($nfx$ (3.7 + 1))
+      ;; 4.7
+
+      ;;{3.7}
+      ;;($nfx$ 3.7)
+      ;;3.7
+      (list '$nfx$ (car lyst)))
      
-     ((and (pair? (cdr lyst)) (null? (cddr lyst))) ; Map {a b} to (a b).
-      lyst)
+     ((and (pair? (cdr lyst))
+	   (null? (cddr lyst))) ; Map {a b} to (a b).
+      ;;lyst)
+
+      ;; > '{abs (3.7 + 1)}
+      ;; '($nfx$ abs (3.7 + 1))
+
+      ;; > {abs (3.7 + 1)}
+      ;; ($nfx$ abs (3.7 + 1))
+      ;; 4.7
+
+      ;; > (define (h x y) {abs ((cos (x + y)) * (sin (x - y))) } )
+      ;; (define (h x y) ($nfx$ abs ((cos (x + y)) * (sin (x - y)))))
+      ;; #<eof>
+      ;; > (h  .2 .3)
+      ;; (h 0.2 0.3)
+      ;; 0.08761206554319241
+      (cons '$nfx$ lyst))
 
      
      ;; deal quoted and quasi-quoted the old way
@@ -179,7 +204,8 @@
 		    region-quote)
 	       srfi-strict)) ; Map {a OP b [OP c...]} to (OP a b [c...])
       
-      (cons (cadr lyst) (alternating-parameters lyst)))
+      (cons (cadr lyst)
+	    (alternating-parameters lyst)))
      
      ;; comment above force this (which is not what i want):
      ;; > '{(2 + 3) - (5 - 7) - 2}
@@ -195,7 +221,8 @@
      ;; $nfx$ : parsed-args=.#<syntax (+ 2 1)>
      ;; '($nfx$ ($nfx$ 2 + 3) - 3)
      
-     (#t  (transform-mixed-infix lyst))))
+     (#t
+      (transform-mixed-infix lyst))))
 
   ;; > `{{2 + 3} - ,{2 + 1}}
   ;; `(- (+ 2 3) ,($nfx$ 2 + 1))
