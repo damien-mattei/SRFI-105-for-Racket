@@ -162,7 +162,7 @@
      ((not (pair? lyst)) lyst) ; E.G., map {} to ().
    
      ((null? (cdr lyst)) ; Map {a} to a.
-      ;;(car lyst))
+      ;;(car lyst))  ; original version
 
       ;; {(3.7 + 1)}
       ;; ($nfx$ (3.7 + 1))
@@ -222,7 +222,7 @@
      ;; '($nfx$ ($nfx$ 2 + 3) - 3)
      
      (#t
-      (transform-mixed-infix lyst))))
+      (transform-mixed-infix lyst)))) ; will insert $nfx$ in front of list
 
   ;; > `{{2 + 3} - ,{2 + 1}}
   ;; `(- (+ 2 3) ,($nfx$ 2 + 1))

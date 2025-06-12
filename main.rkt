@@ -13,6 +13,7 @@
 
 
 
+
 (module SRFI-105 racket
 	
 
@@ -26,6 +27,11 @@
 
 ;;(require "src/SRFI-105.rkt")
 (require SRFI-105/SRFI-105-curly-infix)
+
+
+(display "SRFI 105 Curly Infix for Scheme+ v9.8") (newline)
+
+
 
 
 (define flag-r6rs #f)
