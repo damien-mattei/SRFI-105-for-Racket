@@ -122,7 +122,7 @@
   ; If passed empty list, returns true (so recursion works correctly).
   (define (even-and-op-prefix? op lyst)
     (cond
-      ((null? lyst) #t)
+       ((null? lyst) #t)
       ((not (pair? lyst)) #f)
       ((not (equal? op (car lyst))) #f) ; fail - operators not the same
       ((not (pair? (cdr lyst)))  #f) ; Wrong # of parameters or improper
@@ -138,7 +138,9 @@
                              ; this way for performance)
       (even-and-op-prefix? (cadr lyst) (cdr lyst)))) ; true if rest is simple
 
-  ; Return alternating parameters in a lyst (1st, 3rd, 5th, etc.)
+  ;; Return alternating parameters in a lyst (1st, 3rd, 5th, etc.)
+  ;; (alternating-parameters '(< 3 < y <= z))
+  ;; '(< < <=)
   (define (alternating-parameters lyst)
     (if (or (null? lyst) (null? (cdr lyst)))
       lyst
