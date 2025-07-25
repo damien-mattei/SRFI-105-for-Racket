@@ -35,7 +35,8 @@
 		      (else info-getter)))
 
 (display (string-append "SRFI 105 Curly Infix v" version " for Scheme+")) (newline)
-
+(display "care of quote flag set to:") (display care-of-quote) (newline)
+(display "strict SRFI-105 flag set to:") (display srfi-strict) (newline)
 
 
 

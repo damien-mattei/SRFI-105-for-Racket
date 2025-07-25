@@ -6,14 +6,16 @@
 
 ;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-;; modification for Scheme implementations (Racket,...) and Scheme+ by Damien Mattei - 2024
+;; modification for Scheme implementations (Racket,...) and Scheme+ by Damien Mattei - 2024 - 2025
 
 
 
 (module SRFI-105-curly-infix racket
 
 	(provide curly-infix-read
-		 alternating-parameters)
+		 alternating-parameters
+		 care-of-quote
+		 srfi-strict)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -21,6 +23,7 @@
 ;; globals variables that can be modified by coder
 (define srfi-strict #f) ; enable strict compatibility with SRFI 105
 
+;; partially deprecated? as the new parenthesis syntax and insertion of $nfx$ create a recursive parsing with infix autodetection
 (define care-of-quote #t) ; keep quoted expression when #t (no $nfx$ will be inserted in curly infix expressions),
 ;; usefull to use symbolic expressions
 ;; (but makes debugging harder because quoted expression to debug will not be the same as evaluated unquoted ones)	
@@ -152,7 +155,7 @@
   ; so that future experiments or SRFIs can easily replace just this piece.
 (define (transform-mixed-infix lyst)
   ;;(display "lyst=") (display lyst) (newline)
-  (cons '$nfx$ lyst))
+  (cons '$nfx$ lyst)) ; ($nfx$ a b c ...)
 
 
 
@@ -164,35 +167,38 @@
      ((not (pair? lyst)) lyst) ; E.G., map {} to ().
    
      ((null? (cdr lyst)) ; Map {a} to a.
-      ;;(car lyst))  ; original version
+      (if srfi-strict
+	  (car lyst)  ; original version
 
-      ;; {(3.7 + 1)}
-      ;; ($nfx$ (3.7 + 1))
-      ;; 4.7
+	  ;; {(3.7 + 1)}
+	  ;; ($nfx$ (3.7 + 1))
+	  ;; 4.7
 
-      ;;{3.7}
-      ;;($nfx$ 3.7)
-      ;;3.7
-      (list '$nfx$ (car lyst)))
+	  ;;{3.7}
+	  ;;($nfx$ 3.7)
+	  ;;3.7
+	  (list '$nfx$ (car lyst)))) ; ($nfx$ a)
      
      ((and (pair? (cdr lyst))
 	   (null? (cddr lyst))) ; Map {a b} to (a b).
-      ;;lyst)
 
-      ;; > '{abs (3.7 + 1)}
-      ;; '($nfx$ abs (3.7 + 1))
+      (if srfi-strict
+	  lyst
 
-      ;; > {abs (3.7 + 1)}
-      ;; ($nfx$ abs (3.7 + 1))
-      ;; 4.7
+	  ;; > '{abs (3.7 + 1)}
+	  ;; '($nfx$ abs (3.7 + 1))
 
-      ;; > (define (h x y) {abs ((cos (x + y)) * (sin (x - y))) } )
-      ;; (define (h x y) ($nfx$ abs ((cos (x + y)) * (sin (x - y)))))
-      ;; #<eof>
-      ;; > (h  .2 .3)
-      ;; (h 0.2 0.3)
-      ;; 0.08761206554319241
-      (cons '$nfx$ lyst))
+	  ;; > {abs (3.7 + 1)}
+	  ;; ($nfx$ abs (3.7 + 1))
+	  ;; 4.7
+
+	  ;; > (define (h x y) {abs ((cos (x + y)) * (sin (x - y))) } )
+	  ;; (define (h x y) ($nfx$ abs ((cos (x + y)) * (sin (x - y)))))
+	  ;; #<eof>
+	  ;; > (h  .2 .3)
+	  ;; (h 0.2 0.3)
+	  ;; 0.08761206554319241
+	  (cons '$nfx$ lyst))) ; ($nfx$ a b)
 
      
      ;; deal quoted and quasi-quoted the old way
@@ -327,7 +333,20 @@
   ;;   (c and (not d)))
 
 
-  ;; #<eof>
+;; #<eof>
+
+;; warning the above expression is now parsed and result in: (no more depending of care of quote flag)
+;;expr
+;; '(or (and (not a) (not b) (not c) (not d))
+;;      (and (not a) (not b) (not c) d)
+;;      (and (not a) (not b) c (not d))
+;;      (and (not a) b (not c) d)
+;;      (and (not a) b c (not d))
+;;      (and (not a) b c d)
+;;      (and a (not b) (not c) (not d))
+;;      (and a (not b) (not c) d)
+;;      (and a (not b) c (not d))
+;;      (and c (not d)))
   
 
   ; ------------------------------------------------
