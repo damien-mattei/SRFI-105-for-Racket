@@ -161,23 +161,52 @@
 
   ; Given curly-infix lyst, map it to its final internal format.
 (define (process-curly lyst)
+
+  ;;(display "SRFI-105 : process-curly lyst=") (display lyst) (newline)
+
   
-  (cond
+  (cond 
    
      ((not (pair? lyst)) lyst) ; E.G., map {} to ().
    
      ((null? (cdr lyst)) ; Map {a} to a.
-      (if srfi-strict
-	  (car lyst)  ; original version
 
-	  ;; {(3.7 + 1)}
-	  ;; ($nfx$ (3.7 + 1))
-	  ;; 4.7
+      (cond ((eq? (car lyst)
+		  'BEGIN-STRICT-SRFI-105-REGION)
+	     ;; > {BEGIN-STRICT-SRFI-105-REGION}
+	     ;; #<void>
+	     ;; #<eof>
+	     ;; > {abs (3.7 + 1)}
+	     ;; (abs (3.7 + 1))
+	     ;; . . ../../../../../../racket/collects/racket/private/kw.rkt:1260:25: application: not a procedure;
+	     ;;  expected a procedure that can be applied to arguments
+	     ;;   given: 3.7
+	     (set! srfi-strict #t))
+	    
+	    ((eq? (car lyst)
+		  'END-STRICT-SRFI-105-REGION)
+	     ;;> {END-STRICT-SRFI-105-REGION}
+	     ;; #<void>
+	     ;; #<eof>
+	     ;; > {abs (3.7 + 1)}
+	     ;; ($nfx$ abs (3.7 + 1))
+	     ;; 4.7
+	     ;; #<eof>
+	     (set! srfi-strict #f))
 
-	  ;;{3.7}
-	  ;;($nfx$ 3.7)
-	  ;;3.7
-	  (list '$nfx$ (car lyst)))) ; ($nfx$ a)
+	    (srfi-strict
+	     (car lyst))  ; original version
+
+	    (else
+	     
+	     ;; {(3.7 + 1)}
+	     ;; ($nfx$ (3.7 + 1))
+	     ;; 4.7
+	     
+	     ;;{3.7}
+	     ;;($nfx$ 3.7)
+	     ;;3.7
+	     (list '$nfx$ (car lyst))))) ; ($nfx$ a)
      
      ((and (pair? (cdr lyst))
 	   (null? (cddr lyst))) ; Map {a b} to (a b).
