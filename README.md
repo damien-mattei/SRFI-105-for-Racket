@@ -23,6 +23,10 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 
 New feature of version 10.0:
 
+Allow strict SRFI-105 compatibility that had been altered in previous versions.
+
+This could be done by setting the srfi-strict flag in the library source code or simply in develloper code by using pragmas.
+
 Pragmas to insert in source code to define strict SRFI-105 region parsing.
 
 ```{BEGIN-STRICT-SRFI-105-REGION}```
