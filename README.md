@@ -33,7 +33,7 @@ They are no more between {  } , the update of code is because of a bug, the prev
 
 Example of code:
 
-```
+```scheme
 (require (rename-in racket/contract (-> C>)))
 
 BEGIN-STRICT-SRFI-105-REGION
@@ -45,7 +45,7 @@ where ```C>``` is in fact ```->```
 
 Also now this simple code is working starting with Scheme+ version 10.4:
 
-```
+```scheme
 {positive-integer? -> (listof positive-integer-triplet?)}
 ```
 
