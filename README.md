@@ -30,7 +30,7 @@ Updated code of pragmas to insert in source code to define strict SRFI-105 regio
 
 ```END-STRICT-SRFI-105-REGION```
 
-They are no more between {  } , the update of code is because of a bug, the previous pragmas version where making a side-effect on generated source code by in serting a ```#<void>``` result causing some code to fails , for example Racket's contract where false becausing the returning type code was the #<void> instead of being what it should be.
+They are no more between {  } , the update of code is because of a bug, the previous pragmas version where making a side-effect on generated source code by in serting a ```#<void>``` result causing some code to fails , for example Racket's contract where false because the returning type code was the #<void> instead of being what it should be.
 
 Example of code:
 
