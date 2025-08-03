@@ -82,7 +82,8 @@
   ;; (newline)
   )
    
-  
+
+
 
 (define (literal-read in)
   (syntax->datum
@@ -117,17 +118,15 @@
 
 
 
-
-
 ;; read all the expression of program
 ;; a tail recursive version
 (define (process-input-code-tail-rec in) ;; in: port
 
   (define (process-input-code-rec-tail-recursive acc)
     (define result (curly-infix-read in))  ;; read an expression
-    (if (eof-object? result)
-	(reverse acc)
-	(process-input-code-rec-tail-recursive (cons result acc))))
+    (cond ((eof-object? result)
+	   (reverse acc))
+	  (else (process-input-code-rec-tail-recursive (cons result acc)))))
 
 
   
@@ -161,7 +160,8 @@
       (let ((result (curly-infix-read in))) ;; read an expression
 	
 	(when (eof-object? result)
-	    (error "ERROR: EOF : End Of File : " result))
+	  (error "ERROR: EOF : End Of File : " result))
+	
 	(display "(module aschemeplusr6rsprogram r6rs")
 	(newline)
  	

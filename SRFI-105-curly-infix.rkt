@@ -171,42 +171,17 @@
    
      ((null? (cdr lyst)) ; Map {a} to a.
 
-      (cond ((eq? (car lyst)
-		  'BEGIN-STRICT-SRFI-105-REGION)
-	     ;; > {BEGIN-STRICT-SRFI-105-REGION}
-	     ;; #<void>
-	     ;; #<eof>
-	     ;; > {abs (3.7 + 1)}
-	     ;; (abs (3.7 + 1))
-	     ;; . . ../../../../../../racket/collects/racket/private/kw.rkt:1260:25: application: not a procedure;
-	     ;;  expected a procedure that can be applied to arguments
-	     ;;   given: 3.7
-	     (set! srfi-strict #t))
-	    
-	    ((eq? (car lyst)
-		  'END-STRICT-SRFI-105-REGION)
-	     ;;> {END-STRICT-SRFI-105-REGION}
-	     ;; #<void>
-	     ;; #<eof>
-	     ;; > {abs (3.7 + 1)}
-	     ;; ($nfx$ abs (3.7 + 1))
-	     ;; 4.7
-	     ;; #<eof>
-	     (set! srfi-strict #f))
-
-	    (srfi-strict
-	     (car lyst))  ; original version
-
-	    (else
-	     
-	     ;; {(3.7 + 1)}
-	     ;; ($nfx$ (3.7 + 1))
-	     ;; 4.7
-	     
-	     ;;{3.7}
-	     ;;($nfx$ 3.7)
-	     ;;3.7
-	     (list '$nfx$ (car lyst))))) ; ($nfx$ a)
+      (if srfi-strict
+	  (car lyst)  ; original version
+	  
+	  ;; {(3.7 + 1)}
+	  ;; ($nfx$ (3.7 + 1))
+	  ;; 4.7
+	  
+	  ;;{3.7}
+	  ;;($nfx$ 3.7)
+	  ;;3.7
+	  (list '$nfx$ (car lyst)))) ; ($nfx$ a)
      
      ((and (pair? (cdr lyst))
 	   (null? (cddr lyst))) ; Map {a b} to (a b).
@@ -411,10 +386,19 @@
 	(#t ; here we should be ready to read something serious (token, expression,...)
 	 
          (let* ((datum (my-read port)) ; should read a token
+		(strict-srfi-105-pragma #f)
 		(q-reg (check*quote* datum))) ; *quote* region and also set a local flag for entering a critical region
 
 	   ;;(when q-reg
-	     ;;(display "datum=") (display datum)(newline)) ; datum would contain quote,quasiquote,unquote,unquote-splicing,etc... push
+	   ;;(display "datum=") (display datum)(newline)) ; datum would contain quote,quasiquote,unquote,unquote-splicing,etc... push
+
+	   (when (eq? datum 'BEGIN-STRICT-SRFI-105-REGION)
+	     (set! strict-srfi-105-pragma #t)
+	     (set! srfi-strict #t))
+
+	   (when (eq? datum 'END-STRICT-SRFI-105-REGION)
+	     (set! strict-srfi-105-pragma #t)
+	     (set! srfi-strict #f))
 
 
 	    (cond 
@@ -439,9 +423,16 @@
 	     (#t
 	      ;; here we get the symbolic scheme expression (but it is constructed recursively,only at the end we get the correct full expression)
 	      
-	      (let ((expression 
-		     (cons datum
-			   (my-read-delimited-list my-read stop-char port))))
+	      ;; (let ((expression 
+	      ;; 	     (cons datum
+	      ;; 		   (my-read-delimited-list my-read stop-char port))))
+
+	      (let ((expression '()))
+
+		(if strict-srfi-105-pragma
+		    (set! expression (my-read-delimited-list my-read stop-char port)) ; drop the datum as it is a pragma directive
+		    (set! expression (cons datum ;; normal case
+					   (my-read-delimited-list my-read stop-char port))))
 		
 		(when q-reg
 		  ;;(display "expression=") (display expression) (newline) ; here we possibly have finished a *quote* region ,pop
@@ -511,7 +502,6 @@
 
 
 
-
 ; ------------------------------------------------
   ; Demo procedures to implement curly-infix and neoteric readers
   ; ------------------------------------------------
@@ -545,9 +535,10 @@
 	
 
 	((char=? c #\{ )
-          (read-char port)
-          (process-curly
-           (my-read-delimited-list neoteric-read-real #\} port)))
+         (read-char port)
+
+	 (process-curly
+		   (my-read-delimited-list neoteric-read-real #\} port)));)
 	
         ; Handle missing (, [, { :
         ((char=? c #\) )
@@ -689,6 +680,7 @@
       (if (eof-object? prefix)
         prefix
         (neoteric-process-tail port prefix))))
+  
 
   (define (neoteric-read . port)
     (if (null? port)
