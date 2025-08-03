@@ -21,7 +21,8 @@ Some REPL (Read Eval Print Loop) are available in src/ subdirectory.
 A Makefile is also available in the same subdirectory, to parse Scheme+ file in standart Scheme,allowing the debugging of parsed files in Racket GUI or command line.
 
 
-Changes of version 10.1:
+
+**Changes of version 10.1:**
 
 Updated code of pragmas to insert in source code to define strict SRFI-105 region parsing that are now:
 
@@ -50,7 +51,8 @@ Also now this simple code is working starting with Scheme+ version 10.4:
 ```
 
 
-New feature of version 10.0:
+
+**New feature of version 10.0:**
 
 Allow strict SRFI-105 compatibility that had been altered in previous versions.
 
