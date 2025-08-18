@@ -20,6 +20,10 @@ Some REPL (Read Eval Print Loop) are available in src/ subdirectory.
 
 A Makefile is also available in the same subdirectory, to parse Scheme+ file in standart Scheme,allowing the debugging of parsed files in Racket GUI or command line.
 
+**Changes of version 11.2:**
+
+Bug correction : missing a character delimiter string in info.rkt was preventing compilation for Racket package and in general i suppose.
+
 **Changes of version 11.0:**
 
 Infix to prefix with operator precedence is now done by default in the reader parser stage.There is a flag in the code to fall back to previous behavior: use-only-syntax-transformers. this result in compatiblity with other language that change the syntax, for example it should be compatible with Qi (even if not tested).Also the call of parsing by curly infix reader allows extended features with superscripted syntax with not only constants but variables too.
@@ -31,7 +35,6 @@ Example:
 ```
 
 
-<br>
 
 
 
