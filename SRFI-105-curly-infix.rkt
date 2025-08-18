@@ -6,7 +6,7 @@
 
 ;; THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-;; modification for Scheme implementations (Racket,...) and Scheme+ by Damien Mattei - 2024 - 2025
+;; modification for Scheme implementations (Racket,...) and Scheme+ by Damien Mattei , 2024 - 2025
 
 
 
@@ -15,18 +15,28 @@
 	(provide curly-infix-read
 		 alternating-parameters
 		 care-of-quote
-		 srfi-strict)
+		 srfi-strict
+		 use-only-syntax-transformers)
 
+	(require Scheme+/nfx)
+	
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; globals variables that can be modified by coder
-(define srfi-strict #f) ; enable strict compatibility with SRFI 105
+	
+;; globals variables that can be modified by coder or by pragma
+	
+(define srfi-strict #f) ; enable strict compatibility with SRFI 105 that will NOT force some $nfx$ apply almost everywhere
 
 ;; partially deprecated? as the new parenthesis syntax and insertion of $nfx$ create a recursive parsing with infix autodetection
 (define care-of-quote #t) ; keep quoted expression when #t (no $nfx$ will be inserted in curly infix expressions),
 ;; usefull to use symbolic expressions
-;; (but makes debugging harder because quoted expression to debug will not be the same as evaluated unquoted ones)	
+;; (but makes debugging harder because quoted expression to debug will not be the same as evaluated unquoted ones)
+
+(define use-only-syntax-transformers #f) ; use only syntax transformers: syntax transformers are used by scheme+
+					; when false the parser will partially do the job of syntax transformers
+					; it will do the job for expression between { } but not for 'define and 'define+
+					; letting it be done by syntax transformers 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -164,194 +174,308 @@
 
   ;;(display "SRFI-105 : process-curly lyst=") (display lyst) (newline)
 
-  
-  (cond 
-   
-     ((not (pair? lyst)) lyst) ; E.G., map {} to ().
-   
-     ((null? (cdr lyst)) ; Map {a} to a.
+  (if use-only-syntax-transformers
 
-      (if srfi-strict
-	  (car lyst)  ; original version
-	  
-	  ;; {(3.7 + 1)}
-	  ;; ($nfx$ (3.7 + 1))
-	  ;; 4.7
-	  
-	  ;;{3.7}
-	  ;;($nfx$ 3.7)
-	  ;;3.7
-	  (list '$nfx$ (car lyst)))) ; ($nfx$ a)
-     
-     ((and (pair? (cdr lyst))
-	   (null? (cddr lyst))) ; Map {a b} to (a b).
+      (cond 
 
-      (if srfi-strict
-	  lyst
+       ;; E.G., map {} to ().
+       
+       ((not (pair? lyst)) lyst) ; E.G., map {} to ().
 
-	  ;; > '{abs (3.7 + 1)}
-	  ;; '($nfx$ abs (3.7 + 1))
 
-	  ;; > {abs (3.7 + 1)}
-	  ;; ($nfx$ abs (3.7 + 1))
-	  ;; 4.7
+       
+       ;; Map {a} to a.
+       
+       ((null? (cdr lyst)) ; Map {a} to a.
 
-	  ;; > (define (h x y) {abs ((cos (x + y)) * (sin (x - y))) } )
-	  ;; (define (h x y) ($nfx$ abs ((cos (x + y)) * (sin (x - y)))))
-	  ;; #<eof>
-	  ;; > (h  .2 .3)
-	  ;; (h 0.2 0.3)
-	  ;; 0.08761206554319241
-	  (cons '$nfx$ lyst))) ; ($nfx$ a b)
+	(if srfi-strict
+	    (car lyst)  ; original version
+	    
+	    ;; {(3.7 + 1)}
+	    ;; ($nfx$ (3.7 + 1))
+	    ;; 4.7
+	    
+	    ;;{3.7}
+	    ;;($nfx$ 3.7)
+	    ;;3.7
+	    (list '$nfx$ (car lyst)))) ; ($nfx$ a)
 
-     
-     ;; deal quoted and quasi-quoted the old way
-     ;; '{(2 + 3) - (5 - 7) - 2}
-     ;; '(- (2 + 3) (5 - 7) 2)
-     
-     ;; '{(2 + 3) - (5 - 7)}
-     ;; '(- (2 + 3) (5 - 7))
-     ((and (simple-infix-list? lyst)
-	   (or (and care-of-quote
-		    region-quote)
-	       srfi-strict)) ; Map {a OP b [OP c...]} to (OP a b [c...])
+       
+
+       ;; Map {a b} to (a b).
+       
+       ((and (pair? (cdr lyst))
+	     (null? (cddr lyst))) ; Map {a b} to (a b).
+
+	(if srfi-strict
+	    lyst
+
+	    ;; > '{abs (3.7 + 1)}
+	    ;; '($nfx$ abs (3.7 + 1))
+
+	    ;; > {abs (3.7 + 1)}
+	    ;; ($nfx$ abs (3.7 + 1))
+	    ;; 4.7
+
+	    ;; > (define (h x y) {abs ((cos (x + y)) * (sin (x - y))) } )
+	    ;; (define (h x y) ($nfx$ abs ((cos (x + y)) * (sin (x - y)))))
+	    ;; #<eof>
+	    ;; > (h  .2 .3)
+	    ;; (h 0.2 0.3)
+	    ;; 0.08761206554319241
+	    (cons '$nfx$ lyst))) ; ($nfx$ a b)
+
+
+
+       ;; Map {a OP b [OP c...]} to (OP a b [c...])
+       
+       ;; deal quoted and quasi-quoted the old way
+       ;; '{(2 + 3) - (5 - 7) - 2}
+       ;; '(- (2 + 3) (5 - 7) 2)
+       
+       ;; '{(2 + 3) - (5 - 7)}
+       ;; '(- (2 + 3) (5 - 7))
+       ((and (simple-infix-list? lyst)
+	     (or (and care-of-quote
+		      region-quote)
+		 srfi-strict)) ; Map {a OP b [OP c...]} to (OP a b [c...])
+	
+	(cons (cadr lyst)
+	      (alternating-parameters lyst)))
+       
+       ;; comment above force this (which is not what i want):
+       ;; > '{(2 + 3) - (5 - 7) - 2}
+       ;; '($nfx$ (2 + 3) - (5 - 7) - 2)
+
+       ;; > '{(2 + 3) - (5 - 7)}
+       ;; '($nfx$ (2 + 3) - (5 - 7))
+
+       ;; `{{2 + 3} - ,{2 + 1}}
+       ;; `($nfx$ ($nfx$ 2 + 3) - ,($nfx$ 2 + 1))
+       ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:65:69 (2 + 1)>
+       ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax 2> .#<syntax +> .#<syntax 1>)
+       ;; $nfx$ : parsed-args=.#<syntax (+ 2 1)>
+       ;; '($nfx$ ($nfx$ 2 + 3) - 3)
+
+
+       ;; general case
+       
+       (#t ; will insert $nfx$ in front of list
+	(transform-mixed-infix lyst))) 
+
+
       
-      (cons (cadr lyst)
-	    (alternating-parameters lyst)))
-     
-     ;; comment above force this (which is not what i want):
-     ;; > '{(2 + 3) - (5 - 7) - 2}
-     ;; '($nfx$ (2 + 3) - (5 - 7) - 2)
+      ;; > `{{2 + 3} - ,{2 + 1}}
+      ;; `(- (+ 2 3) ,($nfx$ 2 + 1))
+      ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:66:69 (2 + 1)>
+      ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax 2> .#<syntax +> .#<syntax 1>)
+      ;; $nfx$ : parsed-args=.#<syntax (+ 2 1)>
+      ;; '(- (+ 2 3) 3)
 
-      ;; > '{(2 + 3) - (5 - 7)}
-     ;; '($nfx$ (2 + 3) - (5 - 7))
+      ;; > {x <- (1 + 2 + 3) - (4 + 5)}
+      ;; ($nfx$ x <- (1 + 2 + 3) - (4 + 5))
+      ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:66:69 (x <- (1 + 2 + 3) - (4 + 5))>
+      ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax x> .#<syntax <-> .#<syntax (1 + 2 + 3)> .#<syntax -> .#<syntax (4 + 5)>)
+      ;; $nfx$ : parsed-args=.#<syntax (<- x (- (+ 1 2 3) (+ 4 5)))>
+      ;; #<eof>
+      ;; > x
+      ;; x
+      ;; -3
 
-     ;; `{{2 + 3} - ,{2 + 1}}
-     ;; `($nfx$ ($nfx$ 2 + 3) - ,($nfx$ 2 + 1))
-     ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:65:69 (2 + 1)>
-     ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax 2> .#<syntax +> .#<syntax 1>)
-     ;; $nfx$ : parsed-args=.#<syntax (+ 2 1)>
-     ;; '($nfx$ ($nfx$ 2 + 3) - 3)
-     
-     (#t
-      (transform-mixed-infix lyst)))) ; will insert $nfx$ in front of list
+      
 
-  ;; > `{{2 + 3} - ,{2 + 1}}
-  ;; `(- (+ 2 3) ,($nfx$ 2 + 1))
-  ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:66:69 (2 + 1)>
-  ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax 2> .#<syntax +> .#<syntax 1>)
-  ;; $nfx$ : parsed-args=.#<syntax (+ 2 1)>
-  ;; '(- (+ 2 3) 3)
-
-  ;; > {x <- (1 + 2 + 3) - (4 + 5)}
-  ;; ($nfx$ x <- (1 + 2 + 3) - (4 + 5))
-  ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:66:69 (x <- (1 + 2 + 3) - (4 + 5))>
-  ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax x> .#<syntax <-> .#<syntax (1 + 2 + 3)> .#<syntax -> .#<syntax (4 + 5)>)
-  ;; $nfx$ : parsed-args=.#<syntax (<- x (- (+ 1 2 3) (+ 4 5)))>
-  ;; #<eof>
-  ;; > x
-  ;; x
-  ;; -3
-
-  
-
-  ;; > '{{(not a) and (not b) and (not c) and (not d)} or {(not a) and (not b) and (not c) and d} or {(not a) and (not b) and c and (not d)} or {(not a) and b and (not c) and d} or {(not a) and b and c and (not d)} or {(not a) and b and c and d} or {a and (not b) and (not c) and (not d)} or {a and (not b) and (not c) and d} or {a and (not b) and c and (not d)} or {c and (not d)}}
+      ;; > '{{(not a) and (not b) and (not c) and (not d)} or {(not a) and (not b) and (not c) and d} or {(not a) and (not b) and c and (not d)} or {(not a) and b and (not c) and d} or {(not a) and b and c and (not d)} or {(not a) and b and c and d} or {a and (not b) and (not c) and (not d)} or {a and (not b) and (not c) and d} or {a and (not b) and c and (not d)} or {c and (not d)}}
 
 
-  ;; '(or (and (not a) (not b) (not c) (not d))
-  ;;      (and (not a) (not b) (not c) d)
-  ;;      (and (not a) (not b) c (not d))
-  ;;      (and (not a) b (not c) d)
-  ;;      (and (not a) b c (not d))
-  ;;      (and (not a) b c d)
-  ;;      (and a (not b) (not c) (not d))
-  ;;      (and a (not b) (not c) d)
-  ;;      (and a (not b) c (not d))
-  ;;      (and c (not d)))
-  ;; '(or (and (not a) (not b) (not c) (not d))
-  ;;      (and (not a) (not b) (not c) d)
-  ;;      (and (not a) (not b) c (not d))
-  ;;      (and (not a) b (not c) d)
-  ;;      (and (not a) b c (not d))
-  ;;      (and (not a) b c d)
-  ;;      (and a (not b) (not c) (not d))
-  ;;      (and a (not b) (not c) d)
-  ;;      (and a (not b) c (not d))
-  ;;      (and c (not d)))
+      ;; '(or (and (not a) (not b) (not c) (not d))
+      ;;      (and (not a) (not b) (not c) d)
+      ;;      (and (not a) (not b) c (not d))
+      ;;      (and (not a) b (not c) d)
+      ;;      (and (not a) b c (not d))
+      ;;      (and (not a) b c d)
+      ;;      (and a (not b) (not c) (not d))
+      ;;      (and a (not b) (not c) d)
+      ;;      (and a (not b) c (not d))
+      ;;      (and c (not d)))
+      ;; '(or (and (not a) (not b) (not c) (not d))
+      ;;      (and (not a) (not b) (not c) d)
+      ;;      (and (not a) (not b) c (not d))
+      ;;      (and (not a) b (not c) d)
+      ;;      (and (not a) b c (not d))
+      ;;      (and (not a) b c d)
+      ;;      (and a (not b) (not c) (not d))
+      ;;      (and a (not b) (not c) d)
+      ;;      (and a (not b) c (not d))
+      ;;      (and c (not d)))
 
 
-  ;; #<eof>
-  ;; > {expr <- '(((not a) and (not b) and (not c) and (not d)) or ((not a) and (not b) and (not c) and d) or ((not a) and (not b) and c and (not d)) or ((not a) and b and (not c) and d) or ((not a) and b and c and (not d)) or ((not a) and b and c and d) or (a and (not b) and (not c) and (not d)) or (a and (not b) and (not c) and d) or (a and (not b) and c and (not d)) or (c and (not d)))}
+      ;; #<eof>
+      ;; > {expr <- '(((not a) and (not b) and (not c) and (not d)) or ((not a) and (not b) and (not c) and d) or ((not a) and (not b) and c and (not d)) or ((not a) and b and (not c) and d) or ((not a) and b and c and (not d)) or ((not a) and b and c and d) or (a and (not b) and (not c) and (not d)) or (a and (not b) and (not c) and d) or (a and (not b) and c and (not d)) or (c and (not d)))}
 
 
-  ;; ($nfx$
-  ;;  expr
-  ;;  <-
-  ;;  '(((not a) and (not b) and (not c) and (not d))
-  ;;    or
-  ;;    ((not a) and (not b) and (not c) and d)
-  ;;    or
-  ;;    ((not a) and (not b) and c and (not d))
-  ;;    or
-  ;;    ((not a) and b and (not c) and d)
-  ;;    or
-  ;;    ((not a) and b and c and (not d))
-  ;;    or
-  ;;    ((not a) and b and c and d)
-  ;;    or
-  ;;    (a and (not b) and (not c) and (not d))
-  ;;    or
-  ;;    (a and (not b) and (not c) and d)
-  ;;    or
-  ;;    (a and (not b) and c and (not d))
-  ;;    or
-  ;;    (c and (not d))))
-  ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:66:69 (expr <- (quote (((not a) and...>
-  ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax expr> .#<syntax <-> .#<syntax (quote (((not a) and (not b) ...>)
-  ;; $nfx$ : parsed-args=.#<syntax (<- expr (quote (((not a) and...>
+      ;; ($nfx$
+      ;;  expr
+      ;;  <-
+      ;;  '(((not a) and (not b) and (not c) and (not d))
+      ;;    or
+      ;;    ((not a) and (not b) and (not c) and d)
+      ;;    or
+      ;;    ((not a) and (not b) and c and (not d))
+      ;;    or
+      ;;    ((not a) and b and (not c) and d)
+      ;;    or
+      ;;    ((not a) and b and c and (not d))
+      ;;    or
+      ;;    ((not a) and b and c and d)
+      ;;    or
+      ;;    (a and (not b) and (not c) and (not d))
+      ;;    or
+      ;;    (a and (not b) and (not c) and d)
+      ;;    or
+      ;;    (a and (not b) and c and (not d))
+      ;;    or
+      ;;    (c and (not d))))
+      ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:66:69 (expr <- (quote (((not a) and...>
+      ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax expr> .#<syntax <-> .#<syntax (quote (((not a) and (not b) ...>)
+      ;; $nfx$ : parsed-args=.#<syntax (<- expr (quote (((not a) and...>
 
 
-  ;; #<eof>
-  ;; > expr
+      ;; #<eof>
+      ;; > expr
 
 
-  ;; expr
-  ;; '(((not a) and (not b) and (not c) and (not d))
-  ;;   or
-  ;;   ((not a) and (not b) and (not c) and d)
-  ;;   or
-  ;;   ((not a) and (not b) and c and (not d))
-  ;;   or
-  ;;   ((not a) and b and (not c) and d)
-  ;;   or
-  ;;   ((not a) and b and c and (not d))
-  ;;   or
-  ;;   ((not a) and b and c and d)
-  ;;   or
-  ;;   (a and (not b) and (not c) and (not d))
-  ;;   or
-  ;;   (a and (not b) and (not c) and d)
-  ;;   or
-  ;;   (a and (not b) and c and (not d))
-  ;;   or
-  ;;   (c and (not d)))
+      ;; expr
+      ;; '(((not a) and (not b) and (not c) and (not d))
+      ;;   or
+      ;;   ((not a) and (not b) and (not c) and d)
+      ;;   or
+      ;;   ((not a) and (not b) and c and (not d))
+      ;;   or
+      ;;   ((not a) and b and (not c) and d)
+      ;;   or
+      ;;   ((not a) and b and c and (not d))
+      ;;   or
+      ;;   ((not a) and b and c and d)
+      ;;   or
+      ;;   (a and (not b) and (not c) and (not d))
+      ;;   or
+      ;;   (a and (not b) and (not c) and d)
+      ;;   or
+      ;;   (a and (not b) and c and (not d))
+      ;;   or
+      ;;   (c and (not d)))
 
 
-;; #<eof>
+      ;; #<eof>
 
-;; warning the above expression is now parsed and result in: (no more depending of care of quote flag)
-;;expr
-;; '(or (and (not a) (not b) (not c) (not d))
-;;      (and (not a) (not b) (not c) d)
-;;      (and (not a) (not b) c (not d))
-;;      (and (not a) b (not c) d)
-;;      (and (not a) b c (not d))
-;;      (and (not a) b c d)
-;;      (and a (not b) (not c) (not d))
-;;      (and a (not b) (not c) d)
-;;      (and a (not b) c (not d))
-;;      (and c (not d)))
-  
+      ;; warning the above expression is now parsed and result in: (no more depending of care of quote flag)
+      ;;expr
+      ;; '(or (and (not a) (not b) (not c) (not d))
+      ;;      (and (not a) (not b) (not c) d)
+      ;;      (and (not a) (not b) c (not d))
+      ;;      (and (not a) b (not c) d)
+      ;;      (and (not a) b c (not d))
+      ;;      (and (not a) b c d)
+      ;;      (and a (not b) (not c) (not d))
+      ;;      (and a (not b) (not c) d)
+      ;;      (and a (not b) c (not d))
+      ;;      (and c (not d)))
+
+
+      ;; else : limited use of  syntax transformers
+
+      ;; {3 * 5 + 2}
+      ;; (+ (* 3 5) 2)
+      ;; 17
+      
+      (cond
+
+       ;; E.G., map {} to ().
+       
+       ((not (pair? lyst)) lyst) ; E.G., map {} to ().
+
+
+       ;; Map {a} to a.
+       
+       ((null? (cdr lyst)) ; Map {a} to a.
+
+	(if srfi-strict
+	    (car lyst)  ; original version
+	    
+	    ;; {(3.7 + 1)}
+	    ;; ($nfx$ (3.7 + 1))
+	    ;; 4.7
+	    
+	    ;;{3.7}
+	    ;;($nfx$ 3.7)
+	    ;;3.7
+	    (nfx (car lyst)))) ; ($nfx$ a)
+
+
+       ;; Map {a b} to (a b).
+       
+       ((and (pair? (cdr lyst))
+	     (null? (cddr lyst))) ; Map {a b} to (a b).
+
+	(if srfi-strict
+	    lyst
+
+	    ;; > '{abs (3.7 + 1)}
+	    ;; '($nfx$ abs (3.7 + 1))
+
+	    ;; > {abs (3.7 + 1)}
+	    ;; ($nfx$ abs (3.7 + 1))
+	    ;; 4.7
+
+	    ;; > (define (h x y) {abs ((cos (x + y)) * (sin (x - y))) } )
+	    ;; (define (h x y) ($nfx$ abs ((cos (x + y)) * (sin (x - y)))))
+	    ;; #<eof>
+	    ;; > (h  .2 .3)
+	    ;; (h 0.2 0.3)
+	    ;; 0.08761206554319241
+	    (apply nfx lyst))) ; ($nfx$ a b)
+
+       
+
+       ;; Map {a OP b [OP c...]} to (OP a b [c...])
+       
+       ;; deal quoted and quasi-quoted the old way
+       ;; '{(2 + 3) - (5 - 7) - 2}
+       ;; '(- (2 + 3) (5 - 7) 2)
+       
+       ;; '{(2 + 3) - (5 - 7)}
+       ;; '(- (2 + 3) (5 - 7))
+       ((and (simple-infix-list? lyst)
+	     (or (and care-of-quote
+		      region-quote)
+		 srfi-strict)) ; Map {a OP b [OP c...]} to (OP a b [c...])
+	
+	(cons (cadr lyst)
+	      (alternating-parameters lyst)))  ; Map {a OP b [OP c...]} to (OP a b [c...])
+       
+       ;; comment above force this (which is not what i want):
+       ;; > '{(2 + 3) - (5 - 7) - 2}
+       ;; '($nfx$ (2 + 3) - (5 - 7) - 2)
+
+       ;; > '{(2 + 3) - (5 - 7)}
+       ;; '($nfx$ (2 + 3) - (5 - 7))
+
+       ;; `{{2 + 3} - ,{2 + 1}}
+       ;; `($nfx$ ($nfx$ 2 + 3) - ,($nfx$ 2 + 1))
+       ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:65:69 (2 + 1)>
+       ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax 2> .#<syntax +> .#<syntax 1>)
+       ;; $nfx$ : parsed-args=.#<syntax (+ 2 1)>
+       ;; '($nfx$ ($nfx$ 2 + 3) - 3)
+
+
+       ;; general case
+       
+       (#t ; will insert $nfx$ in front of list
+	(apply nfx lyst))))) ; ($nfx$ a b c ...)
+
+
+
+
 
   ; ------------------------------------------------
   ; Key procedures to implement neoteric-expressions
