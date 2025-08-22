@@ -1,4 +1,4 @@
-SRFI-105 Curly Infix for Racket and R6RS (autodetection)
+# SRFI-105 Curly Infix for Racket and R6RS (autodetection)
 
 Install as a package or from source code.
  
