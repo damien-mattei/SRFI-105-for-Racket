@@ -381,9 +381,10 @@
       ;;      (and a (not b) c (not d))
       ;;      (and c (not d)))
 
-
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       ;; else : limited use of  syntax transformers
-
+      ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+      
       ;; {3 * 5 + 2}
       ;; (+ (* 3 5) 2)
       ;; 17
@@ -410,7 +411,7 @@
 	    ;;($nfx$ 3.7)
 	    ;;3.7
 	    (nfx (car lyst)))) ; ($nfx$ a)
-
+	    ;;(error "SRFI-105-curly-infix : process-curly : DEBUG lyst =" lyst)))
 
        ;; Map {a b} to (a b).
        

@@ -20,6 +20,37 @@ Some REPL (Read Eval Print Loop) are available in src/ subdirectory.
 
 A Makefile is also available in the same subdirectory, to parse Scheme+ file in standart Scheme,allowing the debugging of parsed files in Racket GUI or command line.
 
+
+**Changes of version 11.3:**
+
+Remove the need of pragma for strict SRFI-105 mode by autodetecting the strict syntax and the required application in context.
+Example:
+```scheme
+(define (cinque) 5)
+(define (minus) -)
+{(cinque) + {(cinque) (minus) 3}}
+(+ (cinque) ((minus) (cinque) 3)) ; parsed result displayed
+7
+```
+
+
+Better detection of infix mode allowing some sort of expressions to be detected as infix even if we have procedures as operands:
+
+```scheme
+(define (cinque) 5)
+(define (tre) 3)
+(define (due) 2)
+{(cinque) * (tre) - (due)}
+
+(- (* (cinque) (tre)) (due)) ; parsed result displayed
+13
+
+#<eof>
+```
+
+
+<br>
+
 **Changes of version 11.2:**
 
 Bug correction : missing a character delimiter string in info.rkt was preventing compilation for Racket package and in general i suppose.
