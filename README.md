@@ -24,6 +24,7 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 **Changes of version 11.3:**
 
 Remove the need of pragma for strict SRFI-105 mode by autodetecting the strict syntax and the required application in context.
+
 Example:
 ```scheme
 (define (cinque) 5)
