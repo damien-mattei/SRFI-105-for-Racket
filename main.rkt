@@ -147,7 +147,7 @@
   (define cc '())
   (define pc '())
   (set!-values (lc cc pc) (port-next-location in))
-  (display "SRFI-105.rkt : number of skipped lines (comments, spaces, directives,...) at header's beginning : ")
+  (display "SRFI-105 Curly Infix reader : number of skipped lines (comments, spaces, directives,...) at header's beginning : ")
   (display lc)
   (newline)
   (newline)

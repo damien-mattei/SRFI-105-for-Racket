@@ -4,7 +4,8 @@
 ;; but if you want to have syntax color in CLI start racket yourself and do:
 ;; (load "REPL-SRFI-105-Racket.rkt")
 
-#lang reader SRFI-105 ; SRFI-105 Curly-infix-expressions
+;; #lang reader SRFI-105 
+#reader SRFI-105 ; SRFI-105 Curly-infix-expressions
 
 
 ;; {1 + 1}

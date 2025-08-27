@@ -18,7 +18,9 @@
 		 srfi-strict
 		 use-only-syntax-transformers)
 
-	(require Scheme+/nfx)
+	(require Scheme+/nfx
+		 Scheme+/condx
+		 Scheme+/alternating-parameters)
 	
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -33,6 +35,7 @@
 ;; usefull to use symbolic expressions
 ;; (but makes debugging harder because quoted expression to debug will not be the same as evaluated unquoted ones)
 
+;; DEPRECATED : let it to #f
 (define use-only-syntax-transformers #f) ; use only syntax transformers: syntax transformers are used by scheme+
 					; when false the parser will partially do the job of syntax transformers
 					; it will do the job for expression between { } but not for 'define and 'define+
@@ -151,13 +154,14 @@
                              ; this way for performance)
       (even-and-op-prefix? (cadr lyst) (cdr lyst)))) ; true if rest is simple
 
+  ;; now imported from Scheme+/alternating-parameters
   ;; Return alternating parameters in a lyst (1st, 3rd, 5th, etc.)
   ;; (alternating-parameters '(< 3 < y <= z))
   ;; '(< < <=)
-  (define (alternating-parameters lyst)
-    (if (or (null? lyst) (null? (cdr lyst)))
-      lyst
-      (cons (car lyst) (alternating-parameters (cddr lyst)))))
+  ;; (define (alternating-parameters lyst)
+  ;;   (if (or (null? lyst) (null? (cdr lyst)))
+  ;;     lyst
+  ;;     (cons (car lyst) (alternating-parameters (cddr lyst)))))
 
 
 
@@ -210,17 +214,17 @@
 	(if srfi-strict
 	    lyst
 
-	    ;; > '{abs (3.7 + 1)}
+	    ;; '{abs (3.7 + 1)}
 	    ;; '($nfx$ abs (3.7 + 1))
 
-	    ;; > {abs (3.7 + 1)}
+	    ;; {abs (3.7 + 1)}
 	    ;; ($nfx$ abs (3.7 + 1))
 	    ;; 4.7
 
-	    ;; > (define (h x y) {abs ((cos (x + y)) * (sin (x - y))) } )
+	    ;; (define (h x y) {abs ((cos (x + y)) * (sin (x - y))) } )
 	    ;; (define (h x y) ($nfx$ abs ((cos (x + y)) * (sin (x - y)))))
 	    ;; #<eof>
-	    ;; > (h  .2 .3)
+	    ;; (h  .2 .3)
 	    ;; (h 0.2 0.3)
 	    ;; 0.08761206554319241
 	    (cons '$nfx$ lyst))) ; ($nfx$ a b)
@@ -244,10 +248,10 @@
 	      (alternating-parameters lyst)))
        
        ;; comment above force this (which is not what i want):
-       ;; > '{(2 + 3) - (5 - 7) - 2}
+       ;; '{(2 + 3) - (5 - 7) - 2}
        ;; '($nfx$ (2 + 3) - (5 - 7) - 2)
 
-       ;; > '{(2 + 3) - (5 - 7)}
+       ;; '{(2 + 3) - (5 - 7)}
        ;; '($nfx$ (2 + 3) - (5 - 7))
 
        ;; `{{2 + 3} - ,{2 + 1}}
@@ -265,26 +269,26 @@
 
 
       
-      ;; > `{{2 + 3} - ,{2 + 1}}
+      ;; `{{2 + 3} - ,{2 + 1}}
       ;; `(- (+ 2 3) ,($nfx$ 2 + 1))
       ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:66:69 (2 + 1)>
       ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax 2> .#<syntax +> .#<syntax 1>)
       ;; $nfx$ : parsed-args=.#<syntax (+ 2 1)>
       ;; '(- (+ 2 3) 3)
 
-      ;; > {x <- (1 + 2 + 3) - (4 + 5)}
+      ;; {x <- (1 + 2 + 3) - (4 + 5)}
       ;; ($nfx$ x <- (1 + 2 + 3) - (4 + 5))
       ;; $nfx$: #'(e1 op1 e2 op ...)=.#<syntax:Dropbox/git/Scheme-PLUS-for-Racket/main/Scheme-PLUS-for-Racket/nfx.rkt:66:69 (x <- (1 + 2 + 3) - (4 + 5))>
       ;; $nfx$: (syntax->list #'(e1 op1 e2 op ...))=(.#<syntax x> .#<syntax <-> .#<syntax (1 + 2 + 3)> .#<syntax -> .#<syntax (4 + 5)>)
       ;; $nfx$ : parsed-args=.#<syntax (<- x (- (+ 1 2 3) (+ 4 5)))>
       ;; #<eof>
-      ;; > x
+      ;; x
       ;; x
       ;; -3
 
       
 
-      ;; > '{{(not a) and (not b) and (not c) and (not d)} or {(not a) and (not b) and (not c) and d} or {(not a) and (not b) and c and (not d)} or {(not a) and b and (not c) and d} or {(not a) and b and c and (not d)} or {(not a) and b and c and d} or {a and (not b) and (not c) and (not d)} or {a and (not b) and (not c) and d} or {a and (not b) and c and (not d)} or {c and (not d)}}
+      ;; '{{(not a) and (not b) and (not c) and (not d)} or {(not a) and (not b) and (not c) and d} or {(not a) and (not b) and c and (not d)} or {(not a) and b and (not c) and d} or {(not a) and b and c and (not d)} or {(not a) and b and c and d} or {a and (not b) and (not c) and (not d)} or {a and (not b) and (not c) and d} or {a and (not b) and c and (not d)} or {c and (not d)}}
 
 
       ;; '(or (and (not a) (not b) (not c) (not d))
@@ -310,7 +314,7 @@
 
 
       ;; #<eof>
-      ;; > {expr <- '(((not a) and (not b) and (not c) and (not d)) or ((not a) and (not b) and (not c) and d) or ((not a) and (not b) and c and (not d)) or ((not a) and b and (not c) and d) or ((not a) and b and c and (not d)) or ((not a) and b and c and d) or (a and (not b) and (not c) and (not d)) or (a and (not b) and (not c) and d) or (a and (not b) and c and (not d)) or (c and (not d)))}
+      ;; {expr <- '(((not a) and (not b) and (not c) and (not d)) or ((not a) and (not b) and (not c) and d) or ((not a) and (not b) and c and (not d)) or ((not a) and b and (not c) and d) or ((not a) and b and c and (not d)) or ((not a) and b and c and d) or (a and (not b) and (not c) and (not d)) or (a and (not b) and (not c) and d) or (a and (not b) and c and (not d)) or (c and (not d)))}
 
 
       ;; ($nfx$
@@ -341,7 +345,7 @@
 
 
       ;; #<eof>
-      ;; > expr
+      ;; expr
 
 
       ;; expr
@@ -381,6 +385,8 @@
       ;;      (and a (not b) c (not d))
       ;;      (and c (not d)))
 
+
+      
       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
       ;; else : limited use of  syntax transformers
       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -389,7 +395,7 @@
       ;; (+ (* 3 5) 2)
       ;; 17
       
-      (cond
+      (condx
 
        ;; E.G., map {} to ().
        
@@ -421,23 +427,27 @@
 	(if srfi-strict
 	    lyst
 
-	    ;; > '{abs (3.7 + 1)}
+	    ;; '{abs (3.7 + 1)}
 	    ;; '($nfx$ abs (3.7 + 1))
 
-	    ;; > {abs (3.7 + 1)}
+	    ;; {abs (3.7 + 1)}
 	    ;; ($nfx$ abs (3.7 + 1))
 	    ;; 4.7
 
-	    ;; > (define (h x y) {abs ((cos (x + y)) * (sin (x - y))) } )
+	    ;; (define (h x y) {abs ((cos (x + y)) * (sin (x - y))) } )
 	    ;; (define (h x y) ($nfx$ abs ((cos (x + y)) * (sin (x - y)))))
 	    ;; #<eof>
-	    ;; > (h  .2 .3)
+	    ;; (h  .2 .3)
 	    ;; (h 0.2 0.3)
 	    ;; 0.08761206554319241
 	    (apply nfx lyst))) ; ($nfx$ a b)
 
        
+       ;; list of operators
+       (exec
+	(define op-lst (alternating-parameters (cdr lyst))))
 
+       
        ;; Map {a OP b [OP c...]} to (OP a b [c...])
        
        ;; deal quoted and quasi-quoted the old way
@@ -451,14 +461,14 @@
 		      region-quote)
 		 srfi-strict)) ; Map {a OP b [OP c...]} to (OP a b [c...])
 	
-	(cons (cadr lyst)
-	      (alternating-parameters lyst)))  ; Map {a OP b [OP c...]} to (OP a b [c...])
+	(cons (cadr lyst) ; first operator of list
+	      op-lst))  ; Map {a OP b [OP c...]} to (OP a b [c...])
        
        ;; comment above force this (which is not what i want):
-       ;; > '{(2 + 3) - (5 - 7) - 2}
+       ;; '{(2 + 3) - (5 - 7) - 2}
        ;; '($nfx$ (2 + 3) - (5 - 7) - 2)
 
-       ;; > '{(2 + 3) - (5 - 7)}
+       ;; '{(2 + 3) - (5 - 7)}
        ;; '($nfx$ (2 + 3) - (5 - 7))
 
        ;; `{{2 + 3} - ,{2 + 1}}
@@ -469,10 +479,13 @@
        ;; '($nfx$ ($nfx$ 2 + 3) - 3)
 
 
+       ;; TODO runtime case : deal with operators unknown or sexp list that should evaluate in an operator at runtime
+       
+
        ;; general case
        
-       (#t ; will insert $nfx$ in front of list
-	(apply nfx lyst))))) ; ($nfx$ a b c ...)
+       (#t ; apply nfx to the list
+	(apply nfx lyst))))) ; execute (nfx a b c ...)
 
 
 
@@ -561,7 +574,7 @@
 		
 		(when q-reg
 		  ;;(display "expression=") (display expression) (newline) ; here we possibly have finished a *quote* region ,pop
-		  (end-region))
+		  (end-region)) ; pop !
 		
 		expression))))))))
 
@@ -688,7 +701,7 @@
 	 ;;(display "char=") (display #\') (newline)
 	 (find*quote)
 	 (let ((mrp (my-read port)))
-	   (end-region)
+	   (end-region) ; pop !
            (list 'quote mrp)))
 	
         ((char=? c #\`) ; quasiquote
@@ -696,10 +709,10 @@
 	 ;;(display "char=") (display #\`) (newline)
 	 (find*quote)
 	 (let ((mrp (my-read port)))
-	   (end-region)
+	   (end-region) ; pop !
            (list 'quasiquote mrp)))
 
-	;; > (quasiquote (,(sin 0.3) 3))
+	;; (quasiquote (,(sin 0.3) 3))
 	;; datum=quasiquote
 	;; char=,
 	;; expression=`(,(sin 0.3) 3)
@@ -710,7 +723,7 @@
 
 
 	;; #<eof>
-	;; > (quasiquote (,'(sin 0.3) 3))
+	;; (quasiquote (,'(sin 0.3) 3))
 	;; datum=quasiquote
 	;; char=,
 	;; char='
@@ -733,13 +746,13 @@
                (read-char port)
 	       ;;(display #\@) (newline)
 	       (let ((mrp (my-read port)))
-		 (end-region)
+		 (end-region) ; pop !
 		 (list 'unquote-splicing mrp)))
 	      
               (#t
 	       ;;(newline)
 	       (let ((mrp (my-read port)))
-		 (end-region)
+		 (end-region) ; pop !
 		 (list 'unquote mrp)))))
 
 
@@ -996,11 +1009,11 @@
             ; and consider "#!" followed by / or . as a comment until "!#".
             ((char=? c #\!) (my-read port) (my-read port))
 
-	    ;; > (+ 1 #;2 3)
+	    ;; (+ 1 #;2 3)
 	    ;; 4
-	    ;; > (+ 1 #;(+ 1 2) 3)
+	    ;; (+ 1 #;(+ 1 2) 3)
 	    ;; 4
-	    ;; > (+ 1 #;{1 + 2} 3)
+	    ;; (+ 1 #;{1 + 2} 3)
 	    ;; 4
 	    ((char=? c #\;) ;(read-error "SRFI-105 REPL : Unsupported #; extension"))
 	     (my-read port) (my-read port))
@@ -1068,6 +1081,8 @@
               (list->string (cons #\.
                 (read-until-delim port neoteric-delimiters)))))))))
 
+
+  
   (define (process-char port)
     ; We've read #\ - returns what it represents.
     (cond
