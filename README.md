@@ -20,12 +20,20 @@ Some REPL (Read Eval Print Loop) are available in src/ subdirectory.
 
 A Makefile is also available in the same subdirectory, to parse Scheme+ file in standart Scheme,allowing the debugging of parsed files in Racket GUI or command line.
 
+<br>
+
+**Changes of version 11.7:**
+
+Correct a bug of previous version that preventing quoted infix expressions to be correctly parsed. 
+
+
+<br>
 
 **Changes of version 11.5:**
 
 Test to debug the documentation problem with the Racket package server
 
-<br>
+
 
 
 **Changes of version 11.3:**
