@@ -445,7 +445,8 @@
        
        ;; list of operators
        (exec
-	(define op-lst (alternating-parameters (cdr lyst))))
+	(define operators (alternating-parameters (cdr lyst)))
+	(define operands (alternating-parameters lyst)))
 
        
        ;; Map {a OP b [OP c...]} to (OP a b [c...])
@@ -462,7 +463,7 @@
 		 srfi-strict)) ; Map {a OP b [OP c...]} to (OP a b [c...])
 	
 	(cons (cadr lyst) ; first operator of list
-	      op-lst))  ; Map {a OP b [OP c...]} to (OP a b [c...])
+	      operands))  ; Map {a OP b [OP c...]} to (OP a b [c...])
        
        ;; comment above force this (which is not what i want):
        ;; '{(2 + 3) - (5 - 7) - 2}
