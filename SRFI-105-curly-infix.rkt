@@ -20,7 +20,8 @@
 
 	(require Scheme+/nfx
 		 Scheme+/condx
-		 Scheme+/alternating-parameters)
+		 Scheme+/alternating-parameters
+		 Scheme+/operators)
 	
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -445,8 +446,9 @@
        
        ;; list of operators
        (exec
-	(define operators (alternating-parameters (cdr lyst)))
-	(define operands (alternating-parameters lyst)))
+	;;(define operators (alternating-parameters (cdr lyst))) ; there + - + + , superscripts ,so operators could be wrong
+	(define operands (alternating-parameters lyst))
+	(define sil (simple-infix-list? lyst))); when all operators are the same
 
        
        ;; Map {a OP b [OP c...]} to (OP a b [c...])
@@ -457,7 +459,7 @@
        
        ;; '{(2 + 3) - (5 - 7)}
        ;; '(- (2 + 3) (5 - 7))
-       ((and (simple-infix-list? lyst)
+       ((and sil ; simple infix list , when all operators are the same
 	     (or (and care-of-quote
 		      region-quote)
 		 srfi-strict)) ; Map {a OP b [OP c...]} to (OP a b [c...])
@@ -479,9 +481,6 @@
        ;; $nfx$ : parsed-args=.#<syntax (+ 2 1)>
        ;; '($nfx$ ($nfx$ 2 + 3) - 3)
 
-
-       ;; TODO runtime case : deal with operators unknown or sexp list that should evaluate in an operator at runtime
-       
 
        ;; general case
        
