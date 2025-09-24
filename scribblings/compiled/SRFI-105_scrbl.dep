@@ -1,0 +1,1 @@
+("8.18.0.13" ta6le ("21e9a531ca9d9a74e3627fce969eec56e29b0368" . "4279eaf63ac341810aa269066fa2e89ae1273014") (collects #"racket" #"base.rkt") (collects #"racket" #"runtime-config.rkt") (collects #"scribble" #"base" #"lang" #"configure-runtime.rkt") (collects #"scribble" #"manual" #"lang" #"reader.rkt") (collects #"scribble" #"manual" #"lang.rkt"))

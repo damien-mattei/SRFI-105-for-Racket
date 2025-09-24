@@ -152,7 +152,7 @@
   (newline)
   (newline)
   
-  (display "Parsed curly infix code result = ") (newline) (newline)
+  (display "Parsed curly infix code result = ") (newline) ;(newline)
   
 
   (if flag-r6rs
@@ -178,12 +178,15 @@
       ;; r5rs
       (let ((result (process-input-code-rec-tail-recursive '())))
 	(when (null? result)
-	  (error "ERROR: Empty program."))
+	  (set! result (list "GREETINGS SCHEMER. IT SEEMS YOU ARE ONLY USING SRFI-105 CURLY INFIX. TO GET ALL THE FEATURES OF THE SYSTEM I SUGGEST YOU TO (require Scheme+) OR SIMPLY TO Run REPL-Scheme-PLUS.rkt")))
+	  ;(error "ERROR: Empty program."))
 
 	(for/list ([expr result])
 		  (pretty-print expr
 				(current-output-port)
 				1))
+
+	;;(newline (current-output-port))
 	
 	(if (not (null? (cdr result)))
 	    ;; put them in a module

@@ -12,7 +12,7 @@
 
 ;; modification for Racket by Damien Mattei
 
-;; use with: racket curly-infix2prefix4racket.scm [options] file2parse.scm > parsedfile.scm
+;; use with: racket curly-infix2prefix4racket.rkt [options] file2parse.scm > parsedfile.scm
 
 ;; example in DrRacket :
 
@@ -149,7 +149,8 @@
 
   ;; search for a reader 
   (let loop ()
-    (when  (regexp-try-match #px"^#lang reader SRFI-105[[:blank:]]*\n" in)
+    (when  (or (regexp-try-match #px"^#lang reader SRFI-105[[:blank:]]*\n" in)
+	       (regexp-try-match #px"^#reader SRFI-105[[:blank:]]*\n" in))
       ;;(display "srfi 105") (newline)
       (loop)))
 

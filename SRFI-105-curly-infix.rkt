@@ -31,8 +31,8 @@
 	
 (define srfi-strict #f) ; enable strict compatibility with SRFI 105 that will NOT force some $nfx$ apply almost everywhere
 
-;; partially deprecated? as the new parenthesis syntax and insertion of $nfx$ create a recursive parsing with infix autodetection
-(define care-of-quote #t) ; keep quoted expression when #t (no $nfx$ will be inserted in curly infix expressions),
+;; partially deprecated as the new parenthesis syntax and insertion of $nfx$ create a recursive parsing with infix autodetection
+(define care-of-quote #t) ; keep quoted expression when #t (no $nfx$ will be inserted in *quoted* curly infix expressions),
 ;; usefull to use symbolic expressions
 ;; (but makes debugging harder because quoted expression to debug will not be the same as evaluated unquoted ones)
 
@@ -525,12 +525,16 @@
 	 
          (let* ((datum (my-read port)) ; should read a token
 		(strict-srfi-105-pragma #f)
-		(q-reg (check*quote* datum))) ; *quote* region and also set a local flag for entering a critical region
+		(q-reg (check*quote* datum))) ; *quote* (i mean backquote,quasiquote ...) region and also set a local flag for entering a critical region
 
 	   ;;(when q-reg
 	   ;;(display "datum=") (display datum)(newline)) ; datum would contain quote,quasiquote,unquote,unquote-splicing,etc... push
 
-	   (when (eq? datum 'BEGIN-STRICT-SRFI-105-REGION)
+	   ;; for test only
+	   ;; (when (eq? datum 'newline)
+	   ;;   (error "newline test passed"))
+	   
+	   (when (eq? datum 'BEGIN-STRICT-SRFI-105-REGION) ; note: eq? is ok but equal? could be better
 	     (set! strict-srfi-105-pragma #t)
 	     (set! srfi-strict #t))
 
@@ -539,7 +543,7 @@
 	     (set! srfi-strict #f))
 
 
-	    (cond 
+	   (cond 
 
 	     ;; here we got chars ... (not symbols)
 	     ;; processing period . is important for functions with variable numbers of parameters: (fct arg1 . restargs)
@@ -559,6 +563,7 @@
 	     
 	     
 	     (#t
+	      
 	      ;; here we get the symbolic scheme expression (but it is constructed recursively,only at the end we get the correct full expression)
 	      
 	      ;; (let ((expression 
@@ -575,6 +580,10 @@
 		(when q-reg
 		  ;;(display "expression=") (display expression) (newline) ; here we possibly have finished a *quote* region ,pop
 		  (end-region)) ; pop !
+
+		;; for test only
+		;; (when (equal? expression '(newline))
+		;;   (error "(newline) test passed"))
 		
 		expression))))))))
 
@@ -640,7 +649,7 @@
 
 
 
-; ------------------------------------------------
+  ; ------------------------------------------------
   ; Demo procedures to implement curly-infix and neoteric readers
   ; ------------------------------------------------
 
@@ -660,10 +669,9 @@
           (my-read port))
 	
         ((char=? c #\( ) ; start parsing list
-          (read-char port)
-          (my-read-delimited-list my-read #\) port))
+	 (read-char port)
+         (my-read-delimited-list my-read #\) port))
 	
-
         ((char=? c #\[ )
 
 	  ;;(default-scheme-read port)) ;; this convert [ ... ] in ($bracket-list$ ...) in Kawa at least allowing Kawa special expressions such as: [1 <: 7]
@@ -979,6 +987,7 @@
         (#t
           (nest-comment port)))))
 
+  
   (define (process-sharp my-read port)
     ; We've peeked a # character.  Returns what it represents.
     (read-char port) ; Remove #
@@ -1016,7 +1025,8 @@
 	    ;; (+ 1 #;{1 + 2} 3)
 	    ;; 4
 	    ((char=? c #\;) ;(read-error "SRFI-105 REPL : Unsupported #; extension"))
-	     (my-read port) (my-read port))
+	     (my-read port) ;(my-read port)
+	     (underlying-read my-read port))
 
 	    ;; this remove #lang racket on anything else but i do not want it to be like that
 	    ;; removing any line starting with #l is not the good way
@@ -1109,13 +1119,20 @@
                   ((string-ci=? rest-string "vtab") (integer->char #x000B))
                   ((string-ci=? rest-string "page") (integer->char #x000C))
                   ((string-ci=? rest-string "return") (integer->char #x000D))
-                  ((string-ci=? rest-string "esc") (integer->char #x001B))
+                  ((string-ci=? rest-string "esc") (integer->char #x001B)) ; why not return #\esc ?
+		  ((string-ci=? rest-string "escape") (integer->char #x001B)) ; R7RS
                   ((string-ci=? rest-string "delete") (integer->char #x007F))
                   ; Additional character names as extensions:
                   ((string-ci=? rest-string "ht") tab)
                   ((string-ci=? rest-string "cr") (integer->char #x000d))
                   ((string-ci=? rest-string "bs") (integer->char #x0008))
-                  (#t (read-error "Invalid character name"))))))))))
+
+		  ;; u: unicode ? char with code number in hexadecimal , example #\u1b (27 in decimal -> escape)
+		  ((char-ci=? (string-ref rest-string 0) #\u) 
+		   (integer->char (string->number (substring rest-string 1) 16)))
+		   
+                  (#t
+		   (read-error "Invalid character name"))))))))))
 
 ;; Record the original read location, in case it's changed later:
 (define default-scheme-read read)

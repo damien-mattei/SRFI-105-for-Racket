@@ -10,10 +10,10 @@ Use:
 [https://srfi.schemers.org/srfi-105/srfi-105.html](https://srfi.schemers.org/srfi-105/srfi-105.html)
 
 
-Also provides the parser curly-infix2prefix4racket.scm:
+Also provides the parser curly-infix2prefix4racket.rkt in src/ sub-directory:
 
 
-```curly-infix2prefix4racket.scm [options] file2parse.scm```
+```curly-infix2prefix4racket.rkt [options] file2parse.scm```
 
 
 Some REPL (Read Eval Print Loop) are available in src/ subdirectory.
@@ -23,7 +23,55 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 
 **Changes of version 12.0:**
 
-Only comestic changes in code. The new features,that i think would be in parser are finally handled by Scheme+.
+Unicode character in hexadecimal are now supported, examples:
+
+```scheme
+#\u1b ; in hexadecimal,27 in decimal, ASCII character ESCAPE
+
+#\u001B
+```
+
+```scheme
+(equal? #\esc #\u1b)
+
+(equal? #\u001B #\u001B)
+#t
+```
+
+```scheme
+(equal? #\escape #\u1b)
+
+(equal? #\u001B #\u001B)
+#t
+```
+
+Also, the ```#;``` combination which comments out a full s-expression is now available.
+
+Example:
+
+```scheme
+#lang reader SRFI-105 ; SRFI-105 Curly-infix-expressions
+
+(module repl racket
+
+  (provide (all-defined-out)) 
+  (require Scheme+)
+  
+  ;; put your code here or simply use the REPL
+  "GREETINGS SCHEMER. SHALL WE PLAY A GAME?"
+  2 #;(sin .3) 4
+  7
+  )
+
+"GREETINGS SCHEMER. SHALL WE PLAY A GAME?"
+2
+4
+7
+``` 
+
+
+Parser curly-infix2prefix4racket.rkt now accept new ```#reader SRFI-105``` at the beginning of the file to parse.
+
 
 <br>
 
