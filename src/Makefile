@@ -2,6 +2,9 @@
 # generic Makefile for all Scheme and Racket files
 # author: Damien Mattei
 
+# this Makefile parse all the Scheme+ file in the directory where the Makefile is.
+# the resulting parsed scheme files are set in the subdirectory MODULE_DIRECTORY
+
 
 SHELL := /bin/bash
 

@@ -19,6 +19,13 @@ Also provides the parser curly-infix2prefix4racket.rkt in src/ sub-directory:
 Some REPL (Read Eval Print Loop) are available in src/ subdirectory.
 
 A Makefile is also available in the same subdirectory, to parse Scheme+ file in standart Scheme,allowing the debugging of parsed files in Racket GUI or command line.
+
+<br>
+
+**Changes of version 12.1:**
+
+Message in REPL changed.
+
 <br>
 
 **Changes of version 12.0:**
