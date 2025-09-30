@@ -24,6 +24,12 @@
 		 Scheme+/operators)
 	
 
+; This is a simplified reference implementation of a curly-infix and
+; neoteric reader, intended for a SRFI submission.
+; If run, it invokes a curly-infix-reader
+; (inside {...}, it accepts neoteric expressions).
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 	
