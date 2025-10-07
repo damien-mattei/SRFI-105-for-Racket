@@ -27,6 +27,11 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 Original comments added.
 
 <br>
+<br>
+
+**Changes of version 12.4:**
+
+Comments added about characters parsing.
 
 <br>
 

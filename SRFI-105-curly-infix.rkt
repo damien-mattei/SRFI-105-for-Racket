@@ -1098,6 +1098,9 @@
                 (read-until-delim port neoteric-delimiters)))))))))
 
 
+
+  
+  ;; characters support
   
   (define (process-char port)
     ; We've read #\ - returns what it represents.
@@ -1135,7 +1138,7 @@
 
 		  ;; u: unicode ? char with code number in hexadecimal , example #\u1b (27 in decimal -> escape)
 		  ((char-ci=? (string-ref rest-string 0) #\u) 
-		   (integer->char (string->number (substring rest-string 1) 16)))
+		   (integer->char (string->number (substring rest-string 1) 16))) ; consider it was in hexadecimal
 		   
                   (#t
 		   (read-error "Invalid character name"))))))))))
