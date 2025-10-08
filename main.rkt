@@ -221,9 +221,10 @@
   ;; usefull only in CLI
   (newline) 
   (write-char (integer->char 13)) ; put a Carriage Return
-  (pretty-print result
-		(current-output-port)
-		1)
+  (unless (eof-object? result)
+    (pretty-print result
+		  (current-output-port)
+		  1))
   
   (if (eof-object? result)
       ;;(begin (display "eof") (newline) result)

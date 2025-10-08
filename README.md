@@ -22,18 +22,25 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 
 <br>
 
-**Changes of version 12.3:**
+**Changes of version 12.5:**
 
-Original comments added.
+Removed the display of ```#<eof>``` in REPL which was not very usefull and verbose.
 
 <br>
 <br>
+
 
 **Changes of version 12.4:**
 
 Comments added about characters parsing.
 
 <br>
+
+**Changes of version 12.3:**
+
+Original comments added.
+
+
 
 **Changes of version 12.1:**
 
