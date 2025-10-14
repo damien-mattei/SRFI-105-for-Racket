@@ -22,11 +22,58 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 
 <br>
 
+**Changes of version 12.7:**
+
+Parse the simple infix expressions.(This was previously done later by Scheme+)
+This is usefull for defining some infix macros, examples:
+
+```scheme
+
+(define-syntax +=
+    (syntax-rules ()
+      ({var1 _ var2} {var1 := var1 + var2})))
+
+(define-syntax += (syntax-rules () ((_ var1 var2) (:= var1 (+ var1 var2))))) ; parsed result
+
+{x := 3}
+
+{x += 7}
+
+x
+
+10
+```
+
+```scheme
+(define-syntax plus
+    (syntax-rules ()
+      ({var1 _ ...} {var1 + ...})))
+
+(define-syntax plus (syntax-rules () ((_ var1 ...) (+ var1 ...)))) ; parsed result
+
+{2 plus 3}
+
+(plus 2 3) ; parsed result
+
+5
+
+
+{2 plus 3 plus 4 plus 5 plus 6}
+
+(plus 2 3 4 5 6)  ; parsed result
+
+20
+
+```
+
+
+<br>
+<br>
+
 **Changes of version 12.5:**
 
 Removed the display of ```#<eof>``` in REPL which was not very usefull and verbose.
 
-<br>
 <br>
 
 

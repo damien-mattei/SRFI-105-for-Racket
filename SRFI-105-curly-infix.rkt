@@ -21,7 +21,8 @@
 	(require Scheme+/nfx
 		 Scheme+/condx
 		 Scheme+/alternating-parameters
-		 Scheme+/operators)
+		 Scheme+/operators
+		 Scheme+/infix-with-precedence-to-prefix)
 	
 
 ; This is a simplified reference implementation of a curly-infix and
@@ -145,11 +146,11 @@
   ; If passed empty list, returns true (so recursion works correctly).
   (define (even-and-op-prefix? op lyst)
     (cond
-       ((null? lyst) #t)
-      ((not (pair? lyst)) #f)
-      ((not (equal? op (car lyst))) #f) ; fail - operators not the same
-      ((not (pair? (cdr lyst)))  #f) ; Wrong # of parameters or improper
-      (#t   (even-and-op-prefix? op (cddr lyst))))) ; recurse.
+     ((null? lyst) #t)
+     ((not (pair? lyst)) #f)
+     ((not (equal? op (car lyst))) #f) ; fail - operators not the same
+     ((not (pair? (cdr lyst)))  #f) ; Wrong # of parameters or improper
+     (#t   (even-and-op-prefix? op (cddr lyst))))) ; recurse.
 
   ; Return true if the lyst is in simple infix format
   ; (and thus should be reordered at read time).
@@ -454,7 +455,10 @@
        (exec
 	;;(define operators (alternating-parameters (cdr lyst))) ; there + - + + , superscripts ,so operators could be wrong
 	(define operands (alternating-parameters lyst))
-	(define sil (simple-infix-list? lyst))); when all operators are the same
+	(define sil (simple-infix-list? lyst))
+	(define oper (cadr lyst)) ; first operator of list
+	;;(error "SRFI-105-curly-infix : lyst =" lyst) 
+	); when all operators are the same
 
        
        ;; Map {a OP b [OP c...]} to (OP a b [c...])
@@ -470,8 +474,9 @@
 		      region-quote)
 		 srfi-strict)) ; Map {a OP b [OP c...]} to (OP a b [c...])
 	
-	(cons (cadr lyst) ; first operator of list
+	(cons oper ; first operator of list
 	      operands))  ; Map {a OP b [OP c...]} to (OP a b [c...])
+
        
        ;; comment above force this (which is not what i want):
        ;; '{(2 + 3) - (5 - 7) - 2}
@@ -487,7 +492,42 @@
        ;; $nfx$ : parsed-args=.#<syntax (+ 2 1)>
        ;; '($nfx$ ($nfx$ 2 + 3) - 3)
 
+       ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+       ;; this allows some infix macros
+       ;; (define-syntax +=
+       ;;     (syntax-rules ()
+       ;;       ({var1 _ var2} {var1 := var1 + var2})))
+
+       ;; (define-syntax += (syntax-rules () ((_ var1 var2) (:= var1 (+ var1 var2))))) ; parsed result
+
+       ;; {x := 3}
+       ;; {x += 7}
+       ;; x
+       ;; 10
+
+       ;; (define-syntax plus
+       ;;     (syntax-rules ()
+       ;;       ({var1 _ ...} {var1 + ...})))
+
+       ;; (define-syntax plus (syntax-rules () ((_ var1 ...) (+ var1 ...)))) ; parsed result
+
+       ;; {2 plus 3}
+       ;; (plus 2 3) ; parsed result
+       ;; 5
+
+       ;; {2 plus 3 plus 4 plus 5 plus 6}
+       ;; (plus 2 3 4 5 6)  ; parsed result
+       ;; 20
+       (sil ; simple infix list , when all operators are the same
+	(define deep-terms (map (lambda (x) ; deep terms should be parsed by Scheme+
+				  (!*prec-generic-infix-parser-rec-prepare x
+									   (lambda (op a b) (list op a b)))) ; creator
+				operands))
+	(cons oper
+	      deep-terms))
+
+       
        ;; general case
        
        (#t ; apply nfx to the list
