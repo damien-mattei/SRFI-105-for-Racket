@@ -22,6 +22,15 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 
 <br>
 
+**Changes of version 12.8:**
+
+Correct a bug in the previous release that caused the fail of parsing
+some useless expressions but generally admitted by other language
+parsers such as ```+ - + - 3```.This had generally no incidence on any programs.
+
+<br>
+<br>
+
 **Changes of version 12.7:**
 
 Parse the simple infix expressions.(This was previously done later by Scheme+)
@@ -68,7 +77,7 @@ x
 
 
 <br>
-<br>
+
 
 **Changes of version 12.5:**
 

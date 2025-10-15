@@ -453,8 +453,9 @@
        
        ;; list of operators
        (exec
-	;;(define operators (alternating-parameters (cdr lyst))) ; there + - + + , superscripts ,so operators could be wrong
 	(define operands (alternating-parameters lyst))
+	(define mbr+- (or (member '+ operands) ; there could be + - + + , superscripts ,so operators could be wrong
+			  (member '- operands)))
 	(define sil (simple-infix-list? lyst))
 	(define oper (cadr lyst)) ; first operator of list
 	;;(error "SRFI-105-curly-infix : lyst =" lyst) 
@@ -494,6 +495,8 @@
 
        ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+
+       
        ;; this allows some infix macros
        ;; (define-syntax +=
        ;;     (syntax-rules ()
@@ -519,7 +522,10 @@
        ;; {2 plus 3 plus 4 plus 5 plus 6}
        ;; (plus 2 3 4 5 6)  ; parsed result
        ;; 20
-       (sil ; simple infix list , when all operators are the same
+       ((and sil ; simple infix list , when all operators are the same
+	     (not mbr+-)) ; could be there + - + + , superscripts ,so operators could be wrong
+					; {2 - + - 3 - 4} will not be parsed here but later !
+
 	(define deep-terms (map (lambda (x) ; deep terms should be parsed by Scheme+
 				  (!*prec-generic-infix-parser-rec-prepare x
 									   (lambda (op a b) (list op a b)))) ; creator
