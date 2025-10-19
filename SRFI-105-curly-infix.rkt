@@ -458,7 +458,8 @@
 			  (member '- operands)))
 	(define sil (simple-infix-list? lyst))
 	(define oper (cadr lyst)) ; first operator of list
-	;;(error "SRFI-105-curly-infix : lyst =" lyst) 
+	(define infx (not (eq? oper 'if))) ; true infix, not Python 'statement if test else statement2'
+	;;(error "SRFI-105-curly-infix : infx =" infx) 
 	); when all operators are the same
 
        
@@ -470,7 +471,8 @@
        
        ;; '{(2 + 3) - (5 - 7)}
        ;; '(- (2 + 3) (5 - 7))
-       ((and sil ; simple infix list , when all operators are the same
+       ((and infx ; true infix
+	     sil ; simple infix list , when all operators are the same
 	     (or (and care-of-quote
 		      region-quote)
 		 srfi-strict)) ; Map {a OP b [OP c...]} to (OP a b [c...])
@@ -522,13 +524,15 @@
        ;; {2 plus 3 plus 4 plus 5 plus 6}
        ;; (plus 2 3 4 5 6)  ; parsed result
        ;; 20
-       ((and sil ; simple infix list , when all operators are the same
+       ((and infx ; true infix
+	     sil ; simple infix list , when all operators are the same
 	     (not mbr+-)) ; could be there + - + + , superscripts ,so operators could be wrong
 					; {2 - + - 3 - 4} will not be parsed here but later !
 
 	(define deep-terms (map (lambda (x) ; deep terms should be parsed by Scheme+
 				  (!*prec-generic-infix-parser-rec-prepare x
-									   (lambda (op a b) (list op a b)))) ; creator
+									   (lambda (op a b)
+									     (list op a b)))) ; creator
 				operands))
 	(cons oper
 	      deep-terms))
