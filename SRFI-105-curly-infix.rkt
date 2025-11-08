@@ -135,6 +135,7 @@
       (check-unquote* datum)))
 
 
+(define comment #f) ; use for comment removal
 
 
   ; ------------------------------
@@ -557,7 +558,7 @@
   ; This implements a useful extension: (. b) returns b.
   (define (my-read-delimited-list my-read stop-char port)
     (let*
-      ((c   (peek-char port))) ; peek a chat without really getting it out of the port
+      ((c   (peek-char port))) ; peek a char without really getting it out of the port
       (cond
        ((eof-object? c) (read-error "EOF in middle of list") '()) ; error EOF
        
@@ -578,7 +579,7 @@
           (read-error "Bad closing character"))
 
 	(#t ; here we should be ready to read something serious (token, expression,...)
-	 
+	 ;;(error "my-read=" my-read) ; my-read= #<procedure:curly-infix-read-real>
          (let* ((datum (my-read port)) ; should read a token
 		(strict-srfi-105-pragma #f)
 		(q-reg (check*quote* datum))) ; *quote* (i mean backquote,quasiquote ...) region and also set a local flag for entering a critical region
@@ -628,8 +629,11 @@
 
 	      (let ((expression '()))
 
-		(if strict-srfi-105-pragma
-		    (set! expression (my-read-delimited-list my-read stop-char port)) ; drop the datum as it is a pragma directive
+		(if (or strict-srfi-105-pragma comment) 
+                    (begin
+                      (when comment
+                        (set! comment #f)) ; reset the comment flag before
+                      (set! expression (my-read-delimited-list my-read stop-char port))) ; drop the datum as it is a pragma directive or a commented expression
 		    (set! expression (cons datum ;; normal case
 					   (my-read-delimited-list my-read stop-char port))))
 		
@@ -824,7 +828,9 @@
         ;; ((ismember? c digits) ; Initial digit.
 	;;  (read-number port '()))
 	
-        ((char=? c #\#) (process-sharp my-read port))
+        ((char=? c #\#) ;(error "debug call to process-sharp:"
+                               (process-sharp my-read port));)
+        
         ((char=? c #\.) (process-period port))
 	
         ((or (char=? c #\+) (char=? c #\-))  ; Initial + or -
@@ -1074,16 +1080,25 @@
             ; and consider "#!" followed by / or . as a comment until "!#".
             ((char=? c #\!) (my-read port) (my-read port))
 
+            ;; commented nested scheme expressions
 	    ;; (+ 1 #;2 3)
 	    ;; 4
 	    ;; (+ 1 #;(+ 1 2) 3)
 	    ;; 4
 	    ;; (+ 1 #;{1 + 2} 3)
 	    ;; 4
+            ;; (cons 1 2 #;(foo bar))
+            ;; (cons 1 2)
+            ;;'(1 . 2)
 	    ((char=? c #\;) ;(read-error "SRFI-105 REPL : Unsupported #; extension"))
-	     (my-read port) ;(my-read port)
-	     (underlying-read my-read port))
+             (let ((comy (my-read port))) ; commented expression
+               (set! comment #t)
+               comy) ; must be returned but will be dropped later
+             ;(error "debug #; "
+                     ;(my-read port)
+             );)
 
+            
 	    ;; this remove #lang racket on anything else but i do not want it to be like that
 	    ;; removing any line starting with #l is not the good way
 	    ;; i should instead skip the first #lang ... line of the input file
@@ -1136,7 +1151,6 @@
       (cond ;; processing period . is important for functions with variable numbers of parameters: (fct arg1 . restargs)
        ((eof-object? c) (string->symbol (string #\.)))  ;; only this one works with Racket Scheme
         ;;((eof-object? c) '.) ; period eof; return period. ;; do not works with Racket Scheme
-       ;;((eof-object? c) 'period) ;; this one annihilate the processing using dummy 'period !
         ((ismember? c digits)  ; in case it wasn't a single . but the starting of a number
           (read-number port (list #\.)))  ; period digit - it's a number.
         (#t

@@ -22,12 +22,27 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 
 <br>
 
+**Changes of version 14.1:**
+
+Fixes a bug that causing some scheme allowed commented expressions to crash the parser.
+This now works:
+
+```scheme
+(cons 1 2 #;(foo bar))
+
+(cons 1 2) ; correctly parsed expression
+'(1 . 2)
+```
+
+<br>
+<br>
+
 **Changes of version 14.0:**
 
 Modified code for Scheme+ version 17.0, allow different parsing for ```if```.See Scheme+ documentation.
 
 <br>
-<br>
+
 
 **Changes of version 12.8:**
 
