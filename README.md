@@ -40,7 +40,7 @@ Now works:
 .#<syntax ("hello")>
 ```  
 
-Fix a bug preventing to parse numbers as -.3 , not the good result -0.3 is returned.
+Fix a bug preventing to parse numbers as -.3 , now the good result -0.3 is returned.
 
 <br>
 <br>
