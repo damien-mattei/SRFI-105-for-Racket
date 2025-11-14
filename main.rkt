@@ -25,7 +25,7 @@
 	 )
 
 
-;;(require "src/SRFI-105.rkt")
+
 (require SRFI-105/SRFI-105-curly-infix
 	 setup/getinfo ; for parsing info.rkt
 	 )
@@ -92,8 +92,8 @@
 
 
 (define (literal-read-syntax src in)
-  
-  (define lst-code (process-input-code-tail-rec in))
+  ;;(error (some-system-path->string src))
+  (define lst-code (process-input-code-tail-rec src in))
 
   (when flag-r6rs
 	(set! lst-code `(module aschemeplusr6rsprogram r6rs ,lst-code)))
@@ -120,16 +120,15 @@
 
 ;; read all the expression of program
 ;; a tail recursive version
-(define (process-input-code-tail-rec in) ;; in: port
+(define (process-input-code-tail-rec src in) ;; in: port
 
   (define (process-input-code-rec-tail-recursive acc)
-    (define result (curly-infix-read in))  ;; read an expression
+    (define result (curly-infix-read in src))  ;; read an expression
     (cond ((eof-object? result)
 	   (reverse acc))
 	  (else (process-input-code-rec-tail-recursive (cons result acc)))))
 
 
-  
   (display "SRFI-105 Curly Infix parser for Racket Scheme and R6RS by Damien MATTEI") (newline)
   (display "(based on code from David A. Wheeler and Alan Manuel K. Gloria.)") (newline) (newline)
   
@@ -139,6 +138,7 @@
   
   (skip-comments-and-empty-lines in)
 
+  ;; search for R6RS
   (when (regexp-try-match #px"^#!r6rs[[:blank:]]*\n" in)
 	(set! flag-r6rs #t)
 	(display "Detected R6RS code: #!r6rs") (newline) (newline))
@@ -157,7 +157,7 @@
 
   (if flag-r6rs
       
-      (let ((result (curly-infix-read in))) ;; read an expression
+      (let ((result (curly-infix-read in src))) ;; read an expression
 	
 	(when (eof-object? result)
 	  (error "ERROR: EOF : End Of File : " result))

@@ -1,4 +1,6 @@
-# SRFI-105 Curly Infix for Racket and R6RS (autodetection)
+# SRFI-105 Curly Infix for Racket Scheme and R6RS (autodetection)
+
+**Scheme Request For Implementations 105 "Curly Infix"** 
 
 Install as a package or from source code.
  
@@ -22,6 +24,27 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 
 <br>
 
+**Changes of version 14.2:**
+
+In case of any error in the parser phase, the parser gives now the line, column and character offset in source file where the error has arised.
+
+Fixes a bug preventing ```unsyntax``` R6RS abbreviations to be parsed correctly.
+
+Now works:
+```scheme
+(define toto "hello")
+
+> #`(#,toto)
+
+#`(#,toto)
+.#<syntax ("hello")>
+```  
+
+Fix a bug preventing to parse numbers as -.3 , not the good result -0.3 is returned.
+
+<br>
+<br>
+
 **Changes of version 14.1:**
 
 Fixes a bug that causing some scheme allowed commented expressions to crash the parser.
@@ -34,7 +57,6 @@ This now works:
 '(1 . 2)
 ```
 
-<br>
 <br>
 
 **Changes of version 14.0:**

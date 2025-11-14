@@ -22,7 +22,8 @@
 		 Scheme+/condx
 		 Scheme+/alternating-parameters
 		 Scheme+/operators
-		 Scheme+/infix-with-precedence-to-prefix)
+		 Scheme+/infix-with-precedence-to-prefix
+		 syntax/readerr)
 	
 
 ; This is a simplified reference implementation of a curly-infix and
@@ -30,6 +31,9 @@
 ; If run, it invokes a curly-infix-reader
 ; (inside {...}, it accepts neoteric expressions).
 
+
+(define global-port '())
+(define source "unknown")	
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
@@ -85,7 +89,7 @@
 
 (define (pop)
   (when (null? stack)
-    (error "SRFI-105-curly-infix : pop : EMPTY STACK ERROR")) 
+    (read-error "SRFI-105-curly-infix : pop : EMPTY STACK ERROR")) 
   (define x (car stack))
   (set! stack (cdr stack))
   x)
@@ -426,7 +430,7 @@
 	    ;;($nfx$ 3.7)
 	    ;;3.7
 	    (nfx (car lyst)))) ; ($nfx$ a)
-	    ;;(error "SRFI-105-curly-infix : process-curly : DEBUG lyst =" lyst)))
+	    ;;(read-error "SRFI-105-curly-infix : process-curly : DEBUG lyst =" lyst)))
 
        ;; Map {a b} to (a b).
        
@@ -460,7 +464,7 @@
 	(define sil (simple-infix-list? lyst))
 	(define oper (cadr lyst)) ; first operator of list
 	(define infx (not (eq? oper 'if))) ; true infix, not Python 'statement if test else statement2'
-	;;(error "SRFI-105-curly-infix : infx =" infx) 
+	;;(read-error "SRFI-105-curly-infix : infx =" infx) 
 	); when all operators are the same
 
        
@@ -560,7 +564,16 @@
     (let*
       ((c   (peek-char port))) ; peek a char without really getting it out of the port
       (cond
-       ((eof-object? c) (read-error "EOF in middle of list") '()) ; error EOF
+       ((eof-object? c)
+	(define error-message "Error: EOF in middle of list")
+	(define-values (line col pos) (port-next-location port))
+	(raise-read-eof-error error-message	 	 	 	 
+ 	 		      source	 	 
+ 	 		      line	 	 	 	 
+ 	 		      col	 	 	 	 
+ 	 		      pos	 	 	 	 
+ 	 		      #f)
+	'()) ; error EOF
        
         ((eqv? c #\;) ; read a comment until end of line
           (consume-to-eol port)
@@ -579,7 +592,7 @@
           (read-error "Bad closing character"))
 
 	(#t ; here we should be ready to read something serious (token, expression,...)
-	 ;;(error "my-read=" my-read) ; my-read= #<procedure:curly-infix-read-real>
+	 ;;(read-error "my-read=" my-read) ; my-read= #<procedure:curly-infix-read-real>
          (let* ((datum (my-read port)) ; should read a token
 		(strict-srfi-105-pragma #f)
 		(q-reg (check*quote* datum))) ; *quote* (i mean backquote,quasiquote ...) region and also set a local flag for entering a critical region
@@ -589,7 +602,7 @@
 
 	   ;; for test only
 	   ;; (when (eq? datum 'newline)
-	   ;;   (error "newline test passed"))
+	   ;;   (read-error "newline test passed"))
 	   
 	   (when (eq? datum 'BEGIN-STRICT-SRFI-105-REGION) ; note: eq? is ok but equal? could be better
 	     (set! strict-srfi-105-pragma #t)
@@ -643,7 +656,7 @@
 
 		;; for test only
 		;; (when (equal? expression '(newline))
-		;;   (error "(newline) test passed"))
+		;;   (read-error "(newline) test passed"))
 		
 		expression))))))))
 
@@ -828,36 +841,44 @@
         ;; ((ismember? c digits) ; Initial digit.
 	;;  (read-number port '()))
 	
-        ((char=? c #\#) ;(error "debug call to process-sharp:"
+        ((char=? c #\#) ;(read-error "debug call to process-sharp:"
                                (process-sharp my-read port));)
         
-        ((char=? c #\.) (process-period port))
-	
-        ((or (char=? c #\+) (char=? c #\-))  ; Initial + or -
-          (read-char port)
-          (if (ismember? (peek-char port) digits)
-	      ;;(let ((tmp
-		     (read-number port (list c))
-		;;     ))
-		;; (newline (current-error-port))
-		;; (display tmp (current-error-port))
-		;; (newline (current-error-port))
-		;; tmp)
-	      
-	      ;;(let ((tmp
-		     (string->symbol
-		      (fold-case-maybe port
-				       (list->string (cons c
-							   (read-until-delim port neoteric-delimiters)))))
-		;;     )) ;end declarative let
-		;; (newline (current-error-port))
-		;; (display tmp (current-error-port))
-		;; (newline (current-error-port))
-		;; tmp)
-		))
+        ((char=? c #\.) (process-period port)) ; note: could lead to a number too
 
-	((ismember? c digits) ; Initial digit. (without + or - and not starting with . but could be an identifier starting with digits...)
-	 (read-number-or-identifier-starting-with-digits port '()))
+	;; parse the numbers like 0.3 -0.3 -.3 ,the identifier like 3i and (i suppose) +3i which is a complex number not an identifier 
+	((or (char=? c #\+) ; Initial + or -
+	     (char=? c #\-)
+	     (ismember? c digits)) ; Initial digit. (without + or - and not starting with . but could be an identifier starting with digits...)
+          ;(read-char port)
+	  (read-number-or-identifier-starting-with-digits port))
+	
+        ;; ((or (char=? c #\+) ; Initial + or -
+	;;      (char=? c #\-))  
+        ;;   (read-char port)
+        ;;   (if (ismember? (peek-char port) digits)
+	;;       ;;(let ((tmp
+	;; 	     (read-number port (list c))
+	;; 	;;     ))
+	;; 	;; (newline (current-error-port))
+	;; 	;; (display tmp (current-error-port))
+	;; 	;; (newline (current-error-port))
+	;; 	;; tmp)
+	      
+	;;       ;;(let ((tmp
+	;; 	     (string->symbol
+	;; 	      (fold-case-maybe port
+	;; 			       (list->string (cons c
+	;; 						   (read-until-delim port neoteric-delimiters)))))
+	;; 	;;     )) ;end declarative let
+	;; 	;; (newline (current-error-port))
+	;; 	;; (display tmp (current-error-port))
+	;; 	;; (newline (current-error-port))
+	;; 	;; tmp)
+	;; 	))
+
+	;; ((ismember? c digits) ; Initial digit. (without + or - and not starting with . but could be an identifier starting with digits...)
+	;;  (read-number-or-identifier-starting-with-digits port #;'()))
 	   
 	
         (#t ; Nothing else.  Must be a symbol start.
@@ -870,14 +891,19 @@
 
 
   (define (curly-infix-read-real port)
+    (set! global-port port)
     (underlying-read curly-infix-read-real port))
 
 
   ;; this is the entry routine
-  (define (curly-infix-read . port)
-    (if (null? port)
+  (define (curly-infix-read . port-src)
+    (when (and (not (null? port-src))
+	       (not (null? (cdr port-src)))
+	       (path? (cadr port-src)))
+      (set! source (some-system-path->string (cadr port-src))))
+    (if (null? port-src)
       (curly-infix-read-real (current-input-port))
-      (curly-infix-read-real (car port))))
+      (curly-infix-read-real (car port-src))))
 
   ; Here's a real neoteric reader.
   ; The key part is that it implements [] and {} as delimiters, and
@@ -995,11 +1021,20 @@
          (#t (cons (read-char port) (read-until-delim port delims))))))
 
   (define (read-error message)
-    (display "Error: ")
-    (display message)
-    (display "\n")
-    (error message)
-    '())
+    ;; (display "Error: ")
+    ;; (display message)
+    ;; (display "\n")
+    (define error-message (string-append "Error: " message))
+    (define-values (line col pos) (port-next-location global-port))
+    (raise-read-error error-message	 	 	 	 
+ 	 	      source	 	 
+ 	 	      line	 	 	 	 
+ 	 	      col	 	 	 	 
+ 	 	      pos	 	 	 	 
+ 	 	      #f)
+    ;;(error error-message)
+    ;;'()
+    )
 
 (define (read-number port starting-lyst)
   ;;(newline (current-error-port))
@@ -1016,13 +1051,13 @@
 	 )
 
 ;; added by D.MATTEI
-(define (read-number-or-identifier-starting-with-digits port starting-lyst)
+(define (read-number-or-identifier-starting-with-digits port #;starting-lyst)
   ;;(newline (current-error-port))
   ;;(display starting-lyst (current-error-port)) (newline (current-error-port))
 
   (let* ((str-number-or-identifier (list->string
-				    (append starting-lyst
-					    (read-until-delim port neoteric-delimiters))))
+				    ;(append starting-lyst
+					    (read-until-delim port neoteric-delimiters)));)
 	 (number (string->number str-number-or-identifier))) ; end declarative let
     (if number ; string->number return #f if it was not possible to convert it in a number
 	number
@@ -1094,7 +1129,7 @@
              (let ((comy (my-read port))) ; commented expression
                (set! comment #t)
                comy) ; must be returned but will be dropped later
-             ;(error "debug #; "
+             ;(read-error "debug #; "
                      ;(my-read port)
              );)
 
@@ -1114,21 +1149,20 @@
 
 	    ;; Racket's regular expressions special syntax
 	    ((char=? c #\r) (if (not (equal? (read-char port) #\x))
-				(error "process-sharp : awaiting regexp : character x not found")
+				(read-error "process-sharp : awaiting regexp : character x not found")
 				(let ((str (my-read port)))
 				  (if (not (string? str))
-				      (error "process-sharp : awaiting regexp : string not found" str)
+				      (read-error "process-sharp : awaiting regexp : string not found")
 				      (list 'regexp str)))))
 
 	    ((char=? c #\p) (if (not (equal? (read-char port) #\x))
-				(error "process-sharp : awaiting regexp : character x not found")
+				(read-error "process-sharp : awaiting regexp : character x not found")
 				(let ((str (my-read port)))
 				  (if (not (string? str))
-				      (error "process-sharp : awaiting pregexp : string not found" str)
+				      (read-error "process-sharp : awaiting pregexp : string not found")
 				      (list 'pregexp str)))))
 	    
 	    ;; read #'blabla ,deal with syntax objects
-	    ;;((char=? c #\') (list 'syntax (curly-infix-read port)))
 	    ((char=? c #\') (list 'syntax (my-read port)))
 	    ;; deal syntax with backquote, splicing,...
 	    ((char=? c #\`) (list 'quasisyntax (my-read port)))
@@ -1136,7 +1170,8 @@
 				(begin
 				  (read-char port)
 				  (list 'unsyntax-splicing (my-read port)))
-				(list 'quasisyntax (my-read port))))
+				(list 'unsyntax (my-read port))))
+	    
 	    (#t (read-error (string-append "SRFI-105 REPL :"
 					   "Unsupported # extension"
 					   " unsupported character causing this message is character:"
@@ -1152,7 +1187,13 @@
        ((eof-object? c) (string->symbol (string #\.)))  ;; only this one works with Racket Scheme
         ;;((eof-object? c) '.) ; period eof; return period. ;; do not works with Racket Scheme
         ((ismember? c digits)  ; in case it wasn't a single . but the starting of a number
-          (read-number port (list #\.)))  ; period digit - it's a number.
+         ;;(read-number port (list #\.)))  ; period digit - it's a number.
+	 (let ((num (read-number port (list #\.))))
+	   ;;.3f
+	   ;;. REPL-Scheme-PLUS.rkt:36:5: Error: period digit must be a number
+            (if num
+                num
+                (read-error "period digit must be a number"))))
         (#t
           ; At this point, Scheme only requires support for "." or "...".
           ; As an extension we can support them all.
@@ -1177,7 +1218,7 @@
           (cond
             ((null? rest) c) ; only one char after #\ - so that's it!
             (#t
-              (let ((rest-string (list->string (cons c rest))))
+              (let ((rest-string (string-downcase (list->string (cons c rest)))))
                 (cond
                   ; Implement R6RS character names, see R6RS section 4.2.6.
                   ; As an extension, we will ALWAYS accept character names
@@ -1201,7 +1242,7 @@
                   ((string-ci=? rest-string "bs") (integer->char #x0008))
 
 		  ;; u: unicode ? char with code number in hexadecimal , example #\u1b (27 in decimal -> escape)
-		  ((char-ci=? (string-ref rest-string 0) #\u) 
+		  ((char-ci=? c #;(string-ref rest-string 0) #\u) 
 		   (integer->char (string->number (substring rest-string 1) 16))) ; consider it was in hexadecimal
 		   
                   (#t

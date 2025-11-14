@@ -55,6 +55,8 @@
 
 (define flag-r6rs #f)
 
+
+;; only this procedure is exactly the same as in main.rkt
 (define (skip-comments-and-empty-lines in)
   
   ;; (define li '())
@@ -87,7 +89,7 @@
 (define (literal-read-syntax src)
 
   (define in (open-input-file src))
-  (define lst-code (process-input-code-tail-rec in))
+  (define lst-code (process-input-code-tail-rec src in))
   ;; (if lang-reader
   ;;     `(module aschemeplusprogram racket ,@lst-code)
   lst-code)
@@ -97,23 +99,16 @@
 
 
 
-
-
-
-
-
 ;; read all the expression of program
 ;; a tail recursive version
-(define (process-input-code-tail-rec in) ;; in: port
+(define (process-input-code-tail-rec src in) ;; in: port
 
   (define (process-input-code-rec-tail-recursive acc)
-    (define result (curly-infix-read in))  ;; read an expression
+    (define result (curly-infix-read in src))  ;; read an expression
     (if (eof-object? result)
 	(reverse acc)
 	(process-input-code-rec-tail-recursive (cons result acc))))
 
-
-  
 
   (when verbose
 	(display "SRFI-105 Curly Infix parser with operator precedence by Damien MATTEI" stderr) (newline stderr)
@@ -178,7 +173,7 @@
 
   (if flag-r6rs
       
-      (let ((result (curly-infix-read in))) ;; read an expression
+      (let ((result (curly-infix-read in src))) ;; read an expression
 	
 	(when (eof-object? result)
 	    (error "ERROR: EOF : End Of File : " result))
@@ -207,17 +202,6 @@
 				stdout
 				1))
 	
-	;; (if (not (null? (cdr result)))
-	;;     ;; put them in a module
-	;;     `(module aschemeplusprogram racket ,@result)
-	;;     ;; only one
-	;;     (let ((fst (car result)))
-	;;       ;; searching for a module
-	;;       (if (and (list? fst)
-	;; 	       (not (null? fst))
-	;; 	       (equal? 'module (car fst)))
-	;; 	  fst ; is the result module
-	;; 	  `(module aschemeplusprogram racket ,fst))))
 
 	)))
 	

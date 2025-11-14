@@ -1,8 +1,10 @@
 #lang scribble/manual
 
-@title{SRFI-105 Curly Infix for Racket}
+@title{SRFI-105 "Curly Infix" for Racket}
 
 @author[(author+email "Damien MATTEI" "Damien.MATTEI@univ-cotedazur.fr")]
+
+@bold{Scheme Request For Implementations 105}
 
 Install as a package.
  
