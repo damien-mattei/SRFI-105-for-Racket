@@ -13,7 +13,7 @@
 (module SRFI-105-curly-infix racket
 
 	(provide curly-infix-read
-		 alternating-parameters
+		 ;alternating-parameters
 		 care-of-quote
 		 srfi-strict
 		 use-only-syntax-transformers)
@@ -772,9 +772,9 @@
           (read-char port)
           (read-error "Closing brace without opening")
           (my-read port))
+	
         ((char=? c #\") ; Strings are delimited by ", so can call directly
 	 (default-scheme-read port))
-
 	
 	;; here we should 'push' as it is quoted or backquoted (pseudoquote,quasiquote)
         ((char=? c #\') ; quote

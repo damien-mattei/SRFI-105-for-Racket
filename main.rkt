@@ -122,11 +122,15 @@
 ;; a tail recursive version
 (define (process-input-code-tail-rec src in) ;; in: port
 
-  (define (process-input-code-rec-tail-recursive acc)
+  (define cpt 0)
+  
+  (define (process-input-code-rec-tail-recursive acc)    
     (define result (curly-infix-read in src))  ;; read an expression
     (cond ((eof-object? result)
 	   (reverse acc))
-	  (else (process-input-code-rec-tail-recursive (cons result acc)))))
+	  (else
+	   (set! cpt (+ 1 cpt))
+	   (process-input-code-rec-tail-recursive (cons result acc)))))
 
 
   (display "SRFI-105 Curly Infix parser for Racket Scheme and R6RS by Damien MATTEI") (newline)
@@ -186,6 +190,7 @@
 				(current-output-port)
 				1))
 
+	;;(newline) (display "Parsed ") (display cpt) (display " times.") (newline)
 	;;(newline (current-output-port))
 	
 	(if (not (null? (cdr result)))
