@@ -24,6 +24,13 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 
 <br>
 
+**Changes of version 14.3:**
+
+Added a flag ```verbose``` in the source code to activate or deactivate the verbose mode.
+
+<br>
+<br>
+
 **Changes of version 14.2:**
 
 In case of any error in the parser phase, the parser gives now the line, column and character offset in source file where the error has arised.

@@ -34,11 +34,13 @@
 (define version (cond ((procedure? info-getter) (info-getter 'version))
 		      (else info-getter)))
 
-(display (string-append "SRFI 105 Curly Infix v" version " for Scheme+")) (newline)
-(display "care of quote flag set to:") (display care-of-quote) (newline)
-(display "strict SRFI-105 flag set to:") (display srfi-strict) (newline)
-(display "use only syntax transformers flag set to:") (display use-only-syntax-transformers) (newline)
+(define verbose #t)
 
+(when verbose
+  (display (string-append "SRFI 105 Curly Infix v" version " for Scheme+")) (newline)
+  (display "care of quote flag set to:") (display care-of-quote) (newline)
+  (display "strict SRFI-105 flag set to:") (display srfi-strict) (newline)
+  (display "use only syntax transformers flag set to:") (display use-only-syntax-transformers) (newline))
 
 (define flag-r6rs #f)
 
@@ -132,32 +134,35 @@
 	   (set! cpt (+ 1 cpt))
 	   (process-input-code-rec-tail-recursive (cons result acc)))))
 
-
+(when verbose
   (display "SRFI-105 Curly Infix parser for Racket Scheme and R6RS by Damien MATTEI") (newline)
-  (display "(based on code from David A. Wheeler and Alan Manuel K. Gloria.)") (newline) (newline)
+  (display "(based on code from David A. Wheeler and Alan Manuel K. Gloria.)") (newline) (newline))
   
   (port-count-lines! in) ; turn on counting on port
-  
-  (display "Possibly skipping some header's lines containing space,tabs,new line,etc  or comments.") (newline) (newline)
+
+(when verbose
+  (display "Possibly skipping some header's lines containing space,tabs,new line,etc  or comments.") (newline) (newline))
   
   (skip-comments-and-empty-lines in)
 
   ;; search for R6RS
   (when (regexp-try-match #px"^#!r6rs[[:blank:]]*\n" in)
-	(set! flag-r6rs #t)
-	(display "Detected R6RS code: #!r6rs") (newline) (newline))
+    (set! flag-r6rs #t)
+    (when verbose
+      (display "Detected R6RS code: #!r6rs") (newline) (newline)))
 
   (define lc '())
   (define cc '())
   (define pc '())
   (set!-values (lc cc pc) (port-next-location in))
-  (display "SRFI-105 Curly Infix reader : number of skipped lines (comments, spaces, directives,...) at header's beginning : ")
-  (display lc)
-  (newline)
-  (newline)
+  (when verbose
+    (display "SRFI-105 Curly Infix reader : number of skipped lines (comments, spaces, directives,...) at header's beginning : ")
+    (display lc)
+    (newline)
+    (newline)
   
   (display "Parsed curly infix code result = ") (newline) ;(newline)
-  
+  )
 
   (if flag-r6rs
       
@@ -182,7 +187,8 @@
       ;; r5rs
       (let ((result (process-input-code-rec-tail-recursive '())))
 	(when (null? result)
-	  (set! result (list "GREETINGS SCHEMER. IT SEEMS YOU ARE ONLY USING SRFI-105 CURLY INFIX. TO GET ALL THE FEATURES OF THE SYSTEM I SUGGEST YOU TO (require Scheme+) OR SIMPLY TO Run REPL-Scheme-PLUS.rkt OR EVEN JUST RUN THE FILE YOU PREVIOUSLY LOADED.")))
+	  (when verbose
+	    (set! result (list "GREETINGS SCHEMER. IT SEEMS YOU ARE ONLY USING SRFI-105 CURLY INFIX. TO GET ALL THE FEATURES OF THE SYSTEM I SUGGEST YOU TO (require Scheme+) OR SIMPLY TO Run REPL-Scheme-PLUS.rkt OR EVEN JUST RUN THE FILE YOU PREVIOUSLY LOADED."))))
 	  ;(error "ERROR: Empty program."))
 
 	(for/list ([expr result])
@@ -193,17 +199,19 @@
 	;;(newline) (display "Parsed ") (display cpt) (display " times.") (newline)
 	;;(newline (current-output-port))
 	
-	(if (not (null? (cdr result)))
-	    ;; put them in a module
-	    `(module aschemeplusprogram racket ,@result)
-	    ;; only one
-	    (let ((fst (car result)))
-	      ;; searching for a module
-	      (if (and (list? fst)
-		       (not (null? fst))
-		       (equal? 'module (car fst)))
-		  fst ; is the result module
-		  `(module aschemeplusprogram racket ,fst)))))))
+	(cond ((null? result) `(module aschemeplusprogram racket))
+	      ((not (null? (cdr result)))
+	       ;; put them in a module
+	       `(module aschemeplusprogram racket ,@result))
+	      (else
+	       ;; only one
+	       (let ((fst (car result)))
+		 ;; searching for a module
+		 (if (and (list? fst)
+			  (not (null? fst))
+			  (equal? 'module (car fst)))
+		     fst ; is the result module
+		     `(module aschemeplusprogram racket ,fst))))))))
 		       
 	
 	
