@@ -34,7 +34,7 @@
 (define version (cond ((procedure? info-getter) (info-getter 'version))
 		      (else info-getter)))
 
-(define verbose #t)
+(define verbose #f)
 
 (when verbose
   (display (string-append "SRFI 105 Curly Infix v" version " for Scheme+")) (newline)
