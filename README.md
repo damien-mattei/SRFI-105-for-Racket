@@ -24,6 +24,14 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 
 <br>
 
+**Changes of version 14.5:**
+
+Made a ```verbose``` mode variable because the full verbosity put the mess in Scheme+ Racket documentation system that should be concise.
+
+<br>
+
+<br>
+
 **Changes of version 14.4:**
 
 Fixes a bug with nested comments when code was not in a module,set the comment flag to false at each call of read-curly-infix.So it should works also in files with multiple expressions, not only a single big module expression.
@@ -32,13 +40,10 @@ Reactivated  ```verbose``` mode ,will see if it has side effects?
 
 <br>
 
-<br>
-
 **Changes of version 14.3:**
 
 Added a flag ```verbose``` in the source code to activate or deactivate the verbose mode.
 
-<br>
 <br>
 
 **Changes of version 14.2:**

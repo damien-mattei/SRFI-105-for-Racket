@@ -34,10 +34,12 @@
 (define version (cond ((procedure? info-getter) (info-getter 'version))
 		      (else info-getter)))
 
-(define verbose #t)
+(define verbose 1)
 
 (when verbose
-  (display (string-append "SRFI 105 Curly Infix v" version " for Scheme+")) (newline)
+  (display (string-append "SRFI 105 Curly Infix v" version " for Scheme+")) (newline))
+
+(when (> 1 verbose)
   (display "care of quote flag set to:") (display care-of-quote) (newline)
   (display "strict SRFI-105 flag set to:") (display srfi-strict) (newline)
   (display "use only syntax transformers flag set to:") (display use-only-syntax-transformers) (newline))
@@ -134,13 +136,13 @@
 	   (set! cpt (+ 1 cpt))
 	   (process-input-code-rec-tail-recursive (cons result acc)))))
 
-(when verbose
-  (display "SRFI-105 Curly Infix parser for Racket Scheme and R6RS by Damien MATTEI") (newline)
-  (display "(based on code from David A. Wheeler and Alan Manuel K. Gloria.)") (newline) (newline))
+(when (> 1 verbose)
+    (display "SRFI-105 Curly Infix parser for Racket Scheme and R6RS by Damien MATTEI") (newline)
+    (display "(based on code from David A. Wheeler and Alan Manuel K. Gloria.)") (newline) (newline))
   
   (port-count-lines! in) ; turn on counting on port
 
-(when verbose
+(when (> 1 verbose)
   (display "Possibly skipping some header's lines containing space,tabs,new line,etc  or comments.") (newline) (newline))
   
   (skip-comments-and-empty-lines in)
@@ -155,7 +157,7 @@
   (define cc '())
   (define pc '())
   (set!-values (lc cc pc) (port-next-location in))
-  (when verbose
+  (when (> 1 verbose)
     (display "SRFI-105 Curly Infix reader : number of skipped lines (comments, spaces, directives,...) at header's beginning : ")
     (display lc)
     (newline)
@@ -187,7 +189,7 @@
       ;; r5rs
       (let ((result (process-input-code-rec-tail-recursive '())))
 	(when (null? result)
-	  (when verbose
+	  (when (> 1 verbose)
 	    (set! result (list "GREETINGS SCHEMER. IT SEEMS YOU ARE ONLY USING SRFI-105 CURLY INFIX. TO GET ALL THE FEATURES OF THE SYSTEM I SUGGEST YOU TO (require Scheme+) OR SIMPLY TO Run REPL-Scheme-PLUS.rkt OR EVEN JUST RUN THE FILE YOU PREVIOUSLY LOADED."))))
 	  ;(error "ERROR: Empty program."))
 
