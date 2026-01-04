@@ -560,9 +560,12 @@
   ; stop-char needs to be closing paren, closing bracket, or closing brace.
   ; This is like read-delimited-list of Common Lisp.
   ; This implements a useful extension: (. b) returns b.
-  (define (my-read-delimited-list my-read stop-char port)
-    (let*
+(define (my-read-delimited-list my-read stop-char port)
+  
+  (let*
+      
       ((c   (peek-char port))) ; peek a char without really getting it out of the port
+    
       (cond
        ((eof-object? c)
 	(define error-message "Error: EOF in middle of list")
@@ -575,90 +578,90 @@
  	 		      #f)
 	'()) ; error EOF
        
-        ((eqv? c #\;) ; read a comment until end of line
-          (consume-to-eol port)
-          (my-read-delimited-list my-read stop-char port))
-	
-        ((my-char-whitespace? c) ; skip the white space
-          (read-char port) ; really read the white space
-          (my-read-delimited-list my-read stop-char port))
-	
-        ((char=? c stop-char) ; stop char ,return '() ? perheaps for non empty statement or because we really have an empty list
-          (read-char port) ; really read the stop char
-          '())
-	
-        ((or (eq? c #\)) (eq? c #\]) (eq? c #\})) ; if it was not one of the previous cases it is bad
-          (read-char port) ; really read the bad char
-          (read-error "Bad closing character"))
+       ((eqv? c #\;) ; read a comment until end of line
+        (consume-to-eol port)
+        (my-read-delimited-list my-read stop-char port))
+       
+       ((my-char-whitespace? c) ; skip the white space
+        (read-char port) ; really read the white space
+        (my-read-delimited-list my-read stop-char port))
+       
+       ((char=? c stop-char) ; stop char ,return '() ? perheaps for non empty statement or because we really have an empty list
+        (read-char port) ; really read the stop char
+        '())
+       
+       ((or (eq? c #\)) (eq? c #\]) (eq? c #\})) ; if it was not one of the previous cases it is bad
+        (read-char port) ; really read the bad char
+        (read-error "Bad closing character"))
 
-	(#t ; here we should be ready to read something serious (token, expression,...)
-	 ;;(read-error "my-read=" my-read) ; my-read= #<procedure:curly-infix-read-real>
-         (let* ((datum (my-read port)) ; should read a token
-		(strict-srfi-105-pragma #f)
-		(q-reg (check*quote* datum))) ; *quote* (i mean backquote,quasiquote ...) region and also set a local flag for entering a critical region
+       (#t ; here we should be ready to read something serious (token, expression,...)
+	;;(read-error "my-read=" my-read) ; my-read= #<procedure:curly-infix-read-real>
+        (let* ((datum (my-read port)) ; should read a token
+	       (strict-srfi-105-pragma #f)
+	       (q-reg (check*quote* datum))) ; *quote* (i mean backquote,quasiquote ...) region and also set a local flag for entering a critical region
 
-	   ;;(when q-reg
-	   ;;(display "datum=") (display datum)(newline)) ; datum would contain quote,quasiquote,unquote,unquote-splicing,etc... push
+	  ;;(when q-reg
+	  ;;(display "datum=") (display datum)(newline)) ; datum would contain quote,quasiquote,unquote,unquote-splicing,etc... push
 
-	   ;; for test only
-	   ;; (when (eq? datum 'newline)
-	   ;;   (read-error "newline test passed"))
+	  ;; for test only
+	  ;; (when (eq? datum 'newline)
+	  ;;   (read-error "newline test passed"))
+	  
+	  (when (eq? datum 'BEGIN-STRICT-SRFI-105-REGION) ; note: eq? is ok but equal? could be better
+	    (set! strict-srfi-105-pragma #t)
+	    (set! srfi-strict #t))
+
+	  (when (eq? datum 'END-STRICT-SRFI-105-REGION)
+	    (set! strict-srfi-105-pragma #t)
+	    (set! srfi-strict #f))
+
+
+	  (cond 
+
+	   ;; here we got chars ... (not symbols)
+	   ;; processing period . is important for functions with variable numbers of parameters: (fct arg1 . restargs)
+	   ((eq? datum (string->symbol (string #\.))) ;; only this one works
+	    
+            (let ((datum2 (my-read port)))
+              (consume-whitespace port) ; reading white space between . restargs ?
+              (cond
+               ((eof-object? datum2)
+                (read-error "Early eof in (... .)\n")
+                '())
+               ((not (eqv? (peek-char port) stop-char))
+                (read-error "Bad closing character after . datum"))
+               (#t
+                (read-char port)
+                datum2))))
 	   
-	   (when (eq? datum 'BEGIN-STRICT-SRFI-105-REGION) ; note: eq? is ok but equal? could be better
-	     (set! strict-srfi-105-pragma #t)
-	     (set! srfi-strict #t))
+	   
+	   (#t
+	    
+	    ;; here we get the symbolic scheme expression (but it is constructed recursively,only at the end we get the correct full expression)
+	    
+	    ;; (let ((expression 
+	    ;; 	     (cons datum
+	    ;; 		   (my-read-delimited-list my-read stop-char port))))
 
-	   (when (eq? datum 'END-STRICT-SRFI-105-REGION)
-	     (set! strict-srfi-105-pragma #t)
-	     (set! srfi-strict #f))
+	    (let ((expression '()))
 
-
-	   (cond 
-
-	     ;; here we got chars ... (not symbols)
-	     ;; processing period . is important for functions with variable numbers of parameters: (fct arg1 . restargs)
-	     ((eq? datum (string->symbol (string #\.))) ;; only this one works
+	      (if (or strict-srfi-105-pragma comment) 
+                  (begin
+                    (when comment
+                      (set! comment #f)) ; reset the comment flag before
+                    (set! expression (my-read-delimited-list my-read stop-char port))) ; drop the datum as it is a pragma directive or a commented expression
+		  (set! expression (cons datum ;; normal case
+					 (my-read-delimited-list my-read stop-char port))))
 	      
-                 (let ((datum2 (my-read port)))
-                   (consume-whitespace port) ; reading white space between . restargs ?
-                   (cond
-                     ((eof-object? datum2)
-                      (read-error "Early eof in (... .)\n")
-                      '())
-                     ((not (eqv? (peek-char port) stop-char))
-                      (read-error "Bad closing character after . datum"))
-                     (#t
-                       (read-char port)
-                       datum2))))
-	     
-	     
-	     (#t
+	      (when q-reg
+		;;(display "expression=") (display expression) (newline) ; here we possibly have finished a *quote* region ,pop
+		(end-region)) ; pop !
+
+	      ;; for test only
+	      ;; (when (equal? expression '(newline))
+	      ;;   (read-error "(newline) test passed"))
 	      
-	      ;; here we get the symbolic scheme expression (but it is constructed recursively,only at the end we get the correct full expression)
-	      
-	      ;; (let ((expression 
-	      ;; 	     (cons datum
-	      ;; 		   (my-read-delimited-list my-read stop-char port))))
-
-	      (let ((expression '()))
-
-		(if (or strict-srfi-105-pragma comment) 
-                    (begin
-                      (when comment
-                        (set! comment #f)) ; reset the comment flag before
-                      (set! expression (my-read-delimited-list my-read stop-char port))) ; drop the datum as it is a pragma directive or a commented expression
-		    (set! expression (cons datum ;; normal case
-					   (my-read-delimited-list my-read stop-char port))))
-		
-		(when q-reg
-		  ;;(display "expression=") (display expression) (newline) ; here we possibly have finished a *quote* region ,pop
-		  (end-region)) ; pop !
-
-		;; for test only
-		;; (when (equal? expression '(newline))
-		;;   (read-error "(newline) test passed"))
-		
-		expression))))))))
+	      expression))))))))
 
 
 
@@ -897,6 +900,7 @@
 
   ;; this is the entry routine
   (define (curly-infix-read . port-src)
+    (set! comment #f)
     (when (and (not (null? port-src))
 	       (not (null? (cdr port-src)))
 	       (path? (cadr port-src)))
