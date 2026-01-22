@@ -127,7 +127,8 @@
 (define (process-input-code-tail-rec src in) ;; in: port
 
   (define cpt 0)
-  
+
+  ;; will be used in general for R5RS
   (define (process-input-code-rec-tail-recursive acc)    
     (define result (curly-infix-read in src))  ;; read an expression
     (cond ((eof-object? result)
