@@ -139,7 +139,10 @@
       (check-unquote* datum)))
 
 
-(define comment #f) ; use for comment removal
+(define comment #f) ; used for comment removal
+
+(define cpt 0) ; used for internal debug , will count the datum and display debug infor for the nth data
+(define dpth 0) ; depth in sexpr
 
 
   ; ------------------------------
@@ -588,6 +591,7 @@
        
        ((char=? c stop-char) ; stop char ,return '() ? perheaps for non empty statement or because we really have an empty list
         (read-char port) ; really read the stop char
+	;;(set! dpth (- dpth 1))
         '())
        
        ((or (eq? c #\)) (eq? c #\]) (eq? c #\})) ; if it was not one of the previous cases it is bad
@@ -596,7 +600,7 @@
 
        (#t ; here we should be ready to read something serious (token, expression,...)
 	;;(read-error "my-read=" my-read) ; my-read= #<procedure:curly-infix-read-real>
-        (let* ((datum (my-read port)) ; should read a token
+        (let* ((datum (my-read port)) ; should read a token, i think scheme read it and return a real scheme object (for example a quoted symbol or a string of type string), thus it is not returning code as string or as syntax (? to be checked on complex expression) but code as (quoted) sexpr.
 	       (strict-srfi-105-pragma #f)
 	       (q-reg (check*quote* datum))) ; *quote* (i mean backquote,quasiquote ...) region and also set a local flag for entering a critical region
 
@@ -606,7 +610,13 @@
 	  ;; for test only
 	  ;; (when (eq? datum 'newline)
 	  ;;   (read-error "newline test passed"))
-	  
+
+	  ;; (when (= cpt 1)
+	  ;;   (define flg-str (string? datum))
+	  ;;   (error "SRFI 105 curly infix : first datum =" (list datum flg-str)))
+	  ;; (set! cpt (+ 1 cpt))
+
+	
 	  (when (eq? datum 'BEGIN-STRICT-SRFI-105-REGION) ; note: eq? is ok but equal? could be better
 	    (set! strict-srfi-105-pragma #t)
 	    (set! srfi-strict #t))
@@ -616,7 +626,7 @@
 	    (set! srfi-strict #f))
 
 
-	  (cond 
+	  (cond ; in fact an if then else
 
 	   ;; here we got chars ... (not symbols)
 	   ;; processing period . is important for functions with variable numbers of parameters: (fct arg1 . restargs)
@@ -658,8 +668,11 @@
 		(end-region)) ; pop !
 
 	      ;; for test only
-	      ;; (when (equal? expression '(newline))
-	      ;;   (read-error "(newline) test passed"))
+	      ;(when (equal? expression '(list 1 2 3 (list 4 44) 5 67 8))
+	      ;   (error "test passed" dpth))
+	      ;;(when (= dpth 2)
+	;;	(error "SRFI-105 debug: expression=" expression))
+	      (set! dpth (- dpth 1))
 	      
 	      expression))))))))
 
@@ -745,6 +758,7 @@
           (my-read port))
 	
         ((char=? c #\( ) ; start parsing list
+	 (set! dpth (+ 1 dpth))
 	 (read-char port)
          (my-read-delimited-list my-read #\) port))
 	
@@ -900,6 +914,7 @@
 
   ;; this is the entry routine
   (define (curly-infix-read . port-src)
+    ;;(set! dpth 0)
     (set! comment #f)
     (when (and (not (null? port-src))
 	       (not (null? (cdr port-src)))

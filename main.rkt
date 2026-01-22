@@ -136,17 +136,17 @@
 	   (set! cpt (+ 1 cpt))
 	   (process-input-code-rec-tail-recursive (cons result acc)))))
 
-(when (> 1 verbose)
+  (when (> 1 verbose)
     (display "SRFI-105 Curly Infix parser for Racket Scheme and R6RS by Damien MATTEI") (newline)
     (display "(based on code from David A. Wheeler and Alan Manuel K. Gloria.)") (newline) (newline))
   
   (port-count-lines! in) ; turn on counting on port
 
-(when (> 1 verbose)
-  (display "Possibly skipping some header's lines containing space,tabs,new line,etc  or comments.") (newline) (newline))
+  (when (> 1 verbose)
+    (display "Possibly skipping some header's lines containing space,tabs,new line,etc  or comments.") (newline) (newline))
   
   (skip-comments-and-empty-lines in)
-
+  
   ;; search for R6RS
   (when (regexp-try-match #px"^#!r6rs[[:blank:]]*\n" in)
     (set! flag-r6rs #t)
