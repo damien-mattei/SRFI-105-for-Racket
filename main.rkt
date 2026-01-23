@@ -201,22 +201,22 @@
 
 	;;(newline) (display "Parsed ") (display cpt) (display " times.") (newline)
 	;;(newline (current-output-port))
-	
-	(cond ((null? result) `(module aschemeplusprogram racket))
-	      ((not (null? (cdr result)))
+
+	;; we always return a module, so a single sexpr
+	(cond ((null? result) `(module aschemeplusprogram racket)) ; '() : void code
+	      ((not (null? (cdr result))) ; (code1 code2 ...)
 	       ;; put them in a module
 	       `(module aschemeplusprogram racket ,@result))
 	      (else
-	       ;; only one
-	       (let ((fst (car result)))
-		 ;; searching for a module
+	       ;; only one (code1)
+	       (let ((fst (car result))) 
+		 ;; searching for a module ((module ...))
 		 (if (and (list? fst)
 			  (not (null? fst))
 			  (equal? 'module (car fst)))
-		     fst ; is the result module
+		     fst ; is the result module : (module ...)
 		     `(module aschemeplusprogram racket ,fst))))))))
 		       
-	
 	
 
   
