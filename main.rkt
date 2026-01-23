@@ -185,7 +185,7 @@
 	(display ")")
 	(newline)
 	
-	result) ;; return one expression in R6RS
+	result) ;; return one (? a module?) expression in R6RS
 
       ;; r5rs
       (let ((result (process-input-code-rec-tail-recursive '())))
@@ -221,14 +221,7 @@
 
   
 
-  ;; (display "(module aschemeplusprogram racket ")
-  ;; (newline)
-  ;; (define rv (process-input '()))
-  ;; (display ")")
-  ;; (newline) (newline)
-  
-  ;; rv)
-
+ 
 
 ;; the current read interaction handler, which is procedure that takes an arbitrary value and an input port 
 (define (literal-read-syntax-for-repl src in)
