@@ -7,7 +7,7 @@
 (define pkg-desc "SRFI-105 Curly Infix for Racket and R6RS (autodetection)")
 (define version "14.7")
 (define pkg-authors '(mattei))
-(define scribblings '(("scribblings/SRFI-105.scrbl" ())))
+(define scribblings '(("scribblings/SRFI-105.scrbl" (parsing-library))))
 (define build-deps '("scribble-lib" "racket-doc" "scribble-code-examples" "scribble-doc"))
 (define license 'LGPL-3.0-or-later)
 
