@@ -203,6 +203,7 @@
 	;;(newline (current-output-port))
 
 	;; we always return a module, so a single sexpr
+	;; TODO : put it in a variable and parse it for type annotation
 	(cond ((null? result) `(module aschemeplusprogram racket)) ; '() : void code
 	      ((not (null? (cdr result))) ; (code1 code2 ...)
 	       ;; put them in a module
