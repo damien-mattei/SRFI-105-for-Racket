@@ -10,7 +10,7 @@
 
 
 
-(module SRFI-105-curly-infix racket
+(module SRFI-105-curly-infix racket/base
 
 	(provide curly-infix-read
 		 ;alternating-parameters
@@ -23,7 +23,8 @@
 		 Scheme+/alternating-parameters
 		 Scheme+/operators
 		 Scheme+/infix-with-precedence-to-prefix
-		 syntax/readerr)
+		 syntax/readerr
+		 racket/path)
 	
 
 ; This is a simplified reference implementation of a curly-infix and

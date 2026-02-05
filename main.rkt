@@ -14,7 +14,7 @@
 
 
 
-(module SRFI-105 racket
+(module SRFI-105 racket/base
 	
 
 ;;(require syntax/strip-context) ;; is this useful?
@@ -28,6 +28,7 @@
 
 (require SRFI-105/SRFI-105-curly-infix
 	 setup/getinfo ; for parsing info.rkt
+	 racket/pretty
 	 )
 
 (define info-getter (get-info '("SRFI-105")))
