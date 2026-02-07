@@ -29,7 +29,7 @@
 (require SRFI-105/SRFI-105-curly-infix
 	 setup/getinfo ; for parsing info.rkt
 	 racket/pretty
-	 )
+	 SRFI-105/annot)
 
 (define info-getter (get-info '("SRFI-105")))
 (define version (cond ((procedure? info-getter) (info-getter 'version))
@@ -190,12 +190,13 @@
 
       ;; r5rs
       (let ((result (process-input-code-rec-tail-recursive '())))
+	
 	(when (null? result)
 	  (when (> 1 verbose)
 	    (set! result (list "GREETINGS SCHEMER. IT SEEMS YOU ARE ONLY USING SRFI-105 CURLY INFIX. TO GET ALL THE FEATURES OF THE SYSTEM I SUGGEST YOU TO (require Scheme+) OR SIMPLY TO Run REPL-Scheme-PLUS.rkt OR EVEN JUST RUN THE FILE YOU PREVIOUSLY LOADED."))))
 	  ;(error "ERROR: Empty program."))
 
-	(for/list ([expr result])
+	#;(for/list ([expr result])
 		  (pretty-print expr
 				(current-output-port)
 				1))
@@ -204,21 +205,39 @@
 	;;(newline (current-output-port))
 
 	;; we always return a module, so a single sexpr
-	;; TODO : put it in a variable and parse it for type annotation
-	(cond ((null? result) `(module aschemeplusprogram racket)) ; '() : void code
-	      ((not (null? (cdr result))) ; (code1 code2 ...)
-	       ;; put them in a module
-	       `(module aschemeplusprogram racket ,@result))
-	      (else
-	       ;; only one (code1)
-	       (let ((fst (car result))) 
-		 ;; searching for a module ((module ...))
-		 (if (and (list? fst)
-			  (not (null? fst))
-			  (equal? 'module (car fst)))
-		     fst ; is the result module : (module ...)
-		     `(module aschemeplusprogram racket ,fst))))))))
-		       
+	;; put it in a variable and parse it for type annotation
+	(define result-modul
+		 (cond ((null? result) `(module aschemeplusprogram racket)) ; '() : void code
+		       ((not (null? (cdr result))) ; (code1 code2 ...)
+			;; put them in a module
+			`(module aschemeplusprogram racket ,@result))
+		       (else
+			;; only one (code1)
+			(let ((fst (car result))) 
+			  ;; searching for a module ((module ...))
+			  (if (and (list? fst)
+				   (not (null? fst))
+				   (equal? 'module (car fst)))
+			      fst ; is the result module : (module ...)
+			      `(module aschemeplusprogram racket ,fst))))))
+	
+	(pretty-print result-modul
+		      (current-output-port)
+		      1)
+	
+	(define parsed-annoted-module (annot result-modul))
+	(newline)
+	(pretty-print parsed-annoted-module
+		      (current-output-port)
+		      1)
+	(newline)
+
+	parsed-annoted-module
+	
+	; we must return the final code , do not forget it !!!!
+	
+	)))
+      
 	
 
   
