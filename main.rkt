@@ -224,16 +224,21 @@
 	(pretty-print result-modul
 		      (current-output-port)
 		      1)
-	
-	(define parsed-annoted-module (annot result-modul))
-	(newline)
-	(pretty-print parsed-annoted-module
-		      (current-output-port)
-		      1)
-	(newline)
 
-	parsed-annoted-module
+	(define annot-flag #t)
 	
+	(if annot-flag
+	    (let ((parsed-annoted-module (annot result-modul)))
+	      (newline)
+	      (display "Annotated code:") (newline)
+	      (pretty-print parsed-annoted-module
+			    (current-output-port)
+			    1)
+	      (newline)
+	      
+	      parsed-annoted-module)
+	    result-modul)
+	    
 	; we must return the final code , do not forget it !!!!
 	
 	)))
