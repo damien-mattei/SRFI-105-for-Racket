@@ -30,8 +30,8 @@
         (else
          (error "annot : bad overload syntax in : " s))))
 
-
-(define (process-lst-for-overload L)
+;DEPRECATED
+#;(define (process-lst-for-overload L)
   (condx ((null? L) '())
          (exec (define fst (car L))
                (define rst (cdr L)))
@@ -41,7 +41,7 @@
          (else
           (cons fst (process-lst-for-overload rst)))))
 
-; process list
+; process list recursively
 (define (process-lst-for-annot L)
   (cond ((null? L) '())
 	(else
@@ -50,22 +50,27 @@
          (cons (annot fst)
                (process-lst-for-annot rst)))))
 
+(define (parse-expressions s)
+  (define fst (first s))
+  (if (is-define-overload? fst)
+      (recreate-define-overload s) ; rewrite s
+      ; otherwise the elements of expression should be parsed for annotation
+      (process-lst-for-annot s)))
 
 ; annotate
 (define (annot s)
   (cond ((null? s) '())  ; empty list
         ((list? s) ; we must process all the elements at the same level of recursion , so not by diving in a recursion over the rest of list
          ; do we have an interesting thing to parse and modify? when expression itself should be modified
-         (define fst (first s))
-         (if (is-define-overload? fst)
-             (recreate-define-overload s) ; rewrite s
-             ; otherwise the elements of expression should be parsed for annotation
-             (process-lst-for-annot s)))
+         ; now in a special procedure as it should be bigger and bigger in the future
+         (parse-expressions s))
         ((pair? s)       ; pair or list , with list processed above we should not reach this part often (not for lists)
          (cons (annot (car s))
                (annot (cdr s))))
         (else s))       ; atom
   )
+
+
 
 
 #;(define (annot s)
