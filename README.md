@@ -9,6 +9,15 @@ Use:
 #lang reader SRFI-105
 
 
+## 💙 Support My Work
+
+If my projects help you, you can support me with a donation:
+
+[![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-003087?style=for-the-badge&logo=paypal&logoColor=white)](https://www.paypal.me/DamienMATTEI27)
+
+<br>
+
+
 [https://srfi.schemers.org/srfi-105/srfi-105.html](https://srfi.schemers.org/srfi-105/srfi-105.html)
 
 
@@ -21,6 +30,11 @@ Also provides the parser curly-infix2prefix4racket.rkt in src/ sub-directory:
 Some REPL (Read Eval Print Loop) are available in src/ subdirectory.
 
 A Makefile is also available in the same subdirectory, to parse Scheme+ file in standart Scheme,allowing the debugging of parsed files in Racket GUI or command line.
+
+<br>
+
+Future: the next release is more complex and will take more time to be achieved,i'm working on a type annotation system to improve speed to top.
+
 
 <br>
 
