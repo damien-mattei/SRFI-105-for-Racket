@@ -2,7 +2,7 @@
 
 (define pkg-name "SRFI-105-for-Racket")
 (define collection "SRFI-105")
-(define compile-omit-paths '("src" "deprecated" "compiled"))
+(define compile-omit-paths '("src" "deprecated" "compiled" "bootstrapping"))
 (define test-omit-paths '("src" "compiled"))
 (define pkg-desc "SRFI-105 Curly Infix for Racket and R6RS (autodetection)")
 (define version "14.7")

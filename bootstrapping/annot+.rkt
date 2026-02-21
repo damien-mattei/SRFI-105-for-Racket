@@ -51,7 +51,7 @@
 ; (define-overload-existing-operator +) --> (define-overload-existing-operator-annot + orig-+)
 (def (recreate-define-overload s) ; can shorten compute time from 27" to 15" without explainations !
   (define len-s (length s))
-  (when {(len-s ≠ 2) and (len-s ≠ 3)}
+  (when {len-s ≠ 2 and len-s ≠ 3}
     (error "annot : bad overload syntax in : " s))
 
   (define-values (symb orig-symb) (return-symb-and-orig-symb s))
