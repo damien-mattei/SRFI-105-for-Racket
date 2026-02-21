@@ -38,17 +38,6 @@ Future: the next release is more complex and will take more time to be achieved,
 
 <br>
 
-**Changes of version 14.7:**
-
-
-Bootstrapping start to be used. Scheme+ is now written in Scheme+. See: https://en.wikipedia.org/wiki/Bootstrapping_(compilers)
-For now the Bootstrapping is only used in SRFI-105 as Scheme+ code do not have changed.
-
-Type annotation is in progress.(but no new features till)
-
-<br>
-
-
 **Changes of version 14.5:**
 
 Made a ```verbose``` mode variable because the full verbosity put the mess in Scheme+ Racket documentation system that should be concise.

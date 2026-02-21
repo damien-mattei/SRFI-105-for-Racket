@@ -29,9 +29,7 @@
 (require SRFI-105/SRFI-105-curly-infix
 	 setup/getinfo ; for parsing info.rkt
 	 racket/pretty
-	 SRFI-105/annot+
-         srfi/69 ; basic hash tables , brings compatibility on hash tables between scheme implementations
-         )
+	 SRFI-105/annot)
 
 (define info-getter (get-info '("SRFI-105")))
 (define version (cond ((procedure? info-getter) (info-getter 'version))
@@ -48,14 +46,6 @@
   (display "use only syntax transformers flag set to:") (display use-only-syntax-transformers) (newline))
 
 (define flag-r6rs #f)
-
-(define annot-flag #t)
-
-(define ovrld-ht '())
-
-(when annot-flag
-  (set! ovrld-ht (make-hash-table)))
-  
 
 ;; DEPRECATED
 ;; (define (test-blank-lines-or-comments li)
@@ -235,20 +225,21 @@
 		      (current-output-port)
 		      1)
 
-	; TODO : the same in SRFI-110
+	(define annot-flag #t) ; TODO : the same in SRFI-110
 	
 	(if annot-flag
-	    (let ((parsed-annotated-module (annot result-modul (list ovrld-ht))))
+	    (let ((parsed-annoted-module (annot result-modul '())))
 	      (newline)
 	      (display "Annotated code (Beta: in development, only a few percent of the job done,just provided because it could already provide speedup of code.)") (newline)
 	      (newline)
-	      (pretty-print parsed-annotated-module
+	      (pretty-print parsed-annoted-module
 			    (current-output-port)
 			    1)
-	      (newline)	      
-	      parsed-annotated-module)
+	      (newline)
+	      
+	      parsed-annoted-module)
 	    result-modul)
-        
+	    
 	; we must return the final code , do not forget it !!!!
 	
 	)))
@@ -260,7 +251,7 @@
  
 
 ;; the current read interaction handler, which is procedure that takes an arbitrary value and an input port 
-(define (literal-read-syntax-for-repl src in) ; TODO do the annotation too, must have access to the hash tables ?!
+(define (literal-read-syntax-for-repl src in)
 
   (define result (curly-infix-read in))
   ;; usefull only in CLI
@@ -274,18 +265,8 @@
   (if (eof-object? result)
       ;;(begin (display "eof") (newline) result)
       result
-      (if annot-flag
-	  (let ((parsed-annotated-result (annot result (list ovrld-ht))))
-	    (newline)
-            (display "Parsed annotations. :")
-            (newline)
-	    (pretty-print parsed-annotated-result
-			  (current-output-port)
-			  1)
-	    (newline)	    ; we must return the final code , do not forget it !!!!
-            (datum->syntax #f parsed-annotated-result))
-          (datum->syntax #f result)))) ;; current-eval wait for a syntax object to pass to eval-syntax for evaluation
-
+      (datum->syntax #f result))) ;; current-eval wait for a syntax object to pass to eval-syntax for evaluation
+      
 
  
 
