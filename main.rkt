@@ -40,7 +40,7 @@
 (define verbose 1)
 
 (when verbose
-  (display (string-append "SRFI 105 Curly Infix v" version " for Scheme+")) (newline))
+  (display (string-append "SRFI 105 Curly Infix v" version " for Scheme+.")) (newline))
 
 (when (> 1 verbose)
   (display "care of quote flag set to:") (display care-of-quote) (newline)
@@ -217,7 +217,7 @@
 	;; we always return a module, so a single sexpr
 	;; put it in a variable and parse it for type annotation
 	(define result-modul
-		 (cond ((null? result) `(module aschemeplusprogram racket)) ; '() : void code
+		 (cond ((null? result) '(module no-op racket)) ; no code but then MUST be an empty module!
 		       ((not (null? (cdr result))) ; (code1 code2 ...)
 			;; put them in a module
 			`(module aschemeplusprogram racket ,@result))
@@ -230,17 +230,20 @@
 				   (equal? 'module (car fst)))
 			      fst ; is the result module : (module ...)
 			      `(module aschemeplusprogram racket ,fst))))))
-	
-	(pretty-print result-modul
-		      (current-output-port)
-		      1)
+
+        (unless (null? result)
+          (pretty-print result-modul
+                        (current-output-port)
+                        1))
 
 	; TODO : the same in SRFI-110
 	
-	(if annot-flag
-	    (let ((parsed-annotated-module (annot result-modul (list ovrld-ht))))
+	(if (and annot-flag
+                 (not (null? result))) ; no need to parse annotations of a no code module
+	    (let ((parsed-annotated-module (annot result-modul ovrld-ht)))
 	      (newline)
 	      (display "Annotated code (Beta: in development, only a few percent of the job done,just provided because it could already provide speedup of code.)") (newline)
+              (display "ovrld-ht (alist) : ") (display (hash-table->alist ovrld-ht)) (newline)
 	      (newline)
 	      (pretty-print parsed-annotated-module
 			    (current-output-port)
@@ -249,7 +252,7 @@
 	      parsed-annotated-module)
 	    result-modul)
         
-	; we must return the final code , do not forget it !!!!
+	; we must return the final code , do not forget it !!!! and this MUST be a module !!!!!!!!!!!!!! (or a #lang ....)
 	
 	)))
       
@@ -263,10 +266,13 @@
 (define (literal-read-syntax-for-repl src in) ; TODO do the annotation too, must have access to the hash tables ?!
 
   (define result (curly-infix-read in))
-  ;; usefull only in CLI
-  (newline) 
-  (write-char (integer->char 13)) ; put a Carriage Return
+  
+  
   (unless (eof-object? result)
+    (display "REPL Curly Infix:")
+    ;; usefull only in CLI
+    (newline) 
+    (write-char (integer->char 13)) ; put a Carriage Return
     (pretty-print result
 		  (current-output-port)
 		  1))
@@ -275,7 +281,7 @@
       ;;(begin (display "eof") (newline) result)
       result
       (if annot-flag
-	  (let ((parsed-annotated-result (annot result (list ovrld-ht))))
+	  (let ((parsed-annotated-result (annot result ovrld-ht)))
 	    (newline)
             (display "Parsed annotations. :")
             (newline)
