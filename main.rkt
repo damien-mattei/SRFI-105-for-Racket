@@ -31,7 +31,7 @@
 	 racket/pretty
 	 SRFI-105/annot+
          srfi/69 ; basic hash tables , brings compatibility on hash tables between scheme implementations
-         )
+         Scheme+/operators-list)
 
 (define info-getter (get-info '("SRFI-105")))
 (define version (cond ((procedure? info-getter) (info-getter 'version))
@@ -146,7 +146,10 @@
 	   (reverse acc))
 	  (else
 	   (set! cpt (+ 1 cpt))
-	   (process-input-code-rec-tail-recursive (cons result acc)))))
+           ; if postfix do not put it in accumulator result
+           (if (verify-if-declare-postfix-operator-then-store-it-for-proc result)
+               (process-input-code-rec-tail-recursive acc)
+               (process-input-code-rec-tail-recursive (cons result acc))))))
 
   (when (> 1 verbose)
     (display "SRFI-105 Curly Infix parser for Racket Scheme and R6RS by Damien MATTEI") (newline)
@@ -231,7 +234,10 @@
 			      fst ; is the result module : (module ...)
 			      `(module aschemeplusprogram racket ,fst))))))
 
+        
         (unless (null? result)
+          (display "Parser : main.rkt : Postfix operators list :") (display (get-postfix-lst)) (newline)
+          (newline)
           (pretty-print result-modul
                         (current-output-port)
                         1))
@@ -243,7 +249,8 @@
 	    (let ((parsed-annotated-module (annot result-modul ovrld-ht)))
 	      (newline)
 	      (display "Annotated code (Beta: in development, only a few percent of the job done,just provided because it could already provide speedup of code.)") (newline)
-              (display "ovrld-ht (alist) : ") (display (hash-table->alist ovrld-ht)) (newline)
+              (display "ovrld-ht, alist : ") (display (hash-table->alist ovrld-ht)) (newline)
+              
 	      (newline)
 	      (pretty-print parsed-annotated-module
 			    (current-output-port)
@@ -256,22 +263,22 @@
 	
 	)))
       
-	
 
-  
+
 
  
 
 ;; the current read interaction handler, which is procedure that takes an arbitrary value and an input port 
-(define (literal-read-syntax-for-repl src in) ; TODO do the annotation too, must have access to the hash tables ?!
+(define (literal-read-syntax-for-repl src in) ; do the annotation too, must have access to the hash tables
 
   (define result (curly-infix-read in))
-  
-  
+
   (unless (eof-object? result)
     (display "REPL Curly Infix:")
     ;; usefull only in CLI
-    (newline) 
+    (newline)
+    (verify-if-declare-postfix-operator-then-store-it result)
+    
     (write-char (integer->char 13)) ; put a Carriage Return
     (pretty-print result
 		  (current-output-port)

@@ -35,6 +35,8 @@
 (define (is-define-overload? s)
   (eq? s 'define-overload-existing-operator))
 
+(define (is-overload-existing-operator? s)
+  (eq? s 'overload-existing-operator))
 
 
 ; + --> orig-+
@@ -55,7 +57,7 @@
   (when {len-s ≠ 2 and len-s ≠ 3}
     (error "annot : bad overload syntax in : " s))
 
-  (define-values (symb orig-symb) (return-symb-and-orig-symb s))
+  {(symb orig-symb) := (return-symb-and-orig-symb s)}
   
   ; create en entry for symb in the current hash table
   (hash-table-set! ovrld-ht symb (list orig-symb)) ; example: ovrld-ht (alist) : ((* orig-*))
@@ -64,8 +66,14 @@
     else
       (define modul (third s))
       `(define-overload-existing-operator-annot ,symb ,orig-symb ,modul)))
-      
 
+
+;; (def (process-overload-existing-operator s ovrld-ht)
+;;   (define len-s (length s))
+;;   (when {len-s ≠ 4}
+;;     (error "annot : bad overload syntax in : " s))
+
+;;   {(_ 
 
 ; process list recursively, recalling annot
 (define (process-lst-for-annot L ovrld-ht)
@@ -85,13 +93,18 @@
   ; now we should do different things according to situation:
   ; - save information in hash tables and rewrite some expressions (example:recreate-define-overload)
   ; - or just use saved information in hash tables to rewrite some expressions (calculus for example)
-  (if (is-define-overload? fst)
-      (recreate-define-overload s ovrld-ht) ; rewrite s
+  ; example below and TODO deal with overload-existing-operator
+  (cond ((is-define-overload? fst) (recreate-define-overload s ovrld-ht)) ; rewrite s
+        ;((is-overload-existing-operator? s) (process-overload-existing-operator s ovrld-ht))
       ; otherwise the elements of expression should be parsed for annotation
-      (process-lst-for-annot s ovrld-ht)))
+        (else (process-lst-for-annot s ovrld-ht))))
+
+
 
 ; at some point for computation we should have type anotation parsed
 ; only then we can compute the expression
+
+; annot -> parse-expressions -> rewrite (recreate*) or process-lst-for-annot -> annot
 
 ; annotate a level of expression
 ; we also need for agument some hash tables , possibly multiples

@@ -8,12 +8,13 @@ Use:
 
 #lang reader SRFI-105
 
-
+<!-- 
 ## 💙 Support My Work
 
 If my projects help you, you can support me with a donation:
 
 [![Donate via PayPal](https://img.shields.io/badge/Donate-PayPal-003087?style=for-the-badge&logo=paypal&logoColor=white)](https://www.paypal.me/DamienMATTEI27)
+-->
 
 <br>
 
@@ -35,6 +36,11 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 
 Future: the next release is more complex and will take more time to be achieved,i'm working on a type annotation system to improve speed to top.
 
+<br>
+
+**Changes of version 14.8:**
+
+Support for postfix operators and postfix notation.
 
 <br>
 

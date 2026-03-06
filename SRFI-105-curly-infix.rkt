@@ -24,7 +24,8 @@
 		 Scheme+/operators
 		 Scheme+/infix-with-precedence-to-prefix
 		 syntax/readerr
-		 racket/path)
+		 racket/path
+                 Scheme+/operators-list)
 	
 
 ; This is a simplified reference implementation of a curly-infix and
@@ -143,8 +144,20 @@
 (define comment #f) ; used for comment removal
 
 (define cpt 0) ; used for internal debug , will count the datum and display debug infor for the nth data
-(define dpth 0) ; depth in sexpr
 
+;; DEPRECATED
+;(define dpth 0) ; depth in sexpr
+
+(define postfix-flag #f) ; when we find a postfix operator annotation
+
+(define (verify-if-declare-postfix-operator-then-store-it datum) ; TODO the same in SRFI 110
+  (when (and (list? datum)
+             (not (null? datum))
+             (eq? (car datum) 'declare-postfix-operator)
+             (not comment)) ; also test for comment flag !!!
+    ;(set! postfix-flag #t) ; decomment if you want to delete expression from result file and modify the region calling this function
+    (insert-in-postfix-lst (cadr datum))))
+    
 
   ; ------------------------------
   ; Curly-infix support procedures
@@ -262,7 +275,7 @@
 		 srfi-strict)) ; Map {a OP b [OP c...]} to (OP a b [c...])
 	
 	(cons (cadr lyst)
-	      (alternating-parameters lyst)))
+	      (alternating-parameters lyst))) ; put the list in prefix (at least at top level, nested lists stays as they are)
        
        ;; comment above force this (which is not what i want):
        ;; '{(2 + 3) - (5 - 7) - 2}
@@ -464,7 +477,7 @@
        (exec
 	(define operands (alternating-parameters lyst))
 	(define mbr+- (or (member '+ operands) ; there could be + - + + , superscripts ,so operators could be wrong
-			  (member '- operands)))
+			  (member '- operands))) ; note that when superscript is not deal here (superscript could not be in place of operators)
 	(define sil (simple-infix-list? lyst))
 	(define oper (cadr lyst)) ; first operator of list
 	(define infx (not (eq? oper 'if))) ; true infix, not Python 'statement if test else statement2'
@@ -649,18 +662,34 @@
 	   (#t
 	    
 	    ;; here we get the symbolic scheme expression (but it is constructed recursively,only at the end we get the correct full expression)
+
+            ;; datum should be an expression , atom or list
 	    
 	    ;; (let ((expression 
 	    ;; 	     (cons datum
 	    ;; 		   (my-read-delimited-list my-read stop-char port))))
 
+            ; also test for comment flag !!!
+            (verify-if-declare-postfix-operator-then-store-it datum)
+            #;(when (and (list? datum)
+                       (not (null? datum))
+                       (eq? (car datum) 'declare-postfix-operator)
+                       (not comment))
+              (set! postfix-flag #t)
+              (insert-in-postfix-lst (cadr datum))
+              ;(display "SRFI-105-curly-infix.rkt : (get-postfix-lst) :") (display (get-postfix-lst)) (newline)
+              ;(error "SRFI-105 : postfix declaration found:" datum)
+              )
+
 	    (let ((expression '()))
 
-	      (if (or strict-srfi-105-pragma comment) 
+	      (if (or strict-srfi-105-pragma comment #;postfix-flag) 
                   (begin
                     (when comment
                       (set! comment #f)) ; reset the comment flag before
-                    (set! expression (my-read-delimited-list my-read stop-char port))) ; drop the datum as it is a pragma directive or a commented expression
+                    (when postfix-flag
+                      (set! postfix-flag #f))
+                    (set! expression (my-read-delimited-list my-read stop-char port))) ; drop the datum as it is a pragma directive or a commented expression (or postfix-declare)
 		  (set! expression (cons datum ;; normal case
 					 (my-read-delimited-list my-read stop-char port))))
 	      
@@ -668,12 +697,17 @@
 		;;(display "expression=") (display expression) (newline) ; here we possibly have finished a *quote* region ,pop
 		(end-region)) ; pop !
 
-	      ;; for test only
-	      ;(when (equal? expression '(list 1 2 3 (list 4 44) 5 67 8))
-	      ;   (error "test passed" dpth))
+	      ;; for test only (dpth is not depth but near length and negative?)
+	      ; but we can find here an exact expression
+	      ;; (when (equal? expression '(list 1 2 3 (list 4 44) 5 67 8))
+	      ;;   (error "test passed" dpth))
+	      
+	      ;; (when (equal? expression '(declare-postfix-operator fact))
+	      ;;   (error "test passed :" expression))
+	      
 	      ;;(when (= dpth 2)
-	;;	(error "SRFI-105 debug: expression=" expression))
-	      (set! dpth (- dpth 1))
+	      ;;	(error "SRFI-105 debug: expression=" expression))
+	      ;(set! dpth (- dpth 1))
 	      
 	      expression))))))))
 
@@ -759,7 +793,7 @@
           (my-read port))
 	
         ((char=? c #\( ) ; start parsing list
-	 (set! dpth (+ 1 dpth))
+	 ;(set! dpth (+ 1 dpth))
 	 (read-char port)
          (my-read-delimited-list my-read #\) port))
 	

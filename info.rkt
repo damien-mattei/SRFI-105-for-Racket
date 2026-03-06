@@ -5,7 +5,7 @@
 (define compile-omit-paths '("src" "deprecated" "compiled" "bootstrapping"))
 (define test-omit-paths '("src" "compiled" "bootstrapping"))
 (define pkg-desc "SRFI-105 Curly Infix for Racket and R6RS (autodetection)")
-(define version "14.7")
+(define version "14.8")
 (define pkg-authors '(mattei))
 (define scribblings '(("scribblings/SRFI-105.scrbl" () (parsing-library))))
 (define build-deps '("scribble-lib" "racket-doc" "scribble-code-examples" "scribble-doc"))
