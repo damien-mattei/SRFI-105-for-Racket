@@ -42,9 +42,27 @@
 
 (require SRFI-105/SRFI-105-curly-infix)
 
+(require SRFI-105/annot+ ; type annotation parser : annot , remove-expr , init-annot-data
+	 (only-in Scheme+/type is-type-expression?)
+	 #;(only-in Scheme+/operators-list verify-if-declare-postfix-operator-then-store-it-for-proc)
+	 (only-in Scheme+/parser-declarations ; what the infix parser must know : postfix operators , procedures , data
+		  verify-if-declaration-for-parser-then-store-it
+		  reset-declarations-for-parser!)
+	 (only-in Scheme+/care-of-quotes process-care-of-quotes)) ; the pragmas CARE-OF-QUOTES-ON / CARE-OF-QUOTES-OFF
+
 (define stderr (current-error-port))
 
+(require (rename-in setup/getinfo [get-info get-collection-info])) ; renamed as in main.rkt, for reading info.rkt
+
 (define stdout (current-output-port))
+
+;; versions displayed in the banner, read in the info.rkt files as in main.rkt
+(define info-getter (get-collection-info '("SRFI-105")))
+(define version (cond ((procedure? info-getter) (info-getter 'version))
+		      (else info-getter)))
+(define scheme+-info-getter (get-collection-info '("Scheme+")))
+(define scheme+-version (cond ((procedure? scheme+-info-getter) (scheme+-info-getter 'version))
+			      (else scheme+-info-getter)))
 
 
 
@@ -54,6 +72,54 @@
 (define verbose #f)
 
 (define flag-r6rs #f)
+
+;; hash tables of the type annotation parser, initialized by init-annot-data (as in main.rkt)
+(define ovrld-ht #f)
+(define ovrld-ht-n-arity #f)
+(define ovrld-ht-proc #f)
+(define annot-ht-lst #f)
+
+
+;; type annotation, as in main.rkt : forms-read is the list of the expressions read in the file,
+;; the result is the list of the expressions to write.
+;; The pragmas ANNOTATION-ON / ANNOTATION-OFF act by region : they stay in the code as markers until the annotation
+;; pass (or remove-expr) removes them.
+(define (annotate-or-remove-types forms-read)
+  ;; the pragmas written at the top level of the file before a module form are put in its body (see annot+.rkt)
+  (define forms (insert-top-level-markers-in-module forms-read))
+  (cond ((null? forms) '()) ; only pragmas , no code
+	((get-annot-on-read) ; a pragma ANNOTATION-ON has been read in the file : the annotation pass runs
+	 (let* ((module-form? (and (null? (cdr forms)) ; the file is a single (module ...) form
+				   (list? (car forms))
+				   (not (null? (car forms)))
+				   (eq? 'module (car (car forms)))))
+		(modul (if module-form?
+			   (car forms)
+			   `(module aschemeplusprogram racket ,@forms)))) ; as in main.rkt the annotation parser gets a module
+	   (init-annot-data ovrld-ht ovrld-ht-n-arity ovrld-ht-proc annot-ht-lst)
+	   (let ((annotated (annot modul ovrld-ht ovrld-ht-n-arity ovrld-ht-proc annot-ht-lst)))
+	     (if module-form?
+		 (list annotated)
+		 (cdddr annotated))))) ; remove the envelope (module aschemeplusprogram racket ...) : keep the forms of the file
+	(else
+	 (remove-types-and-annotation-markers forms)))) ; no annotation : only remove the type annotations and the markers
+
+;; old version, before the regions of the pragmas :
+#;(define (annotate-or-remove-types forms)
+  (if (get-annot-flag) ; pragma ANNOTATION-ON
+      (let* ((module-form? (and (null? (cdr forms)) ; the file is a single (module ...) form
+				(list? (car forms))
+				(not (null? (car forms)))
+				(eq? 'module (car (car forms)))))
+	     (modul (if module-form?
+			(car forms)
+			`(module aschemeplusprogram racket ,@forms)))) ; as in main.rkt the annotation parser gets a module
+	(init-annot-data ovrld-ht ovrld-ht-n-arity ovrld-ht-proc annot-ht-lst)
+	(let ((annotated (annot modul ovrld-ht ovrld-ht-n-arity ovrld-ht-proc annot-ht-lst)))
+	  (if module-form?
+	      (list annotated)
+	      (cdddr annotated)))) ; remove the envelope (module aschemeplusprogram racket ...) : keep the forms of the file
+      (remove-expr forms is-type-expression?))) ; no annotation : only remove the type annotations
 
 
 ;; only this procedure is exactly the same as in main.rkt
@@ -89,6 +155,10 @@
 (define (literal-read-syntax src)
 
   (define in (open-input-file src))
+  (set-annot-flag! #f) ; the pragmas ANNOTATION-ON / ANNOTATION-OFF act only on the file where they are written (as in main.rkt)
+  (set-annot-on-read! #f) ; no pragma ANNOTATION-ON read yet in this file
+  (reset-srfi-strict!) ; a strict SRFI 105 region acts only on the file where it is written (as in main.rkt)
+  (reset-declarations-for-parser!) ; the declarations of postfix operators , procedures , data act only on the file where they are written (as in main.rkt)
   (define lst-code (process-input-code-tail-rec src in))
   ;; (if lang-reader
   ;;     `(module aschemeplusprogram racket ,@lst-code)
@@ -105,13 +175,28 @@
 
   (define (process-input-code-rec-tail-recursive acc)
     (define result (curly-infix-read in src))  ;; read an expression
-    (if (eof-object? result)
-	(reverse acc)
-	(process-input-code-rec-tail-recursive (cons result acc))))
+    (cond ((eof-object? result)
+	   (reverse acc))
+	  ;; as in main.rkt, a pragma ANNOTATION-ON / ANNOTATION-OFF written at the top level of the file
+	  ;; (outside a module form) or a postfix declaration is not put in the accumulator
+	  #;((or (process-annotation-pragma result)
+	       (verify-if-declare-postfix-operator-then-store-it-for-proc result))
+	   (process-input-code-rec-tail-recursive acc))
+	  ;; as in main.rkt, a postfix declaration is not put in the accumulator, but a pragma ANNOTATION-ON / ANNOTATION-OFF
+	  ;; written at the top level of the file stays in the code as a marker of region (see annotate-or-remove-types)
+	  ((begin
+	     (process-annotation-pragma result)
+	     #;(verify-if-declare-postfix-operator-then-store-it-for-proc result)
+	     #;(verify-if-declaration-for-parser-then-store-it result) ; #t only for a declaration of postfix operators
+	     (or (process-strict-pragma result) ; a pragma BEGIN-STRICT-SRFI-105-REGION / END-STRICT-SRFI-105-REGION written before the module form (as in main.rkt)
+		 (verify-if-declaration-for-parser-then-store-it result))) ; #t only for a declaration of postfix operators
+	   (process-input-code-rec-tail-recursive acc))
+	  (else
+	   (process-input-code-rec-tail-recursive (cons result acc)))))
 
 
   (when verbose
-	(display "SRFI-105 Curly Infix parser with operator precedence by Damien MATTEI" stderr) (newline stderr)
+	(display (string-append "SRFI 105 Curly Infix v" version " for Scheme+ v" scheme+-version " by Damien Mattei.") stderr) (newline stderr)
 	(display "(based on code from David A. Wheeler and Alan Manuel K. Gloria.)" stderr) (newline stderr) (newline stderr)
 	(newline stderr))
 
@@ -125,7 +210,8 @@
 
   ;; search for executable in racket
   (let loop ()
-    (define try-read (regexp-try-match #px"^#![[:print:]]*racket" in))
+    #;(define try-read (regexp-try-match #px"^#![[:print:]]*racket" in)) ; stopped at "racket" : the rest of the line (--load ... --repl) was then read as code
+    (define try-read (regexp-try-match #px"^#![[:print:]]*racket[[:print:]]*" in)) ; the whole line
     (when  try-read
 	   (when verbose
 		 (display "try-read : |" stderr) (display try-read stderr) (display "|" stderr) (newline stderr))
@@ -144,9 +230,11 @@
 
   ;; search for a reader 
   (let loop ()
-    (when  (or (regexp-try-match #px"^#lang reader SRFI-105[[:blank:]]*\n" in)
-	       (regexp-try-match #px"^#reader SRFI-105[[:blank:]]*\n" in))
-      ;;(display "srfi 105") (newline)
+    (when  (or (regexp-try-match #px"^#lang reader SRFI-105[[:blank:]]*[;]*[[:print:]]*\n" in)
+	       (regexp-try-match #px"^#reader SRFI-105[[:blank:]]*[;]*[[:print:]]*\n" in)
+               (regexp-try-match #px"^#lang reader SRFI-110[[:blank:]]*[;]*[[:print:]]*\n" in)
+	       (regexp-try-match #px"^#reader SRFI-110[[:blank:]]*[;]*[[:print:]]*\n" in))
+      ;;(display "srfi 105 or srfi 110") (newline)
       (loop)))
 
   (skip-comments-and-empty-lines in)
@@ -181,7 +269,7 @@
 	(display "#!r6rs")
 	(newline)
  	
-	(pretty-print result
+	(pretty-print (remove-annotation-markers result) ; without the markers of the pragmas ANNOTATION-ON / ANNOTATION-OFF (no annotation pass in R6RS)
 		      stdout
 		      1)
 	;;(write result)
@@ -197,7 +285,12 @@
 	(when (null? result)
 	  (error "ERROR: Empty program."))
 
-	(for/list ([expr result])
+	(when verbose
+	  (display "type annotation : " stderr) (display (if (get-annot-on-read) "on" "off") stderr) (newline stderr))
+
+	;; as in main.rkt , the pragmas CARE-OF-QUOTES-ON / CARE-OF-QUOTES-OFF act by region on the quoted lists
+	; old line : (for/list ([expr (annotate-or-remove-types result)])
+	(for/list ([expr (annotate-or-remove-types (process-care-of-quotes result))])
 		  (pretty-print expr
 				stdout
 				1))
