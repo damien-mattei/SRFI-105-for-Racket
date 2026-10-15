@@ -1162,6 +1162,23 @@
     (define nb (and (pair? ovrlds) (square-brackets-nb-indexes s)))
     (define same-nb (if nb (filter (λ (o) (equal? (cadddr o) nb)) ovrlds) '()))
     (and (= (length same-nb) 1) (list-ref (car same-nb) 4)))
+  (define (string-access-type
+           s
+           ovrld-ht
+           ovrld-ht-n-ary
+           ovrld-ht-proc
+           annot-ht-lst)
+    (and (eq?
+          (type-base
+           (find-type
+            (cadr s)
+            ovrld-ht
+            ovrld-ht-n-ary
+            ovrld-ht-proc
+            annot-ht-lst))
+          'string?)
+         (let ((nb (square-brackets-nb-indexes s)))
+           (cond ((not nb) 'string?) ((= nb 1) 'char?) (else #f)))))
   (define (overloaded-square-brackets-for tip)
     (if (and tip (not (eq? tip 'sexpr)))
       (filter
@@ -1563,6 +1580,7 @@
      ((and (number? s) (inexact? s)) 'inexact?)
      ((number? s) 'number?)
      ((string? s) 'string?)
+     ((char? s) 'char?)
      ((vector? s) (literal-vector-type s))
      ((hash? s) 'hash?)
      ((list? s)
@@ -1586,6 +1604,12 @@
              (remove-indexes s)
              annot-ht-lst)
             (overloaded-square-brackets-return-type
+             s
+             ovrld-ht
+             ovrld-ht-n-ary
+             ovrld-ht-proc
+             annot-ht-lst)
+            (string-access-type
              s
              ovrld-ht
              ovrld-ht-n-ary

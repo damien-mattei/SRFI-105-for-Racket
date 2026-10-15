@@ -396,6 +396,12 @@
       (parameterize     (any?) macro? (syntax? (... syntax?)))
       (guard            (any?) macro? (syntax? (... syntax?)))
 
+      ;; =================================================================
+      ;; Racket (not R7RS)
+      ;; =================================================================
+
+      (void             (void?) procedure? ((... any?)))
+
       ))
 
   ) ;; module scheme-types

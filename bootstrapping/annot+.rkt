@@ -1587,6 +1587,14 @@
     (and {(length same-nb) = 1}
          (list-ref (car same-nb) 4)))
 
+  ; the type of an access s to a string : {s[i]} --> char? , a slice {s[i : j]} --> string? , otherwise #f
+  (define (string-access-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (and (eq? (type-base (find-type (cadr s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)) 'string?)
+         (let ((nb (square-brackets-nb-indexes s)))
+           (cond ((not nb) 'string?)
+                 ({nb = 1} 'char?)
+                 (else #f)))))
+
   ; the overloads of the square brackets for an object of type tip : those whose predicate of the object matches
   (define (overloaded-square-brackets-for tip)
     (if (and tip
@@ -2039,6 +2047,8 @@
 
           ((string? s) ; literal string
            'string?)
+          ((char? s) ; literal character , example : #\a
+           'char?)
           ((vector? s) ; literal vector : #(T) when homogeneous literal data, else vector?
            (literal-vector-type s))
           ((hash? s) ; literal hash table
@@ -2075,6 +2085,8 @@
                                                                   annot-ht-lst)
                        ; an object with overloaded square brackets : the return type given in the overload
                        (overloaded-square-brackets-return-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+                       ; an access to a string : {s[i]} is a character , {s[i : j]} a string
+                       (string-access-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
                        ; fallback : the container is a compound expression, not a stored variable (ex: {(vector-map * v1 v2)[0]})
                        ; (cadr s) is always the container, for $bracket-apply$ and its specialized variants ($bracket-apply-vector$, ...)
                        (element-type (cadr s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
