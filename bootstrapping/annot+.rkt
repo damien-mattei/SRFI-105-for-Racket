@@ -1561,7 +1561,7 @@
     ; the return type if one of them gives it
     (define (same-overload? o) (equal? (take o 4) (take new-ovrld 4)))
     (define old-ovrld (find same-overload? $ovrld-square-brackets-lst$))
-    {$ovrld-square-brackets-lst$ := (cons (if (and old-ovrld (not return-type))
+    {$ovrld-square-brackets-lst$ := (cons (if (old-ovrld and not return-type) #;(and old-ovrld (not return-type))
                                               old-ovrld
                                               new-ovrld)
                                           (filter (λ (o) (not (same-overload? o))) $ovrld-square-brackets-lst$))})
@@ -2021,7 +2021,7 @@
            'exact-integer?) ; exact , example : 3 must return exact-integer?
 
           ; Warning: integer are not specific (2.0 a computer real is considered integer ! by scheme)
-          ({(integer? s) and (not (inexact? s))}
+          ({(integer? s) and not (inexact? s)} #;{(integer? s) and (not (inexact? s))}
            'integer?)
 
           #| rational are counter intuitive with mathematic notion ==> i will not use them .
@@ -3493,7 +3493,7 @@
 ;; {str := "hello"} ; type inference !
 ;; ;{str[3 :]}
 ;; (type string? str2)
-;; {str2 := (string-append "azertyuiop")} ; TODO : should be type inference too
+;; {str2 := (string-append "azertyuiop")} ; type inference too
 ;; {str2[3 : 5] := str[1 : 3]}
 ;; ;{str2[4] := str[1]}
 ;; ;str2
