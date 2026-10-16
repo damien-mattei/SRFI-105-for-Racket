@@ -156,7 +156,8 @@
       (make-list (list?) procedure? (exact-nonnegative-integer? (opt any?)))
       (list      (list?) procedure? ((... any?)))
       ;; DONE : changed in exact-integer?
-      (length    (exact-integer?) procedure? (list?))
+      ;(length    (exact-integer?) procedure? (list?))
+      (length    (fixnum?) procedure? (list?)) ; in Racket the length of a list in memory is a fixnum
       (append    (list?) procedure? ((... list?)))
       (reverse   (list?) procedure? (list?))
       (list-tail (list?) procedure? (list? exact-nonnegative-integer?))
@@ -189,7 +190,8 @@
       (char>?        (boolean?) procedure? (char? char? (... char?)))
       (char<=?       (boolean?) procedure? (char? char? (... char?)))
       (char>=?       (boolean?) procedure? (char? char? (... char?)))
-      (char->integer (exact-nonnegative-integer?) procedure? (char?))
+      ;(char->integer (exact-nonnegative-integer?) procedure? (char?))
+      (char->integer (fixnum?) procedure? (char?)) ; at most #x10FFFF : a fixnum
       (integer->char (char?) procedure? (exact-nonnegative-integer?))
 
       ;; ---------------------------------------------------------------
@@ -199,7 +201,8 @@
       (string?      (boolean?) procedure? (any?))
       (make-string  (string?) procedure? (exact-nonnegative-integer? (opt char?)))
       (string       (string?) procedure? ((... char?)))
-      (string-length (exact-nonnegative-integer?) procedure? (string?))
+      ;(string-length (exact-nonnegative-integer?) procedure? (string?))
+      (string-length (fixnum?) procedure? (string?)) ; in Racket the length of a string in memory is a fixnum
       (string-ref   (char?) procedure? (string? exact-nonnegative-integer?))
       (string-set!  (void?) procedure? (string? exact-nonnegative-integer? char?))
       (string=?     (boolean?) procedure? (string? string? (... string?)))
@@ -350,7 +353,7 @@
       (asin     (number?) procedure? (number?))
       (atan     (number?) procedure? (number? (opt real?)))
       (cos      (number?) procedure? (number?))
-      (exp      (flonum? #;number?) procedure? (number?))
+      (exp      (number?) procedure? (number?)) ; not flonum? : (exp 0) is the exact 1 ; (exp x) of a flonum is typed by the tables of annot+.rkt (flexp)
       (finite?  (boolean?) procedure? (real?))
       (infinite? (boolean?) procedure? (real?))
       (log      (number?) procedure? (number? (opt number?)))

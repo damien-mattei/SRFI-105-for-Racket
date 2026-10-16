@@ -73,6 +73,97 @@
           ($bracket-apply$ ovrld-ht '~)
           '(((fixnum?) fxnot (fixnum?))
             ((exact-integer?) bitwise-not (exact-integer?))))
+         (:= ($bracket-apply$ ovrld-ht 'sin) '(((flonum?) flsin (flonum?))))
+         (:= ($bracket-apply$ ovrld-ht 'cos) '(((flonum?) flcos (flonum?))))
+         (:= ($bracket-apply$ ovrld-ht 'tan) '(((flonum?) fltan (flonum?))))
+         (:= ($bracket-apply$ ovrld-ht 'atan) '(((flonum?) flatan (flonum?))))
+         (:= ($bracket-apply$ ovrld-ht 'exp) '(((flonum?) flexp (flonum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'abs)
+          '(((flonum?) flabs (flonum?)) ((fixnum?) fxabs (fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'min)
+          '(((flonum?) flmin (flonum? flonum?))
+            ((fixnum?) fxmin (fixnum? fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'max)
+          '(((flonum?) flmax (flonum? flonum?))
+            ((fixnum?) fxmax (fixnum? fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'quotient)
+          '(((fixnum?) fxquotient (fixnum? fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'remainder)
+          '(((fixnum?) fxremainder (fixnum? fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'modulo)
+          '(((fixnum?) fxmodulo (fixnum? fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'exact->inexact)
+          '(((flonum?) fx->fl (fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'inexact)
+          '(((flonum?) fx->fl (fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'floor)
+          '(((flonum?) flfloor (flonum?)) ((fixnum?) floor (fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'ceiling)
+          '(((flonum?) flceiling (flonum?)) ((fixnum?) ceiling (fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'round)
+          '(((flonum?) flround (flonum?)) ((fixnum?) round (fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'truncate)
+          '(((flonum?) fltruncate (flonum?)) ((fixnum?) truncate (fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'square)
+          '(((flonum?) square (flonum?)) ((fixnum?) square (fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'sqr)
+          '(((flonum?) sqr (flonum?)) ((fixnum?) sqr (fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'flfloor)
+          '(((flonum?) flfloor (flonum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'flceiling)
+          '(((flonum?) flceiling (flonum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'flround)
+          '(((flonum?) flround (flonum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'fltruncate)
+          '(((flonum?) fltruncate (flonum?))))
+         (:= ($bracket-apply$ ovrld-ht 'flsin) '(((flonum?) flsin (flonum?))))
+         (:= ($bracket-apply$ ovrld-ht 'flcos) '(((flonum?) flcos (flonum?))))
+         (:= ($bracket-apply$ ovrld-ht 'fltan) '(((flonum?) fltan (flonum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'flatan)
+          '(((flonum?) flatan (flonum?))))
+         (:= ($bracket-apply$ ovrld-ht 'flexp) '(((flonum?) flexp (flonum?))))
+         (:= ($bracket-apply$ ovrld-ht 'flabs) '(((flonum?) flabs (flonum?))))
+         (:= ($bracket-apply$ ovrld-ht 'fxabs) '(((fixnum?) fxabs (fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'flmin)
+          '(((flonum?) flmin (flonum? flonum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'flmax)
+          '(((flonum?) flmax (flonum? flonum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'fxmin)
+          '(((fixnum?) fxmin (fixnum? fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'fxmax)
+          '(((fixnum?) fxmax (fixnum? fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'fxquotient)
+          '(((fixnum?) fxquotient (fixnum? fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'fxremainder)
+          '(((fixnum?) fxremainder (fixnum? fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'fx->fl)
+          '(((flonum?) fx->fl (fixnum?))))
          (:=
           ($bracket-apply$ ovrld-ht 'orig-+)
           '(((fixnum?) fx+ (fixnum? fixnum?))
@@ -1851,7 +1942,9 @@
            "annot+.rkt : find-type binary-only : warning args types changed after annot."
            err-port)
           (newline err-port))
-        ret-type)
+        (or ret-type
+            (and (hash-table-exists? scheme-ht proc/mac)
+                 (caar ($bracket-apply$ scheme-ht proc/mac)))))
        ((hash-table-exists? ovrld-ht-proc proc/mac)
         (:=
          args-types

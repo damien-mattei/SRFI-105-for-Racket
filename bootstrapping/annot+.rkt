@@ -127,6 +127,63 @@
          {ovrld-ht['~] := '([(fixnum?) fxnot (fixnum?)]
                             [(exact-integer?) bitwise-not (exact-integer?)])}
 
+         ; the numeric procedures : specialized only for the types where the result is the same , the other calls stay
+         ; generic and are typed by scheme-types.rkt ; not sqrt , log , asin , acos : with a negative float (or outside
+         ; [-1 , 1]) they return a complex number where flsqrt , fllog ... return +nan.0 ; not sin ... of a fixnum : (sin 0) is
+         ; the exact 0
+         {ovrld-ht['sin] := '([(flonum?) flsin (flonum?)])}
+         {ovrld-ht['cos] := '([(flonum?) flcos (flonum?)])}
+         {ovrld-ht['tan] := '([(flonum?) fltan (flonum?)])}
+         {ovrld-ht['atan] := '([(flonum?) flatan (flonum?)])} ; one argument only
+         {ovrld-ht['exp] := '([(flonum?) flexp (flonum?)])}
+         {ovrld-ht['abs] := '([(flonum?) flabs (flonum?)]
+                              [(fixnum?) fxabs (fixnum?)])}
+         {ovrld-ht['min] := '([(flonum?) flmin (flonum? flonum?)]
+                              [(fixnum?) fxmin (fixnum? fixnum?)])}
+         {ovrld-ht['max] := '([(flonum?) flmax (flonum? flonum?)]
+                              [(fixnum?) fxmax (fixnum? fixnum?)])}
+         {ovrld-ht['quotient] := '([(fixnum?) fxquotient (fixnum? fixnum?)])}
+         {ovrld-ht['remainder] := '([(fixnum?) fxremainder (fixnum? fixnum?)])}
+         {ovrld-ht['modulo] := '([(fixnum?) fxmodulo (fixnum? fixnum?)])}
+         {ovrld-ht['exact->inexact] := '([(flonum?) fx->fl (fixnum?)])}
+         {ovrld-ht['inexact] := '([(flonum?) fx->fl (fixnum?)])}
+         ; rounding : of a float a float (flfloor ...) , of a fixnum the same fixnum (the procedure is kept , only the type is
+         ; given) ; (floor x) is typed integer? by scheme-types.rkt , too general for the fl or fx operation around it
+         {ovrld-ht['floor] := '([(flonum?) flfloor (flonum?)]
+                                [(fixnum?) floor (fixnum?)])}
+         {ovrld-ht['ceiling] := '([(flonum?) flceiling (flonum?)]
+                                  [(fixnum?) ceiling (fixnum?)])}
+         {ovrld-ht['round] := '([(flonum?) flround (flonum?)] ; flround rounds to even as round : (flround 2.5) is 2.0
+                                [(fixnum?) round (fixnum?)])}
+         {ovrld-ht['truncate] := '([(flonum?) fltruncate (flonum?)]
+                                   [(fixnum?) truncate (fixnum?)])}
+         ; the square : the procedure is kept , only the type is given (as fx* , a square too big for a fixnum is an error
+         ; of the next fx operation)
+         {ovrld-ht['square] := '([(flonum?) square (flonum?)]
+                                 [(fixnum?) square (fixnum?)])}
+         {ovrld-ht['sqr] := '([(flonum?) sqr (flonum?)]
+                              [(fixnum?) sqr (fixnum?)])}
+
+         ; the specialized procedures themselves , for the type of an argument already rewritten : (fl* (flsin x) 2.0)
+         {ovrld-ht['flfloor] := '([(flonum?) flfloor (flonum?)])}
+         {ovrld-ht['flceiling] := '([(flonum?) flceiling (flonum?)])}
+         {ovrld-ht['flround] := '([(flonum?) flround (flonum?)])}
+         {ovrld-ht['fltruncate] := '([(flonum?) fltruncate (flonum?)])}
+         {ovrld-ht['flsin] := '([(flonum?) flsin (flonum?)])}
+         {ovrld-ht['flcos] := '([(flonum?) flcos (flonum?)])}
+         {ovrld-ht['fltan] := '([(flonum?) fltan (flonum?)])}
+         {ovrld-ht['flatan] := '([(flonum?) flatan (flonum?)])}
+         {ovrld-ht['flexp] := '([(flonum?) flexp (flonum?)])}
+         {ovrld-ht['flabs] := '([(flonum?) flabs (flonum?)])}
+         {ovrld-ht['fxabs] := '([(fixnum?) fxabs (fixnum?)])}
+         {ovrld-ht['flmin] := '([(flonum?) flmin (flonum? flonum?)])}
+         {ovrld-ht['flmax] := '([(flonum?) flmax (flonum? flonum?)])}
+         {ovrld-ht['fxmin] := '([(fixnum?) fxmin (fixnum? fixnum?)])}
+         {ovrld-ht['fxmax] := '([(fixnum?) fxmax (fixnum? fixnum?)])}
+         {ovrld-ht['fxquotient] := '([(fixnum?) fxquotient (fixnum? fixnum?)])}
+         {ovrld-ht['fxremainder] := '([(fixnum?) fxremainder (fixnum? fixnum?)])}
+         {ovrld-ht['fx->fl] := '([(flonum?) fx->fl (fixnum?)])}
+
          {ovrld-ht['orig-+] := '([(fixnum?) fx+ (fixnum? fixnum?)]
                            [(exact-integer?) orig-+ (exact-integer? fixnum?)]
                            [(exact-integer?) orig-+ (fixnum? exact-integer?)]
@@ -2228,7 +2285,11 @@
                        (error "annot+.rkt : find-type binary-only : warning args types changed after annot."))
                      (display "annot+.rkt : find-type binary-only : warning args types changed after annot." err-port) (newline err-port))
 
-                   ret-type)
+                   ; no entry for these types : the general type given by scheme-types.rkt , if any , as when the procedure is not in
+                   ; the tables : (sin x) with x of unknown type is number? (only (sin x) of a flonum is flsin)
+                   (or ret-type
+                       (and (hash-table-exists? scheme-ht proc/mac)
+                            (caar {scheme-ht[proc/mac]}))))
 
                   ; for procedures (overloaded procedures)
                   ((hash-table-exists? ovrld-ht-proc proc/mac)
