@@ -2130,6 +2130,10 @@
 
                   ((memq proc/mac '(lambda λ)) 'procedure?) ; lambda case, ex: (procedure? (lambda (x) (* x x))) --> #t
 
+                  ; the walrus operator returns the value assigned : (:=> x expr) has the type of expr
+                  ({(eq? proc/mac ':=>) and (pair? (cdr s))}
+                   (find-type (last s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+
                   ; check first for literal lists possibility:
                   ; (list ...)
                   ; (quote (...))
@@ -3395,14 +3399,16 @@
            ; reconstruct expression
            {proc := proc/mac} ; the procedure
            (when (and (eq? 'vector? (type-base RmostHS-type)) ; deal with vectors only (also #(T))
-                      (not LHS-overloaded?))
+                      (not LHS-overloaded?)
+                      (not (eq? proc/mac ':=>))) ; the walrus operator must return the value : it keeps := (generic copy)
              {LHS-types := (map-in-order (lambda (a) (find-type a ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
                                 LHS)} ; find the type of LHS
              (when (every (λ (t) (eq? (type-base t) 'vector?)) ;  check we only have vectors (also #(T))
                            LHS-types)
                {proc := '<-vector-vector*}))
            (when (and (eq? 'string? RmostHS-type) ; deal with strings only
-                      (not LHS-overloaded?))
+                      (not LHS-overloaded?)
+                      (not (eq? proc/mac ':=>))) ; the walrus operator must return the value
              {LHS-types := (map-in-order (lambda (a) (find-type a ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
                                 LHS)}
              (when (every (λ (t) (eq? t 'string?)) ;  check we only have strings

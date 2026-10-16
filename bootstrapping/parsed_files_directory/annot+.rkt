@@ -1688,6 +1688,13 @@
        ((null? s) 'null?)
        (exec (:= proc/mac (car s)))
        ((memq proc/mac '(lambda λ)) 'procedure?)
+       ((and (eq? proc/mac ':=>) (pair? (cdr s)))
+        (find-type
+         (last s)
+         ovrld-ht
+         ovrld-ht-n-ary
+         ovrld-ht-proc
+         annot-ht-lst))
        ((eq? 'list proc/mac)
         (or (higher-order-type
              'list
@@ -2840,7 +2847,10 @@
        argus
        (recall-annot argus ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
       (:= proc proc/mac)
-      (when (and (eq? 'vector? (type-base RmostHS-type)) (not LHS-overloaded?))
+      (when (and
+             (eq? 'vector? (type-base RmostHS-type))
+             (not LHS-overloaded?)
+             (not (eq? proc/mac ':=>)))
         (:=
          LHS-types
          (map-in-order
@@ -2849,7 +2859,10 @@
           LHS))
         (when (every (λ (t) (eq? (type-base t) 'vector?)) LHS-types)
           (:= proc '<-vector-vector*)))
-      (when (and (eq? 'string? RmostHS-type) (not LHS-overloaded?))
+      (when (and
+             (eq? 'string? RmostHS-type)
+             (not LHS-overloaded?)
+             (not (eq? proc/mac ':=>)))
         (:=
          LHS-types
          (map-in-order
