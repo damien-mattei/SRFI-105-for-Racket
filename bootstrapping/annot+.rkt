@@ -123,6 +123,10 @@
                            [(inexact?) orig-+ (number? inexact?)]
                            [(inexact?) #; fl+ orig-+ (inexact? inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
+         ; ~ (bitwise not) , unary : in the table of the overloads with an exact number of arguments
+         {ovrld-ht['~] := '([(fixnum?) fxnot (fixnum?)]
+                            [(exact-integer?) bitwise-not (exact-integer?)])}
+
          {ovrld-ht['orig-+] := '([(fixnum?) fx+ (fixnum? fixnum?)]
                            [(exact-integer?) orig-+ (exact-integer? fixnum?)]
                            [(exact-integer?) orig-+ (fixnum? exact-integer?)]
@@ -1508,14 +1512,20 @@
           (else (error "annot : overload-without-module-name : bad overload syntax in : " s))))
 
 
-  (define (process-overload-operator s ovrld-ht ovrld-ht-n-ary)
+  ; overload-unary-operator (unary? #t) : one predicate , but exactly one argument , stored with the binary overloads in the table
+  ; of the overloads with an exact number of arguments : (overload-unary-operator - (mat?) mneg (mat?))
+  (define (process-overload-operator s ovrld-ht ovrld-ht-n-ary (unary? #f))
 
     (define ovrld (overload-without-module-name s))
 
     (define nb-preds (length (car (reverse ovrld))))
 
+    (when (and unary? {nb-preds ≠ 1})
+      (error "annot : process-overload-operator : expected 1 predicate (unary overload) in : " s))
+
     (process-overload (cons (car s) (cons (cadr s) ovrld)) ; (overload-operator op . ovrld) as process-overload expects it
-                      (cond ({nb-preds = 1} ovrld-ht-n-ary)
+                      (cond (unary? ovrld-ht)
+                            ({nb-preds = 1} ovrld-ht-n-ary)
                             ({nb-preds = 2} ovrld-ht)
                             (else (error "annot : process-overload-operator : expected 1 predicate (n-ary overload) or 2 predicates (binary overload) in : " s)))))
 
@@ -2102,10 +2112,11 @@
 
                   ; same priority problem between binary and n-ary
                   
-                  ; n-ary and binary (2 args) : operator exists in binary table and n-ary table
+                  ; n-ary and binary (1 or 2 args) : operator exists in binary table and n-ary table ; the table of the overloads
+                  ; with an exact number of arguments contains also the unary ones (overload-unary-operator) : (- M) with 1 argument
                   
                   ((and (hash-table-exists? ovrld-ht-n-ary proc/mac)
-                        {lgt = 2 and (hash-table-exists? ovrld-ht proc/mac)})
+                        {(lgt = 1 or lgt = 2) and (hash-table-exists? ovrld-ht proc/mac)}) ; old version : {lgt = 2 and ...}
                    
                    {args-types := (map-in-order (lambda (a) (find-type a ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
                                        argus)} ; first find the type of arguments
@@ -2184,8 +2195,8 @@
                    ret-type)
 
 
-                  ; binary : exist only in binary table and 2 arguments
-                  ({lgt = 2 and (hash-table-exists? ovrld-ht proc/mac)}
+                  ; binary or unary : exist only in the table of the overloads with an exact number of arguments , 2 or 1 arguments
+                  ({(lgt = 1 or lgt = 2) and (hash-table-exists? ovrld-ht proc/mac)} ; old version : {lgt = 2 and ...}
                    {args-types := (map-in-order (lambda (a) (find-type a ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
                                        argus)} ; first find the type of arguments
                    {ovrld := ovrld-ht[proc/mac]} ; get overloaded data, ex: (+ → (((vector?) vector-append (vector? vector?)) ((integer?) orig-+ (integer? integer?)) ((number?) orig-+ (number? number?)) ((real?) orig-+ (real? real?)) ((rational?) orig-+ (rational? rational?)) ((complex?) orig-+ (complex? complex?))))
@@ -2666,7 +2677,11 @@
     {nb-argus := (length args-types)}
 
     ; 1) try a direct/flat match against all argument types at once first (fast path, no associativity needed)
-    {ret-type := (or (ovrld-n-ary and (find-if-exists-matching-types-with-ovrld-n-ary-and-get-return-type-of-procedure ovrld-n-ary args-types)) ; n-ary
+    ; the overloads with an exact number of arguments (binary , unary) first , as the runtime dispatcher of overload.rkt : with
+    ; (overload-operator - msub (mat? mat?)) and (overload-unary-operator - mneg (mat?)) , {A - B} is (msub A B) , not (mneg A B)
+    {ret-type := (or (ovrld-binary and (find-if-exists-matching-types-with-ovrld-and-get-return-type-of-procedure ovrld-binary args-types)) ; exact number of arguments
+                     (ovrld-n-ary and (find-if-exists-matching-types-with-ovrld-n-ary-and-get-return-type-of-procedure ovrld-n-ary args-types)))} ; n-ary
+    #;{ret-type := (or (ovrld-n-ary and (find-if-exists-matching-types-with-ovrld-n-ary-and-get-return-type-of-procedure ovrld-n-ary args-types)) ; n-ary
                      (ovrld-binary and nb-argus = 2 and (find-if-exists-matching-types-with-ovrld-and-get-return-type-of-procedure ovrld-binary args-types)))} ; binary
     (when ret-type
       (return ret-type))
@@ -2775,7 +2790,10 @@
     {nb-argus := (length argus-after-annot)}
     
     ; search if there exist some matching types -> return a procedure
-    {proc-after-annot := (or (find-if-exists-matching-types-with-ovrld-n-ary ovrld-n-ary args-types-after-annot)
+    ; the overloads with an exact number of arguments (binary , unary) first , as the runtime dispatcher of overload.rkt
+    {proc-after-annot := (or (ovrld-binary and (find-if-exists-matching-types-with-ovrld ovrld-binary args-types-after-annot)) ; exact number of arguments
+                             (find-if-exists-matching-types-with-ovrld-n-ary ovrld-n-ary args-types-after-annot))} ; n-ary
+    #;{proc-after-annot := (or (find-if-exists-matching-types-with-ovrld-n-ary ovrld-n-ary args-types-after-annot)
                              (ovrld-binary and nb-argus = 2 and (find-if-exists-matching-types-with-ovrld ovrld-binary args-types-after-annot)))}
     (display "annot+.rkt : operator-associativity-recursion (n-ary and binary) : proc-after-annot=" err-port) (display proc-after-annot err-port) (newline err-port)
    
@@ -2908,6 +2926,11 @@
           ((or (is-overload-operator? proc/mac)
                (is-require-overload-operator? proc/mac)) (process-overload-operator s ovrld-ht ovrld-ht-n-ary) ; table chosen from the number of predicates
                                                          s) ; but return the original sexpr,no annotation allowed in elements of s !
+
+          ; overload-unary-operator : exactly one argument , in the table of the overloads with an exact number of arguments
+          ((or (is-overload-unary-operator? proc/mac)
+               (is-require-overload-unary-operator? proc/mac)) (process-overload-operator s ovrld-ht ovrld-ht-n-ary #t)
+                                                               s)
 
           ; DEPRECATED (désactivé, pas supprimé) : overload-existing-operator / overload-existing-n-ary-operator sont la
           ; même famille "two steps" dépréciée que define-overload-existing-* ci-dessus (voir sa note et le README de

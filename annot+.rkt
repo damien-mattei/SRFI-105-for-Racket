@@ -70,6 +70,10 @@
             ((inexact?) orig-+ (number? inexact?))
             ((inexact?) orig-+ (inexact? inexact?))))
          (:=
+          ($bracket-apply$ ovrld-ht '~)
+          '(((fixnum?) fxnot (fixnum?))
+            ((exact-integer?) bitwise-not (exact-integer?))))
+         (:=
           ($bracket-apply$ ovrld-ht 'orig-+)
           '(((fixnum?) fx+ (fixnum? fixnum?))
             ((exact-integer?) orig-+ (exact-integer? fixnum?))
@@ -1094,12 +1098,17 @@
       (error
        "annot : overload-without-module-name : bad overload syntax in : "
        s))))
-  (define (process-overload-operator s ovrld-ht ovrld-ht-n-ary)
+  (define (process-overload-operator s ovrld-ht ovrld-ht-n-ary (unary? #f))
     (define ovrld (overload-without-module-name s))
     (define nb-preds (length (car (reverse ovrld))))
+    (when (and unary? (≠ nb-preds 1))
+      (error
+       "annot : process-overload-operator : expected 1 predicate (unary overload) in : "
+       s))
     (process-overload
      (cons (car s) (cons (cadr s) ovrld))
      (cond
+      (unary? ovrld-ht)
       ((= nb-preds 1) ovrld-ht-n-ary)
       ((= nb-preds 2) ovrld-ht)
       (else
@@ -1623,7 +1632,8 @@
              annot-ht-lst)))
        (exec (:= argus (cdr s)) (:= lgt (length argus)))
        ((and (hash-table-exists? ovrld-ht-n-ary proc/mac)
-             (and (= lgt 2) (hash-table-exists? ovrld-ht proc/mac)))
+             (and (or (= lgt 1) (= lgt 2))
+                  (hash-table-exists? ovrld-ht proc/mac)))
         (:=
          args-types
          (map-in-order
@@ -1776,7 +1786,7 @@
            err-port)
           (newline err-port))
         ret-type)
-       ((and (= lgt 2) (hash-table-exists? ovrld-ht proc/mac))
+       ((and (or (= lgt 1) (= lgt 2)) (hash-table-exists? ovrld-ht proc/mac))
         (:=
          args-types
          (map-in-order
@@ -2104,13 +2114,13 @@
    (:= nb-argus (length args-types))
    (:=
     ret-type
-    (or (and ovrld-n-ary
-             (find-if-exists-matching-types-with-ovrld-n-ary-and-get-return-type-of-procedure
-              ovrld-n-ary
-              args-types))
-        (and (and ovrld-binary (= nb-argus 2))
+    (or (and ovrld-binary
              (find-if-exists-matching-types-with-ovrld-and-get-return-type-of-procedure
               ovrld-binary
+              args-types))
+        (and ovrld-n-ary
+             (find-if-exists-matching-types-with-ovrld-n-ary-and-get-return-type-of-procedure
+              ovrld-n-ary
               args-types))))
    (when ret-type (return ret-type))
    (when (≥ nb-argus 3)
@@ -2180,13 +2190,13 @@
    (:= nb-argus (length argus-after-annot))
    (:=
     proc-after-annot
-    (or (find-if-exists-matching-types-with-ovrld-n-ary
-         ovrld-n-ary
-         args-types-after-annot)
-        (and (and ovrld-binary (= nb-argus 2))
+    (or (and ovrld-binary
              (find-if-exists-matching-types-with-ovrld
               ovrld-binary
-              args-types-after-annot))))
+              args-types-after-annot))
+        (find-if-exists-matching-types-with-ovrld-n-ary
+         ovrld-n-ary
+         args-types-after-annot)))
    (display
     "annot+.rkt : operator-associativity-recursion (n-ary and binary) : proc-after-annot="
     err-port)
@@ -2284,6 +2294,10 @@
      ((or (is-overload-operator? proc/mac)
           (is-require-overload-operator? proc/mac))
       (process-overload-operator s ovrld-ht ovrld-ht-n-ary)
+      s)
+     ((or (is-overload-unary-operator? proc/mac)
+          (is-require-overload-unary-operator? proc/mac))
+      (process-overload-operator s ovrld-ht ovrld-ht-n-ary #t)
       s)
      ((or (is-overload-procedure? proc/mac)
           (is-require-overload-procedure? proc/mac))
