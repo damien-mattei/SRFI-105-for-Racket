@@ -25,7 +25,7 @@ Package: @url["https://pkgs.racket-lang.org/package/SRFI-105-for-Racket"]
 
 Designed to be used with Scheme+:
 
-@defmodule[Scheme+]{
+@defmodule[Scheme+ #:no-declare #:link-target? #f]{
 This package provides the Scheme+ language definitions.
 
 Source code: @url["https://github.com/damien-mattei/Scheme-PLUS-for-Racket"]

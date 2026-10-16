@@ -631,7 +631,7 @@
 	     sil ; simple infix list , when all operators are the same
 	     (not mbr+-) ; could be there + - + + , superscripts ,so operators could be wrong
 	     (not (ormap superscript-only? lyst)) ; a superscript (exponent) needs the general parser (superscript-only? : not * and · , that are also normal operators : {x := *} is (:= x *)) : {2 ⁴ ²} is (** 2 4 2) , not (⁴ 2 ²) , {- 2 ³} is (- (** 2 3))
-	     (not (eq? oper 'not)) ; {not not a} is (not (not a)) : not is a prefix operator , grouped by the Scheme+ parser (group-prefix-not)
+	     (not (memq oper '(not ~))) ; {not not a} is (not (not a)) , {~ ~ a} is (~ (~ a)) : prefix operators , grouped by the Scheme+ parser (group-prefix-operators)
 	     (not (right-associative? oper))) ; {2 expt 3 expt 2} is not (expt 2 3 2) , expt has 2 arguments : the right associative operators are parsed by the precedence engine
 					; {2 - + - 3 - 4} will not be parsed here but in another case of cond
 
