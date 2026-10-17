@@ -2363,6 +2363,44 @@
        annot-ht-lst))
      (when expr1 (return expr1)))
    (cons proc/mac argus-after-annot))
+  (define (square-of-flonum
+           s
+           ovrld-ht
+           ovrld-ht-n-ary
+           ovrld-ht-proc
+           annot-ht-lst)
+    (define op (first s))
+    (and (memq op '(** expt))
+         (= (length s) 3)
+         (eqv? (third s) 2)
+         (not (number? (second s)))
+         (eq?
+          (find-type
+           (second s)
+           ovrld-ht
+           ovrld-ht-n-ary
+           ovrld-ht-proc
+           annot-ht-lst)
+          'flonum?)
+         (hash-table-exists? ovrld-ht op)
+         (memq
+          (find-if-exists-matching-types-with-ovrld
+           ($bracket-apply$ ovrld-ht op)
+           '(flonum? fixnum?))
+          '(orig-** orig-expt))
+         (let ((b
+                (annot
+                 (second s)
+                 ovrld-ht
+                 ovrld-ht-n-ary
+                 ovrld-ht-proc
+                 annot-ht-lst)))
+           (if (symbol? b)
+             (list 'fl* b b)
+             (list
+              'let
+              (list (list '$power-base$ b))
+              '(fl* $power-base$ $power-base$))))))
   (define (parse-expressions
            s
            ovrld-ht
@@ -2489,6 +2527,16 @@
           a1_N)))
        (else (cons proc/mac a1_N))))
      (exec (:= argus (rest s)) (:= nb-argus (length argus)))
+     (exec
+      (:=
+       flonum-square
+       (square-of-flonum
+        s
+        ovrld-ht
+        ovrld-ht-n-ary
+        ovrld-ht-proc
+        annot-ht-lst)))
+     (flonum-square flonum-square)
      ((and (hash-table-exists? ovrld-ht-n-ary proc/mac)
            (hash-table-exists? ovrld-ht proc/mac))
       (display

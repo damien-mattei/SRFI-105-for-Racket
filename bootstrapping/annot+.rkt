@@ -2929,6 +2929,25 @@
   ; do we have an interesting thing to parse and modify,store as type in hash tables or list
   ; or should we parse for rewriting computation and/or generate type dispatching
   ; s = (s1 s2 ...)
+  ; the square of a float written with the exact integer exponent 2 in the code : {x ²} , {x ** 2} , (expt x 2) of a
+  ; flonum x --> (fl* x x) , faster than expt and more precise (the exact square rounded once , IEEE 754 , as gcc does
+  ; for pow(x,2.0)) ; #f otherwise (the expression follows its usual path). Not the exponents 3 or more : by
+  ; multiplications they are less precise than expt (wrong by one ulp for 26 % of the floats with x * (x * x)) ; not 2.0.
+  ; A base that is not a variable is computed only once. Not used when the user overloads ** or expt for the floats.
+  (define (square-of-flonum s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (define op (first s))
+    (and (memq op '(** expt))
+         {(length s) = 3}
+         (eqv? (third s) 2) ; the literal exact integer 2
+         (not (number? (second s))) ; a literal base is left to the computation of the constants
+         (eq? (find-type (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst) 'flonum?)
+         (hash-table-exists? ovrld-ht op)
+         (memq (find-if-exists-matching-types-with-ovrld {ovrld-ht[op]} '(flonum? fixnum?)) '(orig-** orig-expt)) ; no overload of the user
+         (let ((b (annot (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
+           (if (symbol? b)
+               (list 'fl* b b)
+               (list 'let (list (list '$power-base$ b)) '(fl* $power-base$ $power-base$))))))
+
   (define (parse-expressions s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
 
     (newline err-port)
@@ -3128,6 +3147,10 @@
           (exec
            {argus := (rest s)}
            {nb-argus := (length argus)})
+
+          ; {x ²} of a float --> (fl* x x) : see square-of-flonum (before the general path of the operators)
+          (exec {flonum-square := (square-of-flonum s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)})
+          (flonum-square flonum-square)
           
           ; binary and n-ary
 
