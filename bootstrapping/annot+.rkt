@@ -29,7 +29,7 @@
 
 (module annot+ racket/base
 
-  (require (only-in srfi/1 first second third map-in-order any every filter take-while take last find) ; map-in-order : map applying the procedure in the order of the list (not guaranteed by the map of R7RS) ; any , every : standard (SRFI 1) instead of ormap , andmap of Racket
+  (require (only-in srfi/1 first second third map-in-order any every filter take-while take last find delete-duplicates) ; map-in-order : map applying the procedure in the order of the list (not guaranteed by the map of R7RS) ; any , every : standard (SRFI 1) instead of ormap , andmap of Racket
            (only-in racket/list rest)
            srfi/69 ; basic hash tables , brings compatibility on hash tables between scheme implementations
            Scheme+ ; with bootstrapping we can use Scheme+ and curly infix syntax.
@@ -41,6 +41,7 @@
            racket/fixnum)
 
   (provide annot
+           type-for-repl ; (:print-type expr) at the REPL
            remove-expr
            init-annot-data
            ; regions of the pragmas ANNOTATION-ON / ANNOTATION-OFF :
@@ -3024,6 +3025,24 @@
           ; of pattern (expression -> type) in the hash table
           ; note: this return probably an almost invisible #<void> that is indeed removed in process-lst-for-annot
 
+          #| (module name language body ...) : gets its own isolated annotation level, same as the clause
+          (not (annotation-active?)) just below -- but the names it (provide ...)s are then copied back into the OUTER table
+          (annot-ht), so a variable or a function typed inside a file stays typed when that file's module is
+          loaded and the same name is then used at the REPL, or required from elsewhere : exactly what Scheme
+          already does for the runtime binding itself (provide/require), just extended here to the static
+          type. Non-exported (private) bindings stay confined to the module's own table, exactly as before
+          this clause existed -- so nested or sibling modules can not leak private names into each other. |#
+          ; before the clause (not (annotation-active?)) : ANNOTATION-ON is written in the body of the module , the
+          ; annotation is not active yet when (module ...) is reached
+          ((eq? proc/mac 'module)
+           {mod-level-ht := (new-level-table s)}
+           {mod-body := (cdddr s)}
+           {processed := (process-lst-for-annot s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc
+                                                (cons mod-level-ht annot-ht-lst))}
+           {(provided-names provided-all?) := (collect-provided-names mod-body)}
+           (export-provided-types! mod-level-ht annot-ht provided-names provided-all?)
+           processed)
+
           ; outside an ANNOTATION-ON region (see process-lst-for-annot) : the declarations above (overloads, types) are
           ; still recorded, but the code is not rewritten (no specialization, no inference, no constant folding) : we only
           ; go through the sub-expressions, they could contain an ANNOTATION-ON region, type annotations to remove or
@@ -3451,14 +3470,10 @@
            (display "annot+.rkt : parse-expressions : rexpr=" err-port) (display rexpr err-port) (newline err-port)
            rexpr)
 
-          #| (module name language body ...) : gets its own isolated annotation level, same as the generic
-          fallback just below -- but the names it (provide ...)s are then copied back into the OUTER table
-          (annot-ht), so a variable or a function typed inside a file stays typed when that file's module is
-          loaded and the same name is then used at the REPL, or required from elsewhere : exactly what Scheme
-          already does for the runtime binding itself (provide/require), just extended here to the static
-          type. Non-exported (private) bindings stay confined to the module's own table, exactly as before
-          this clause existed -- so nested or sibling modules can not leak private names into each other. |#
-          ((eq? proc/mac 'module)
+          ; the clause (module ...) has been moved before the clause (not (annotation-active?)) : ANNOTATION-ON is written
+          ; in the body of the module , so the annotation is not active yet when the form (module ...) is reached and
+          ; the clause (not (annotation-active?)) took it , the provided types were never copied to the outer table
+          #;((eq? proc/mac 'module)
            {mod-level-ht := (new-level-table s)}
            {mod-body := (cdddr s)}
            {processed := (process-lst-for-annot s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc
@@ -3540,6 +3555,41 @@
 
   ; annot: parse list, pair,... -> if necessary call parse-expressions: rewrite (recreate*) -> process-lst-for-annot which process whole list deeply with: -> annot (and we are back at beginning !!!) and process also with annot when necessary
   ;                             -> or recall annot on car and cdr of pair
+
+  ; the types that the annotation knows for the expression s , for (:print-type s) at the REPL (as :print-type of Typed
+  ; Racket) : the list of the lines to display , '() when it is unknown. For a symbol : the signature
+  ; (param ... -> ret ...) of a procedure declared with (type [(ret ...) procedure? (param ...)] f) , else its overloads
+  ; (an operator , or a procedure given to overload-operator / overload-procedure : one signature per overload) , else
+  ; the type found by find-type. s is not evaluated , the tables are not modified.
+  (define (type-for-repl s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    {decl := (and (symbol? s) (search-annot-hash-tables s annot-ht-lst))}
+    {overloads := (if (symbol? s)
+                      (delete-duplicates (append (overload-signatures s ovrld-ht-proc #f)
+                                                 (overload-signatures s ovrld-ht #f)
+                                                 (overload-signatures s ovrld-ht-n-ary #t)))
+                      '())}
+    (cond ((and (list? decl) {(length decl) = 3} (eq? (second decl) 'procedure?)) ; a signature ((ret ...) procedure? (param ...))
+           (list (append (third decl) '(->) (first decl))))
+          ((not (null? overloads)) overloads)
+          (else
+           (let ((t (with-handlers ((exn:fail? (λ (e) #f))) ; an expression that find-type can not process : unknown
+                      (find-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))))
+             (if (and t (not (memq t '(sexpr local-binding-without-type))))
+                 (list t)
+                 '())))))
+
+  ; the signatures of the overloads stored for the key name in one table of overloads : an entry
+  ; ((ret ...) proc (pred ...)) or (proc (pred ...)) (no return type : ?) gives (pred ... -> ret ...) ; in the table of
+  ; the n-ary overloads (n-ary? = #t) the predicate is the one of every argument : (pred ... -> ret ...)
+  (define (overload-signatures name ovrld-table n-ary?)
+    (if (hash-table-exists? ovrld-table name)
+        (map-in-order (λ (entry)
+                        (append (last entry)
+                                (if n-ary? (list (string->symbol "...")) '())
+                                '(->)
+                                (if {(length entry) = 3} (first entry) '(?))))
+                      {ovrld-table[name]})
+        '()))
 
   ; annotate a level of expression
   ; we also need for agument some hash tables , possibly multiples

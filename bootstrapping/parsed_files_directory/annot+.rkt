@@ -11,7 +11,8 @@
             take-while
             take
             last
-            find)
+            find
+            delete-duplicates)
            (only-in racket/list rest)
            srfi/69
            Scheme+
@@ -24,6 +25,7 @@
            racket/flonum
            racket/fixnum)
   (provide annot
+           type-for-repl
            remove-expr
            init-annot-data
            annotation-active?
@@ -2408,6 +2410,24 @@
       (process-overload-square-brackets s)
       s)
      ((is-type? proc/mac) (store-types (second s) (cddr s) annot-ht))
+     ((eq? proc/mac 'module)
+      (:= mod-level-ht (new-level-table s))
+      (:= mod-body (cdddr s))
+      (:=
+       processed
+       (process-lst-for-annot
+        s
+        ovrld-ht
+        ovrld-ht-n-ary
+        ovrld-ht-proc
+        (cons mod-level-ht annot-ht-lst)))
+      (:= (provided-names provided-all?) (collect-provided-names mod-body))
+      (export-provided-types!
+       mod-level-ht
+       annot-ht
+       provided-names
+       provided-all?)
+      processed)
      ((not (annotation-active?))
       (mark-local-definitions! (declared-names s) annot-ht)
       (process-lst-for-annot
@@ -2911,24 +2931,6 @@
       (display rexpr err-port)
       (newline err-port)
       rexpr)
-     ((eq? proc/mac 'module)
-      (:= mod-level-ht (new-level-table s))
-      (:= mod-body (cdddr s))
-      (:=
-       processed
-       (process-lst-for-annot
-        s
-        ovrld-ht
-        ovrld-ht-n-ary
-        ovrld-ht-proc
-        (cons mod-level-ht annot-ht-lst)))
-      (:= (provided-names provided-all?) (collect-provided-names mod-body))
-      (export-provided-types!
-       mod-level-ht
-       annot-ht
-       provided-names
-       provided-all?)
-      processed)
      ((memq proc/mac '(let let* letrec letrec*))
       (declare
        named?
@@ -3008,6 +3010,45 @@
         ovrld-ht-proc
         (cons (make-hash-table) annot-ht-lst)))
      L))
+  (define (type-for-repl s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (:= decl (and (symbol? s) (search-annot-hash-tables s annot-ht-lst)))
+    (:=
+     overloads
+     (if (symbol? s)
+       (delete-duplicates
+        (append
+         (overload-signatures s ovrld-ht-proc #f)
+         (overload-signatures s ovrld-ht #f)
+         (overload-signatures s ovrld-ht-n-ary #t)))
+       '()))
+    (cond
+     ((and (list? decl) (= (length decl) 3) (eq? (second decl) 'procedure?))
+      (list (append (third decl) '(->) (first decl))))
+     ((not (null? overloads)) overloads)
+     (else
+      (let ((t
+             (with-handlers
+              ((exn:fail? (λ (e) #f)))
+              (find-type
+               s
+               ovrld-ht
+               ovrld-ht-n-ary
+               ovrld-ht-proc
+               annot-ht-lst))))
+        (if (and t (not (memq t '(sexpr local-binding-without-type))))
+          (list t)
+          '())))))
+  (define (overload-signatures name ovrld-table n-ary?)
+    (if (hash-table-exists? ovrld-table name)
+      (map-in-order
+       (λ (entry)
+         (append
+          (last entry)
+          (if n-ary? (list (string->symbol "...")) '())
+          '(->)
+          (if (= (length entry) 3) (first entry) '(?))))
+       ($bracket-apply$ ovrld-table name))
+      '()))
   (define (annot s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
     (cond
      ((null? s) '())

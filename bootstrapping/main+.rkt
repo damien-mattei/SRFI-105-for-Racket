@@ -389,6 +389,30 @@
  
 
 ;; the current read interaction handler, which is procedure that takes an arbitrary value and an input port 
+;; (:print-type expr) at the REPL , as :print-type of Typed Racket : displays the type that the annotation knows for expr
+;; (the signature of an annotated procedure) , expr is not evaluated and the tables of the annotation are not modified
+(define (print-type-command? result)
+  (and (pair? result)
+       (eq? (car result) ':print-type)
+       (pair? (cdr result))
+       (null? (cddr result))))
+
+(define (print-type-at-repl expr)
+  (if (get-annot-flag)
+      (let ((lines (parameterize ((annotation-active? #t))
+		     (type-for-repl expr ovrld-ht ovrld-ht-n-arity ovrld-ht-proc annot-ht-lst)))) ; a type , a signature , or one signature per overload
+	(if (null? lines)
+	    (begin
+	      (display "unknown type (the annotation does not know it)")
+	      (newline))
+	    (for-each (lambda (line) (write line) (newline))
+		      lines)))
+      (begin
+	(display ":print-type : the annotation is not active (ANNOTATION-ON)")
+	(newline)))
+  (datum->syntax #f '(void))) ; nothing to evaluate
+
+
 (define (literal-read-syntax-for-repl src in) ; do the annotation too, must have access to the hash tables
 
   (define result (curly-infix-read in))
@@ -417,6 +441,8 @@
   (if (eof-object? result)
       ;;(begin (display "eof") (newline) result)
       result
+      (if (print-type-command? result) ; (:print-type expr) : the type known by the annotation , expr is not evaluated
+	  (print-type-at-repl (cadr result))
       (if (get-annot-flag)
 	  ; in the REPL the last pragma read in the file acts on the rest of the session : the expression is in an ANNOTATION-ON region
 	  (let ((parsed-annotated-result (parameterize ((annotation-active? #t))
@@ -433,7 +459,7 @@
           
 	  ;else : no annotation activated for this parsing but we must remove them from source code
           #;(datum->syntax #f (remove-expr result is-type-expression?))
-          (datum->syntax #f (remove-types-and-annotation-markers result))))) ;; current-eval wait for a syntax object to pass to eval-syntax for evaluation
+          (datum->syntax #f (remove-types-and-annotation-markers result)))))) ;; current-eval wait for a syntax object to pass to eval-syntax for evaluation
 
 
  

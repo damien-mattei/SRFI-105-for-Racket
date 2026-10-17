@@ -237,6 +237,31 @@
             (pretty-print final-code (current-output-port) 1)
             (newline)
             final-code)))))
+  (define (print-type-command? result)
+    (and (pair? result)
+         (eq? (car result) ':print-type)
+         (pair? (cdr result))
+         (null? (cddr result))))
+  (define (print-type-at-repl expr)
+    (if (get-annot-flag)
+      (let ((lines
+             (parameterize
+              ((annotation-active? #t))
+              (type-for-repl
+               expr
+               ovrld-ht
+               ovrld-ht-n-arity
+               ovrld-ht-proc
+               annot-ht-lst))))
+        (if (null? lines)
+          (begin
+            (display "unknown type (the annotation does not know it)")
+            (newline))
+          (for-each (lambda (line) (write line) (newline)) lines)))
+      (begin
+        (display ":print-type : the annotation is not active (ANNOTATION-ON)")
+        (newline)))
+    (datum->syntax #f '(void)))
   (define (literal-read-syntax-for-repl src in)
     (define result (curly-infix-read in))
     (when (process-strict-pragma result) (set! result '(values)))
@@ -253,25 +278,27 @@
       (pretty-print result (current-output-port) 1))
     (if (eof-object? result)
       result
-      (if (get-annot-flag)
-        (let ((parsed-annotated-result
-               (parameterize
-                ((annotation-active? #t))
-                (annot
-                 result
-                 ovrld-ht
-                 ovrld-ht-n-arity
-                 ovrld-ht-proc
-                 annot-ht-lst))))
-          (newline)
-          (display "Parsed annotations. :")
-          (newline)
-          (display "Annotation data of REPL for src=")
-          (display src)
-          (newline)
-          (newline)
-          (pretty-print parsed-annotated-result (current-output-port) 1)
-          (newline)
-          (datum->syntax #f parsed-annotated-result))
-        (datum->syntax #f (remove-types-and-annotation-markers result)))))
+      (if (print-type-command? result)
+        (print-type-at-repl (cadr result))
+        (if (get-annot-flag)
+          (let ((parsed-annotated-result
+                 (parameterize
+                  ((annotation-active? #t))
+                  (annot
+                   result
+                   ovrld-ht
+                   ovrld-ht-n-arity
+                   ovrld-ht-proc
+                   annot-ht-lst))))
+            (newline)
+            (display "Parsed annotations. :")
+            (newline)
+            (display "Annotation data of REPL for src=")
+            (display src)
+            (newline)
+            (newline)
+            (pretty-print parsed-annotated-result (current-output-port) 1)
+            (newline)
+            (datum->syntax #f parsed-annotated-result))
+          (datum->syntax #f (remove-types-and-annotation-markers result))))))
   (current-read-interaction literal-read-syntax-for-repl))
