@@ -239,7 +239,7 @@
             final-code)))))
   (define (print-type-command? result)
     (and (pair? result)
-         (eq? (car result) ':print-type)
+         (is-print-type? (car result))
          (pair? (cdr result))
          (null? (cddr result))))
   (define (print-type-at-repl expr)

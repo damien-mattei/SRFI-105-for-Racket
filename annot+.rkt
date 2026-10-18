@@ -1134,7 +1134,7 @@
       (newline)
       (error "annot : process-overload : bad overload syntax in : " s))
     (:= op (cadr s))
-    (:= new-ovrld (cddr s))
+    (:= new-ovrld (map (λ (e) (if (pair? e) (canonical-type e) e)) (cddr s)))
     (:= op-ovrld-lst '())
     (if (hash-table-exists? ovrld-ht op)
       (:= op-ovrld-lst ($bracket-apply$ ovrld-ht op))
@@ -1225,9 +1225,10 @@
        "annot : process-overload-square-brackets : bad syntax, expected (overload-square-brackets [(return-type)] getter setter (pred-obj pred-index ...)) in : "
        s))
     (define return-type
-      (and (= (length args) 4) (pair? (car args)) (car (car args))))
+      (canonical-type
+       (and (= (length args) 4) (pair? (car args)) (car (car args)))))
     (define overload (if (= (length args) 4) (cdr args) args))
-    (define preds (third overload))
+    (define preds (canonical-type (third overload)))
     (define new-ovrld
       (list
        (first overload)
@@ -1242,6 +1243,45 @@
      (cons
       (if (and old-ovrld (not return-type)) old-ovrld new-ovrld)
       (filter (λ (o) (not (same-overload? o))) $ovrld-square-brackets-lst$))))
+  (define (indexes-kind s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (define indexes
+      (parse-square-brackets-arguments-lister-syntax (cddr s) '()))
+    (define (kind-by-type index)
+      (let ((t
+             (find-type
+              index
+              ovrld-ht
+              ovrld-ht-n-ary
+              ovrld-ht-proc
+              annot-ht-lst)))
+        (cond
+         ((eq? t 'natural-fixnum?) 'natural)
+         ((eq? t 'fixnum?) 'integer)
+         (else #f))))
+    (define (kinds-of-operands kinds)
+      (cond
+       ((memq #f kinds) #f)
+       ((every (λ (k) (eq? k 'natural)) kinds) 'natural)
+       (else 'integer)))
+    (define (kind index)
+      (cond
+       ((fixnum? index) (if (>= index 0) 'natural 'integer))
+       ((and (pair? index) (not (operator? (car index))))
+        (let ((parsed
+               (parse-square-brackets-arguments-lister-syntax index '())))
+          (if (and (pair? parsed)
+                   (null? (cdr parsed))
+                   (not (equal? (car parsed) index)))
+            (kind (car parsed))
+            (kind-by-type index))))
+       ((and (pair? index)
+             (pair? (cdr index))
+             (or (ADD-op? (car index)) (MULTIPLY-op? (car index))))
+        (kinds-of-operands (map kind (cdr index))))
+       (else (kind-by-type index))))
+    (and (pair? indexes)
+         (not (memq ': indexes))
+         (kinds-of-operands (map kind indexes))))
   (define (square-brackets-nb-indexes s)
     (define indexes
       (parse-square-brackets-arguments-lister-syntax (cddr s) '()))
@@ -1354,7 +1394,11 @@
          (or (symbol? e) (vector-type? e) (list-type? e))))
   (define (composite-type? t) (or (vector-type? t) (list-type? t)))
   (define (type-base t)
-    (cond ((vector-type? t) 'vector?) ((list-type? t) 'list?) (else t)))
+    (cond
+     ((vector-type? t) 'vector?)
+     ((list-type? t) 'list?)
+     ((eq? t 'natural-fixnum?) 'fixnum?)
+     (else t)))
   (define (composite-element-type t)
     (cond
      ((vector-type? t) (vector-ref t 0))
@@ -1677,10 +1721,9 @@
      ((exact-integer? s) 'exact-integer?)
      ((and (integer? s) (not (inexact? s))) 'integer?)
      ((flonum? s) 'flonum?)
+     ((rational? s) 'rational?)
      ((real? s) 'real?)
      ((complex? s) 'complex?)
-     ((and (number? s) (inexact? s)) 'inexact?)
-     ((number? s) 'number?)
      ((string? s) 'string?)
      ((char? s) 'char?)
      ((vector? s) (literal-vector-type s))
@@ -1690,7 +1733,7 @@
        ((null? s) 'null?)
        (exec (:= proc/mac (car s)))
        ((memq proc/mac '(lambda λ)) 'procedure?)
-       ((and (eq? proc/mac ':=>) (pair? (cdr s)))
+       ((and (WALRUS-op? proc/mac) (pair? (cdr s)))
         (find-type
          (last s)
          ovrld-ht
@@ -2245,11 +2288,20 @@
          ovrld-binary))
        (when expr1-type (return expr1-type))))
    #f)
+  (define (canonical-type t)
+    (cond
+     ((natural-type-name? t) 'natural-fixnum?)
+     ((integer-type-name? t) 'fixnum?)
+     ((real-type-name? t) 'flonum?)
+     ((pair? t) (cons (canonical-type (car t)) (canonical-type (cdr t))))
+     ((vector? t) (list->vector (map canonical-type (vector->list t))))
+     (else t)))
   (define (store-types t L annot-ht)
+    (define ct (canonical-type t))
     (for-each
      (λ (s)
-       (:= ($bracket-apply$ annot-ht s) t)
-       (store-element-types t s annot-ht))
+       (:= ($bracket-apply$ annot-ht s) ct)
+       (store-element-types ct s annot-ht))
      L))
   (define (update-type t elem annot-ht)
     (when (and (isBRACKET-APPLY*? elem) (not (every number? (cddr elem))))
@@ -2370,7 +2422,7 @@
            ovrld-ht-proc
            annot-ht-lst)
     (define op (first s))
-    (and (memq op '(** expt))
+    (and (EXPONENTIATION-op? op)
          (= (length s) 3)
          (eqv? (third s) 2)
          (not (number? (second s)))
@@ -2512,9 +2564,33 @@
         ovrld-ht-proc
         annot-ht-lst))
       (cond
-       ((eq? tip-a1 'vector?) (cons '$bracket-apply-vector$ a1_N))
+       ((eq? tip-a1 'vector?)
+        (cons
+         (case (and (memv (square-brackets-nb-indexes s) '(1 2))
+                    (indexes-kind
+                     s
+                     ovrld-ht
+                     ovrld-ht-n-ary
+                     ovrld-ht-proc
+                     annot-ht-lst))
+           ((natural) '$bracket-apply-vector-natural$)
+           ((integer) '$bracket-apply-vector-integer$)
+           (else '$bracket-apply-vector$))
+         a1_N))
        ((eq? tip-a1 'flomat?) (cons '$bracket-apply-flomat$ a1_N))
-       ((eq? tip-a1 'string?) (cons '$bracket-apply-string$ a1_N))
+       ((eq? tip-a1 'string?)
+        (cons
+         (case (and (eqv? (square-brackets-nb-indexes s) 1)
+                    (indexes-kind
+                     s
+                     ovrld-ht
+                     ovrld-ht-n-ary
+                     ovrld-ht-proc
+                     annot-ht-lst))
+           ((natural) '$bracket-apply-string-natural$)
+           ((integer) '$bracket-apply-string-integer$)
+           (else '$bracket-apply-string$))
+         a1_N))
        ((eq? tip-a1 'hash-table?) (cons '$bracket-apply-hash-table$ a1_N))
        ((eq? tip-a1 'array?) (cons '$bracket-apply-array$ a1_N))
        ((pair? (overloaded-square-brackets-for tip-a1))
@@ -2918,7 +2994,7 @@
       (when (and
              (eq? 'vector? (type-base RmostHS-type))
              (not LHS-overloaded?)
-             (not (eq? proc/mac ':=>)))
+             (not (WALRUS-op? proc/mac)))
         (:=
          LHS-types
          (map-in-order
@@ -2930,7 +3006,7 @@
       (when (and
              (eq? 'string? RmostHS-type)
              (not LHS-overloaded?)
-             (not (eq? proc/mac ':=>)))
+             (not (WALRUS-op? proc/mac)))
         (:=
          LHS-types
          (map-in-order

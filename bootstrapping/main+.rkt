@@ -393,7 +393,8 @@
 ;; (the signature of an annotated procedure) , expr is not evaluated and the tables of the annotation are not modified
 (define (print-type-command? result)
   (and (pair? result)
-       (eq? (car result) ':print-type)
+       #;(eq? (car result) ':print-type)
+       (is-print-type? (car result)) ; Scheme+/type
        (pair? (cdr result))
        (null? (cddr result))))
 

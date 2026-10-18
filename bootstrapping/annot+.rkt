@@ -1199,7 +1199,10 @@
   ; the variable at the base of a key : x for x , T for ($bracket-apply$ T i) or ($bracket-apply$ ($bracket-apply$ T i) j)
   (define (base-variable s)
     (cond ((symbol? s) s)
-          ((and (pair? s) (isBRACKET-APPLY*? s) (pair? (cdr s))) (base-variable (cadr s)))
+          ((and (pair? s)
+		(isBRACKET-APPLY*? s)
+		(pair? (cdr s)))
+	   (base-variable (cadr s)))
           (else #f)))
 
   ; the value of the key s in the most nested level that knows it (the levels are in annot-ht-lst , the most nested
@@ -1212,7 +1215,9 @@
             ((hash-table-exists? (car l) s)
              {v := (car l)[s]}
              (if (eq? v local-binding-without-type) #f v))
-            ((and base (hash-table-exists? (car l) (local-binding-key base))) #f) ; an element of a local variable
+            ((and base
+		  (hash-table-exists? (car l) (local-binding-key base)))
+	     #f) ; an element of a local variable
             (else (loop (cdr l)))))
     (loop annot-ht-lst))
 
@@ -1220,18 +1225,21 @@
   ; name a , the keywords #:k are ignored (a name too much would only hide a type : never a wrong type)
   (define (formals-names f)
     (cond ((symbol? f) (list f))
-          ((pair? f) (append (formal-name (car f)) (formals-names (cdr f))))
+          ((pair? f)
+	   (append (formal-name (car f)) (formals-names (cdr f))))
           (else '())))
 
   (define (formal-name e)
     (cond ((symbol? e) (list e))
-          ((and (pair? e) (symbol? (car e))) (list (car e))) ; [a default]
+          ((and (pair? e) (symbol? (car e)))
+	   (list (car e))) ; [a default]
           (else '())))
 
   ; the parameters of a header of procedure : (f a b . rest) , or curried ((f a) b)
   (define (header-names h)
     (if (pair? (car h))
-        (append (header-names (car h)) (formals-names (cdr h)))
+        (append (header-names (car h))
+		(formals-names (cdr h)))
         (formals-names (cdr h))))
 
   ; (do ((var init step) ...) (test expr ...) body ...) of R7RS , not the (do body ... while pred) of Scheme+
@@ -1314,13 +1322,22 @@
   ; (declare x y) , (def (x y)) , (def x) , (def x e) , (define-values (a b) e)
   (define (declared-names s)
     (define head (car s))
-    (cond ((eq? head 'declare) (filter symbol? (cdr s)))
-          ((and (memq head '(def def+ define+ defun)) (pair? (cdr s)))
-           (cond ((symbol? (cadr s)) (list (cadr s))) ; (def x) , (def x e)
-                 ((and (list? (cadr s)) (null? (cddr s))) (filter symbol? (cadr s))) ; (def (x y)) : a declaration
+    (cond ((eq? head 'declare)
+	   (filter symbol? (cdr s)))
+	  
+          ((and (memq head '(def def+ define+ defun))
+		(pair? (cdr s)))
+           (cond ((symbol? (cadr s))
+		  (list (cadr s))) ; (def x) , (def x e)
+                 ((and (list? (cadr s))
+		       (null? (cddr s)))
+		  (filter symbol? (cadr s))) ; (def (x y)) : a declaration
                  (else '())))
-          ((and (eq? head 'define-values) (pair? (cdr s)))
+	  
+          ((and (eq? head 'define-values)
+		(pair? (cdr s)))
            (formals-names (cadr s)))
+	  
           (else '())))
 
   #| scan a module's body for (provide ...) forms and collect the exported names : plain symbols, and
@@ -1335,7 +1352,9 @@
                 (when (and (pair? f) (eq? (car f) 'provide))
                   (for-each (λ (spec)
                               (cond ((symbol? spec) {names := (cons spec names)})
-                                    ((and (pair? spec) (eq? (car spec) 'all-defined-out)) {all? := #t})
+                                    ((and (pair? spec)
+					  (eq? (car spec) 'all-defined-out))
+				     {all? := #t})
                                     (else (void)))) ; rename-out, except-out, ... : not handled yet
                             (cdr f))))
               body)
@@ -1368,7 +1387,9 @@
   ; the symbols of the left hand side of a definition : (c b a) or ((x y) (a b)) for multiple values
   (define (lhs-symbols L)
     (apply append (map-in-order (λ (x) (cond ((symbol? x) (list x))
-                                             ((and (list? x) (not (isBRACKET-APPLY*? x))) (filter symbol? x))
+                                             ((and (list? x)
+						   (not (isBRACKET-APPLY*? x)))
+					      (filter symbol? x))
                                              (else '())))
                                 L)))
 
@@ -1507,7 +1528,8 @@
       (error "annot : process-overload : bad overload syntax in : " s))
 
     {op := (cadr s)} ; operator or function, procedure, example: +
-    {new-ovrld := (cddr s)} ; new overload , example: ((vector?) vector-append (vector? vector?))  or  (vector-append (vector? vector?))
+    {new-ovrld := (map (λ (e) (if (pair? e) (canonical-type e) e)) ; the lists of predicates : ℕ ℤ ℝ --> fixnum? flonum?
+                       (cddr s))} ; new overload , example: ((vector?) vector-append (vector? vector?))  or  (vector-append (vector? vector?))
     {op-ovrld-lst := '()}
     (if (hash-table-exists? ovrld-ht op) ; when not existing? we must have created? it before when parsing define-overload-procedure/operator
         {op-ovrld-lst := ovrld-ht[op]} ; retrieve list of the overloaded
@@ -1619,11 +1641,11 @@
                      (and {(length args) = 4} (list? (car args))))
                  (pair? (last args)))
       (error "annot : process-overload-square-brackets : bad syntax, expected (overload-square-brackets [(return-type)] getter setter (pred-obj pred-index ...)) in : " s))
-    (define return-type (and {(length args) = 4}
-                             (pair? (car args))
-                             (car (car args))))
+    (define return-type (canonical-type (and {(length args) = 4} ; ℕ ℤ ℝ --> fixnum? flonum?
+                                             (pair? (car args))
+                                             (car (car args)))))
     (define overload (if {(length args) = 4} (cdr args) args)) ; (getter setter (pred-obj pred-index ...))
-    (define preds (third overload))
+    (define preds (canonical-type (third overload)))
     (define new-ovrld (list (first overload) (second overload) (car preds) (length (cdr preds)) return-type))
     ; overload-square-brackets and require-overload-square-brackets of the same overload in a file : stored once , with
     ; the return type if one of them gives it
@@ -1636,6 +1658,38 @@
 
   ; the number of indexes of an access ($bracket-apply$ object token ...) , as the square brackets macros cut them ,
   ; #f for a slice : {M[i j]} --> 2 , {M[k (j + 1)]} --> 2 , {M[i + 1]} --> 1 , {v[1 : 3]} --> #f
+  ; the kind of the indexes of an access s = ($bracket-apply$ object token ...) to a vector or a string , for the
+  ; accesses specialized by the type of the indexes : 'natural when they are all of type ℕ (natural-fixnum?) or literal
+  ; fixnums >= 0 , 'integer when they are all ℕ or ℤ (fixnum?) or literal fixnums , #f otherwise (a slice , an index of
+  ; unknown type) ; {v[i]} with (type ℕ i) --> natural , {v[i + 1]} --> integer (the type of (+ i 1) is fixnum?)
+  ; the sum and the product of naturals are naturals (recursively) : {v[2 * (i + 2) + 1]} with (type ℕ i) --> natural ;
+  ; this rule is used only for the indexes , the type of (+ i 1) stays fixnum? elsewhere
+  (define (indexes-kind s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (define indexes (parse-square-brackets-arguments-lister-syntax (cddr s) '()))
+    (define (kind-by-type index) ; by the type of the expression : ℕ , ℤ or unknown
+      (let ((t (find-type index ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
+        (cond ((eq? t 'natural-fixnum?) 'natural)
+              ((eq? t 'fixnum?) 'integer)
+              (else #f))))
+    (define (kinds-of-operands kinds) ; all naturals --> natural , all naturals or integers --> integer
+      (cond ((memq #f kinds) #f)
+            ((every (λ (k) (eq? k 'natural)) kinds) 'natural)
+            (else 'integer)))
+    (define (kind index)
+      (cond ((fixnum? index) (if {index >= 0} 'natural 'integer)) ; a literal
+            ((and (pair? index) (not (operator? (car index)))) ; an infix expression alone between parenthesis : (j + 1)
+             (let ((parsed (parse-square-brackets-arguments-lister-syntax index '())))
+               (if (and (pair? parsed) (null? (cdr parsed)) (not (equal? (car parsed) index)))
+                   (kind (car parsed))
+                   (kind-by-type index))))
+            ((and (pair? index) (pair? (cdr index))
+                  (or (ADD-op? (car index)) (MULTIPLY-op? (car index)))) ; ℕ + ℕ , ℕ × ℕ are naturals
+             (kinds-of-operands (map kind (cdr index))))
+            (else (kind-by-type index))))
+    (and (pair? indexes)
+         (not (memq ': indexes))
+         (kinds-of-operands (map kind indexes))))
+
   (define (square-brackets-nb-indexes s)
     (define indexes (parse-square-brackets-arguments-lister-syntax (cddr s) '()))
     (if (memq ': indexes)
@@ -1793,6 +1847,7 @@
   (define (type-base t)
     (cond ((vector-type? t) 'vector?)
           ((list-type? t) 'list?)
+          ((eq? t 'natural-fixnum?) 'fixnum?) ; ℕ : a fixnum for the overloads , {i + 1} --> (fx+ i 1)
           (else t)))
 
   ; the type of the elements of a composite type, or #f
@@ -1872,8 +1927,11 @@
           ((or (hash-table-exists? ovrld-ht-n-ary f)
                (and (not n-ary-only?) (hash-table-exists? ovrld-ht f)))
            (operator-associativity-recursion-and-get-return-type-of-procedure f types
-                                                                              (and (hash-table-exists? ovrld-ht-n-ary f) {ovrld-ht-n-ary[f]})
-                                                                              (and (not n-ary-only?) (hash-table-exists? ovrld-ht f) {ovrld-ht[f]})))
+                                                                              (and (hash-table-exists? ovrld-ht-n-ary f)
+										   {ovrld-ht-n-ary[f]})
+                                                                              (and (not n-ary-only?)
+										   (hash-table-exists? ovrld-ht f)
+										   {ovrld-ht[f]})))
           (n-ary-only? #f) ; procedures have a fixed number of parameters : unknown with apply
           ((hash-table-exists? ovrld-ht-proc f)
            (find-if-exists-matching-types-with-ovrld-and-get-return-type-of-procedure {ovrld-ht-proc[f]} types))
@@ -2092,13 +2150,14 @@
           ({(integer? s) and not (inexact? s)} #;{(integer? s) and (not (inexact? s))}
            'integer?)
 
-          #| rational are counter intuitive with mathematic notion ==> i will not use them .
-        Almost all computer number in scheme, as finite numbers in memory are rational? even Pi or sqrt(2) !!!. |#
-          #; ((rational? s) ; literal rational
-              'rational?)
+         ; rational was commented here : before flonum? the floats would be rational? (1.5 is rational?) , it is now after flonum?
 
           ((flonum? s) ; literal flonum
            'flonum?)
+
+          ; after the integers and the floats only the exact fractions arrive here : 1/2 , -3/4 (was real?)
+          ((rational? s) ; literal exact rational
+           'rational?)
 
           ((real? s) ; literal real
            'real?) ; should be real and inexact ,inexact-real? (note: inexact could be complex !)
@@ -2107,10 +2166,17 @@
            'complex?) ; exact or inexact
 
           ;; no more usefull as real? is tested before and integer are tested before too as exact-integer
-          ({(number? s) and (inexact? s)} ; is number? usefull here ?! yes because instead of other predicates as integer? , inexact? issue an error on string for example
+          ;; never reached : every number is complex? in Scheme (1/2 , 1.5 , 2^100 too) , complex? is tested before
+          #;({(number? s) and (inexact? s)} ; is number? usefull here ?! yes because instead of other predicates as integer? , inexact? issue an error on string for example
            'inexact?)
 
-          ((number? s) ; literal number, this case should never be true because of integer,real,complex first
+            #| rational are counter intuitive with mathematic notion ==> i will not use them .
+        Almost all computer number in scheme, as finite numbers in memory are rational? even Pi or sqrt(2) !!!. |#
+          #;((rational? s) ; literal rational
+           'rational?)
+
+          ;; never reached : every number is complex? (tested before)
+          #;((number? s) ; literal number, this case should never be true because of integer,real,complex first
            'number?)
 
           ((string? s) ; literal string
@@ -2132,7 +2198,9 @@
                   ((memq proc/mac '(lambda λ)) 'procedure?) ; lambda case, ex: (procedure? (lambda (x) (* x x))) --> #t
 
                   ; the walrus operator returns the value assigned : (:=> x expr) has the type of expr
-                  ({(eq? proc/mac ':=>) and (pair? (cdr s))}
+                  #;({(eq? proc/mac ':=>) and (pair? (cdr s))}
+                   (find-type (last s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+                  ({(WALRUS-op? proc/mac) and (pair? (cdr s))}
                    (find-type (last s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
 
                   ; check first for literal lists possibility:
@@ -2772,11 +2840,28 @@
 
 
   ; store types in the hash table
+  ; the reserved names of Scheme+ for the types : ℕ and ℤ are fixnum? , ℝ is flonum? (defined in Scheme+/type) ; the
+  ; annotation knows only fixnum? and flonum? : a type is put in this canonical form when it enters the tables ,
+  ; recursively : #(ℝ) , (ℕ) , a signature ((ℝ) procedure? (ℝ ℝ))
+  (define (canonical-type t)
+    (cond #;((memq t '(ℕ ℤ)) 'fixnum?)
+          #;((eq? t 'ℝ) 'flonum?)
+          #;((fixnum-type-name? t) 'fixnum?)
+          #;((flonum-type-name? t) 'flonum?)
+          #;((or (natural-type-name? t) (integer-type-name? t)) 'fixnum?)
+          ((natural-type-name? t) 'natural-fixnum?) ; Scheme+/type : ℕ , a fixnum >= 0 (an index without negative value)
+          ((integer-type-name? t) 'fixnum?) ; ℤ
+          ((real-type-name? t) 'flonum?)
+          ((pair? t) (cons (canonical-type (car t)) (canonical-type (cdr t))))
+          ((vector? t) (list->vector (map canonical-type (vector->list t))))
+          (else t)))
+
   (define (store-types t L annot-ht)
     ; TODO convert type in canonical name real -> real? , integer -> exact-integer?
+    (define ct (canonical-type t)) ; ℕ ℤ ℝ --> fixnum? fixnum? flonum?
     (for-each (λ (s)
-                {annot-ht[s] := t}
-                (store-element-types t s annot-ht)) ; composite type #(T) or (T) : also the type of the elements (bracket notation)
+                {annot-ht[s] := ct}
+                (store-element-types ct s annot-ht)) ; composite type #(T) or (T) : also the type of the elements (bracket notation)
               L))
 
 
@@ -2936,7 +3021,8 @@
   ; A base that is not a variable is computed only once. Not used when the user overloads ** or expt for the floats.
   (define (square-of-flonum s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
     (define op (first s))
-    (and (memq op '(** expt))
+    (and #;(memq op '(** expt))
+         (EXPONENTIATION-op? op) ; ** or expt
          {(length s) = 3}
          (eqv? (third s) 2) ; the literal exact integer 2
          (not (number? (second s))) ; a literal base is left to the computation of the constants
@@ -3112,13 +3198,26 @@
            (cond ((eq? tip-a1 'vector?)
                   ;(display "annot+.rkt : parse-expressions (case bracket-apply):  tip-a1 = 'vector?" err-port) (newline err-port)
                   ;(display "annot+.rkt : parse-expressions (case bracket-apply):  (cdr s) = " err-port) (display (cdr s) err-port) (newline err-port)
-                  (cons '$bracket-apply-vector$
+                  #;(cons '$bracket-apply-vector$
+                        a1_N)
+                  ; the indexes typed ℕ or ℤ (one index , or two for a vector of vectors M[i j]) : the specialized accesses
+                  (cons (case (and (memv (square-brackets-nb-indexes s) '(1 2))
+                                   (indexes-kind s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+                          ((natural) '$bracket-apply-vector-natural$)
+                          ((integer) '$bracket-apply-vector-integer$)
+                          (else '$bracket-apply-vector$))
                         a1_N)) ; we must recall annot() on the arguments also
                  ((eq? tip-a1 'flomat?)
                   (cons '$bracket-apply-flomat$
                         a1_N))
                  ((eq? tip-a1 'string?)
-                  (cons '$bracket-apply-string$
+                  #;(cons '$bracket-apply-string$
+                        a1_N)
+                  (cons (case (and (eqv? (square-brackets-nb-indexes s) 1) ; one index typed ℕ or ℤ : the specialized accesses
+                                   (indexes-kind s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+                          ((natural) '$bracket-apply-string-natural$)
+                          ((integer) '$bracket-apply-string-integer$)
+                          (else '$bracket-apply-string$))
                         a1_N))
                  ((eq? tip-a1 'hash-table?)
                   (cons '$bracket-apply-hash-table$
@@ -3442,7 +3541,8 @@
            {proc := proc/mac} ; the procedure
            (when (and (eq? 'vector? (type-base RmostHS-type)) ; deal with vectors only (also #(T))
                       (not LHS-overloaded?)
-                      (not (eq? proc/mac ':=>))) ; the walrus operator must return the value : it keeps := (generic copy)
+                      #;(not (eq? proc/mac ':=>))
+                      (not (WALRUS-op? proc/mac))) ; the walrus operator must return the value : it keeps := (generic copy)
              {LHS-types := (map-in-order (lambda (a) (find-type a ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
                                 LHS)} ; find the type of LHS
              (when (every (λ (t) (eq? (type-base t) 'vector?)) ;  check we only have vectors (also #(T))
@@ -3450,7 +3550,8 @@
                {proc := '<-vector-vector*}))
            (when (and (eq? 'string? RmostHS-type) ; deal with strings only
                       (not LHS-overloaded?)
-                      (not (eq? proc/mac ':=>))) ; the walrus operator must return the value
+                      #;(not (eq? proc/mac ':=>))
+                      (not (WALRUS-op? proc/mac))) ; the walrus operator must return the value
              {LHS-types := (map-in-order (lambda (a) (find-type a ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
                                 LHS)}
              (when (every (λ (t) (eq? t 'string?)) ;  check we only have strings
