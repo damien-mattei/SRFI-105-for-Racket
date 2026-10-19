@@ -1703,6 +1703,43 @@
             ovrld-ht-n-ary
             ovrld-ht-proc
             annot-ht-lst)))))
+  (define (if-branches s)
+    (define blocks (cddr s))
+    (cond
+     ((memq 'else blocks)
+      (let* ((then-block
+              (let loop ((l blocks))
+                (cond
+                 ((eq? (car l) 'else) '())
+                 ((eq? (car l) 'then) (loop (cdr l)))
+                 (else (cons (car l) (loop (cdr l)))))))
+             (else-block (cdr (memq 'else blocks))))
+        (and (pair? then-block)
+             (pair? else-block)
+             (list (last then-block) (last else-block)))))
+     ((memq 'then blocks) #f)
+     ((and (pair? blocks) (pair? (cdr blocks)) (null? (cddr blocks))) blocks)
+     (else #f)))
+  (define (if-branches-type
+           s
+           ovrld-ht
+           ovrld-ht-n-ary
+           ovrld-ht-proc
+           annot-ht-lst)
+    (define branches (if-branches s))
+    (define types
+      (and branches
+           (map-in-order
+            (λ (e)
+              (find-type e ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+            branches)))
+    (define (known? t) (and t (not (memq t '(sexpr any?)))))
+    (cond
+     ((not (and types (every known? types))) #f)
+     ((every (λ (t) (equal? t (car types))) types) (car types))
+     ((every (λ (t) (equal? (type-base t) (type-base (car types)))) types)
+      (type-base (car types)))
+     (else #f)))
   (define (find-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
     (display "annot+.rkt : find-type : s=" err-port)
     (display s err-port)
@@ -1740,6 +1777,17 @@
          ovrld-ht-n-ary
          ovrld-ht-proc
          annot-ht-lst))
+       (exec
+        (:=
+         if-type
+         (and (eq? proc/mac 'if)
+              (if-branches-type
+               s
+               ovrld-ht
+               ovrld-ht-n-ary
+               ovrld-ht-proc
+               annot-ht-lst))))
+       (if-type if-type)
        ((eq? 'list proc/mac)
         (or (higher-order-type
              'list
@@ -2965,6 +3013,9 @@
            ovrld-ht-proc
            annot-ht-lst))
         LHS))
+      (:=
+       argus
+       (recall-annot argus ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
       (display "annot+.rkt : parse-expressions : RmostHS-type=" err-port)
       (display RmostHS-type err-port)
       (newline err-port)
@@ -2987,9 +3038,6 @@
                       annot-ht-lst)
                (update-type RmostHS-type x annot-ht)))
            LHS)))
-      (:=
-       argus
-       (recall-annot argus ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
       (:= proc proc/mac)
       (when (and
              (eq? 'vector? (type-base RmostHS-type))
@@ -3118,12 +3166,19 @@
        (else (list* proc/mac processed-bindings body-processed))))
      (else
       (mark-local-definitions! (declared-names s) annot-ht)
+      (define level (new-level-table s))
+      (when (and (eq? proc/mac 'do) (do-R7RS? s))
+        (for-each
+         (λ (e)
+           (when (and (pair? e) (is-type? (car e)))
+             (store-types (second e) (cddr e) level)))
+         (cdddr s)))
       (process-lst-for-annot
        s
        ovrld-ht
        ovrld-ht-n-ary
        ovrld-ht-proc
-       (cons (new-level-table s) annot-ht-lst)))))
+       (cons level annot-ht-lst)))))
   (define (recall-annot L ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
     (map-in-order
      (λ (s)

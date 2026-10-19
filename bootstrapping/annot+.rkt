@@ -2115,6 +2115,38 @@
   ;  examples: for a (lambda (...) ...) we will return 'procedure? which is at runtime give procedure? predicate
   ;            for a litteral vector #(1 2 3) we will return 'vector? , will be vector? procedure at runtime
   ;  for a ((lambda (param1 param2 ...) body ...) arg1 arg2 ...) we should return the return type of the lambda which require type annotation for lambda too IF it is possible but then it should be annotated by ((begin (type-lambda ret-type-value1 ...) (lambda (param1 ...) body ...)) arg1 ...) which is heavy !
+  ; the expressions that give the value of an if : (if test a b) gives (a b) , the if of Scheme+
+  ; (if test then e1 ... else e2 ...) or (if test e1 ... else e2 ...) the last expression of each block ; #f for an if
+  ; without else (its value can be void)
+  (define (if-branches s)
+    (define blocks (cddr s)) ; after the test
+    (cond ((memq 'else blocks)
+           (let* ((then-block (let loop ((l blocks)) ; the expressions before else , without then
+                                (cond ((eq? (car l) 'else) '())
+                                      ((eq? (car l) 'then) (loop (cdr l)))
+                                      (else (cons (car l) (loop (cdr l)))))))
+                  (else-block (cdr (memq 'else blocks))))
+             (and (pair? then-block)
+                  (pair? else-block)
+                  (list (last then-block) (last else-block)))))
+          ((memq 'then blocks) #f) ; then without else
+          ((and (pair? blocks) (pair? (cdr blocks)) (null? (cddr blocks))) ; (if test a b)
+           blocks)
+          (else #f)))
+
+  ; the type of an if : the type of its branches when it is the same , their base type when they have the same base
+  ; (#(flonum?) and vector? : vector?) , else #f (unknown)
+  (define (if-branches-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (define branches (if-branches s))
+    (define types (and branches
+                       (map-in-order (λ (e) (find-type e ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+                                     branches)))
+    (define (known? t) (and t (not (memq t '(sexpr any?)))))
+    (cond ((not (and types (every known? types))) #f)
+          ((every (λ (t) (equal? t (car types))) types) (car types))
+          ((every (λ (t) (equal? (type-base t) (type-base (car types)))) types) (type-base (car types)))
+          (else #f)))
+
   (define (find-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst) ; perheaps first search if type of arg has been stored
     ; could be a literal,variable known,or a procedure call (search ovrld-ht)
     (display "annot+.rkt : find-type : s=" err-port) (display s err-port) (newline err-port)
@@ -2202,6 +2234,12 @@
                    (find-type (last s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
                   ({(WALRUS-op? proc/mac) and (pair? (cdr s))}
                    (find-type (last s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+
+                  ; an if : the type of its branches when they have the same known type ({k := (if ... (quotient k 2)
+                  ; {3 * k + 1})} : k stays a fixnum) , else the general case below (the type any? of the macro if)
+                  (exec {if-type := (and (eq? proc/mac 'if)
+                                         (if-branches-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))})
+                  (if-type if-type)
 
                   ; check first for literal lists possibility:
                   ; (list ...)
@@ -3524,6 +3562,9 @@
            ; for Mv[] and no <-vector-vector* (the setter is chosen by $bracket-apply-overloaded$)
            {LHS-overloaded? := (any (λ (x) (overloaded-square-brackets-access? x ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
                                     LHS)}
+           ; the arguments are annotated with the types of before the assignment : the right hand side is computed with
+           ; the old values ({k := (quotient k 2)} : the k of (quotient k 2) has the type of before)
+           {argus := (recall-annot argus ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)}
            ; update types
            (display "annot+.rkt : parse-expressions : RmostHS-type=" err-port) (display RmostHS-type err-port) (newline err-port)
            (when (and RmostHS-type ; type is found
@@ -3536,7 +3577,7 @@
                                         (update-type RmostHS-type x annot-ht)))
                       LHS)))
            ;  we must recall annot() on the arguments now:
-           {argus := (recall-annot argus ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)}
+           #;{argus := (recall-annot argus ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)} ; before : after the update of the types
            ; reconstruct expression
            {proc := proc/mac} ; the procedure
            (when (and (eq? 'vector? (type-base RmostHS-type)) ; deal with vectors only (also #(T))
@@ -3655,13 +3696,22 @@
           ; the elements of expression must be parsed recursively for annotation and we should return the expression containing the parsed elements
           (else ; prepare a new has table for annotation of the next sub nested level of AST (abstract syntax tree)
             (mark-local-definitions! (declared-names s) annot-ht) ; (declare x) , (def x) ... at the current level
+            (define level (new-level-table s)) ; the parameters , the variables of a do loop ... are local bindings
+            ; a do of R7RS : the (type ...) of its body are known from the start , by its steps and its test too
+            ; (as for the body of a lambda in lambda-return-type) : (do ((k 0 {k + 1})) ({k = n}) (type ℕ k) ...)
+            (when (and (eq? proc/mac 'do) (do-R7RS? s))
+              (for-each (λ (e)
+                          (when (and (pair? e) (is-type? (car e)))
+                            (store-types (second e) (cddr e) level)))
+                        (cdddr s)))
             ; this will recall annot :
             (process-lst-for-annot s
                                    ovrld-ht ovrld-ht-n-ary ovrld-ht-proc
                                    #;(cons (make-hash-table)
                                          annot-ht-lst)
-                                   (cons (new-level-table s) ; the parameters , the variables of a do loop ... are local bindings
-                                         annot-ht-lst)))))
+                                   #;(cons (new-level-table s) ; the parameters , the variables of a do loop ... are local bindings
+                                         annot-ht-lst)
+                                   (cons level annot-ht-lst)))))
 
 
 
