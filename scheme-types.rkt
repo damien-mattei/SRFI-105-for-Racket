@@ -348,7 +348,12 @@
       ;; of (scheme base) even though they are ordinary numeric ops.
       ;; ---------------------------------------------------------------
 
-      ;; TODO change number? in real??
+      ;; the return types are number? , neither real? nor flonum? : sqrt , log , asin , acos of a real can be a
+      ;; complex ((sqrt -1.0) is +1.0i , (acos 2.0) is 0.0+1.31...i) ; sin , cos , tan , exp , atan are real only for
+      ;; a real argument , and can be exact ((sin 0) is 0 , (exp 0) is 1) ; one signature can not say "the type of
+      ;; the argument". The case of a flonum argument (flsin , flcos , fltan , flexp , flatan : flonum?) is in the
+      ;; tables of annot+.rkt , not sqrt , log , asin , acos of a flonum (a flonum or a complex , known only at run
+      ;; time). For the arithmetic number? gives orig-+ , orig-< ... as real? would.
       (acos     (number?) procedure? (number?))
       (asin     (number?) procedure? (number?))
       (atan     (number?) procedure? (number? (opt real?)))

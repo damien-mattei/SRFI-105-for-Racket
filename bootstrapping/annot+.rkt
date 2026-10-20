@@ -1113,7 +1113,6 @@
 
   ; note that in the parser the procedures + - / * ** · expt % etc... are never overloaded, so we can use them for fast computation
   ; those ones are used:
-  ; TODO? is there some interest to know also fl+ fx+ ..... ?
   {known-proc['+] := +}
   {known-proc['-] := -}
   {known-proc['/] := /}
@@ -2926,7 +2925,7 @@
           (else t)))
 
   (define (store-types t L annot-ht)
-    ; TODO convert type in canonical name real -> real? , integer -> exact-integer?
+    ; convert type in canonical name real -> real? , integer -> exact-integer?
     (define ct (canonical-type t)) ; ℕ ℤ ℝ --> fixnum? fixnum? flonum?
     (for-each (λ (s)
                 {annot-ht[s] := ct}
@@ -3155,10 +3154,8 @@
              is-define-overload? ne matche que les deux formes "-existing-" ci-dessus (le cas "nouveau symbole
              inconnu" visé par les deux TODO n'est plus atteignable : les variantes non-"existing" de define-overload-*
              sont déjà désactivées dans Scheme+/operators.rkt, remplacées par overload-operator/overload-procedure). |#
-          #;((is-define-overload? proc/mac) ; TODO we must create an entry in hash table for the new unknown (not existing) procedure/operator
-	   ; TODO this must be split in 2 ,one for existing ,one for new procedure/operator
-	   (recreate-define-overload-existing-generic s)) ; rewrite s (remember define-overload* are macros)
-
+        
+	
           ; which one of the two belows should have priority??? binary or n-ary (i suppose n-ary is better BUT.... beware of n-ary it can apply also in binary and that not what we want !!!)
           ; here we just store them ? so priority has no sense ?? conclusion: right !
 
@@ -3568,7 +3565,12 @@
           ; type inference for assignment and definitions ,example: {a := b := c := 3.5} --> (:= a b c 3.5)
           ; also multiple values take in account : ex: {(a b c) <- (x y z) <- (values 1 2 3)} --> (<- (a b c) (x y z) (values 1 2 3))
 
-          ; TODO? (perheaps not necessary) change expression when RmostHS is a numerical type and LmostHS is another different numerical type, then rewrite the expression with operators of the LmostHS type previously annotated by user
+          ; when the type of RmostHS is a numerical type and the type declared for a LHS another one ((type flonum? x)
+          ; then {x := i + 1} with a fixnum i) , the expression is not rewritten with the operators of the type of the LHS :
+          ; an assignment of Scheme converts nothing , fl+ would fail on a fixnum and (fl+ (fx->fl i) 1.0) would give 2.0
+          ; where Scheme gives 2 (the annotated program must give the same result as without annotation) , and the type
+          ; annotation specializes the code , it never converts the values ; the declaration is false there , the
+          ; inferred type replaces it (update-type) , as it is the type of the value
 	  
           ; specialization of the procedure passed to vector-map, map, apply when the types of the elements are known :
           ; (vector-map * v1 v2) -> (vector-map fl* v1 v2) , (apply + (vector->list ...)) -> (apply fl+ ...)
@@ -3613,7 +3615,6 @@
            {proc := proc/mac} ; the procedure
            (when (and (eq? 'vector? (type-base RmostHS-type)) ; deal with vectors only (also #(T))
                       (not LHS-overloaded?)
-                      #;(not (eq? proc/mac ':=>))
                       (not (WALRUS-op? proc/mac))) ; the walrus operator must return the value : it keeps := (generic copy)
              {LHS-types := (map-in-order (lambda (a) (find-type a ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
                                 LHS)} ; find the type of LHS
@@ -3622,7 +3623,6 @@
                {proc := '<-vector-vector*}))
            (when (and (eq? 'string? RmostHS-type) ; deal with strings only
                       (not LHS-overloaded?)
-                      #;(not (eq? proc/mac ':=>))
                       (not (WALRUS-op? proc/mac))) ; the walrus operator must return the value
              {LHS-types := (map-in-order (lambda (a) (find-type a ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
                                 LHS)}
