@@ -1702,6 +1702,20 @@
          (not (memq ': indexes))
          (kinds-of-operands (map kind indexes))))
 
+  ; M[i j] and M[i][j] are the same access to a vector of vectors : the type of an access s with n >= 2 indexes is the
+  ; type of the nested access (only for the type , the code is not changed) , #f with one index , a slice or an object
+  ; with overloaded square brackets : {M[0 1]} with (type #(#(flonum?)) M) --> flonum? (#(flonum?) before : one level)
+  (define (multi-indexes-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (define indexes (parse-square-brackets-arguments-lister-syntax (cddr s) '()))
+    (and (pair? indexes)
+         (pair? (cdr indexes))
+         (not (memq ': indexes))
+         (not (overloaded-square-brackets-access? s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+         (find-type (foldl (λ (index access) (list '$bracket-apply$ access index)) ; M[i j] --> M[i][j]
+                           (cadr s)
+                           indexes)
+                    ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
+
   (define (square-brackets-nb-indexes s)
     (define indexes (parse-square-brackets-arguments-lister-syntax (cddr s) '()))
     (if (memq ': indexes)
@@ -2272,6 +2286,8 @@
                   ((isBRACKET-APPLY*? s) ; add hash table too (but not string)
                    (or (search-in-annot-hash-tables-list-the-type s
                                                                   annot-ht-lst)
+                       ; several indexes to a vector of vectors : M[i j] typed as M[i][j]
+                       (multi-indexes-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
                        (search-in-annot-hash-tables-list-the-type (remove-indexes s)
                                                                   annot-ht-lst)
                        ; an object with overloaded square brackets : the return type given in the overload

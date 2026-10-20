@@ -1286,6 +1286,33 @@
     (and (pair? indexes)
          (not (memq ': indexes))
          (kinds-of-operands (map kind indexes))))
+  (define (multi-indexes-type
+           s
+           ovrld-ht
+           ovrld-ht-n-ary
+           ovrld-ht-proc
+           annot-ht-lst)
+    (define indexes
+      (parse-square-brackets-arguments-lister-syntax (cddr s) '()))
+    (and (pair? indexes)
+         (pair? (cdr indexes))
+         (not (memq ': indexes))
+         (not
+          (overloaded-square-brackets-access?
+           s
+           ovrld-ht
+           ovrld-ht-n-ary
+           ovrld-ht-proc
+           annot-ht-lst))
+         (find-type
+          (foldl
+           (λ (index access) (list '$bracket-apply$ access index))
+           (cadr s)
+           indexes)
+          ovrld-ht
+          ovrld-ht-n-ary
+          ovrld-ht-proc
+          annot-ht-lst)))
   (define (square-brackets-nb-indexes s)
     (define indexes
       (parse-square-brackets-arguments-lister-syntax (cddr s) '()))
@@ -1803,6 +1830,12 @@
        ((and (quote-or-quasi? proc/mac) (list? (cadr s))) 'list?)
        ((isBRACKET-APPLY*? s)
         (or (search-in-annot-hash-tables-list-the-type s annot-ht-lst)
+            (multi-indexes-type
+             s
+             ovrld-ht
+             ovrld-ht-n-ary
+             ovrld-ht-proc
+             annot-ht-lst)
             (search-in-annot-hash-tables-list-the-type
              (remove-indexes s)
              annot-ht-lst)
