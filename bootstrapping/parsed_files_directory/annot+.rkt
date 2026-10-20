@@ -46,6 +46,10 @@
      entries))
   (populate-scheme-ht! scheme-ht scheme-types)
   (:= ($bracket-apply$ scheme-ht 'sqr) '((real?) procedure? (real?)))
+  (define (scheme-return-type name)
+    (and (hash-table-exists? scheme-ht name)
+         (let ((rv (caar ($bracket-apply$ scheme-ht name))))
+           (and (not (eq? rv 'any?)) rv))))
   (define-syntax init-annot-data
     (syntax-rules ()
       ((_ ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
@@ -991,7 +995,7 @@
            (pair? (cadr s))
            (pair? (cddr s)))
       (header-names (cadr s)))
-     ((and (memq head '(lambda λ lambda+)) (pair? (cdr s)))
+     ((and (memq head '(lambda λ lambda+ lambda-x)) (pair? (cdr s)))
       (formals-names (cadr s)))
      ((eq? head 'case-lambda)
       (apply
@@ -1480,8 +1484,7 @@
        types))
      (else
       (or (search-in-annot-hash-tables-list-the-type-of-return f annot-ht-lst)
-          (and (hash-table-exists? scheme-ht f)
-               (caar ($bracket-apply$ scheme-ht f)))))))
+          (scheme-return-type f)))))
   (define (higher-order-type
            proc/mac
            argus
@@ -2042,9 +2045,7 @@
            "annot+.rkt : find-type binary-only : warning args types changed after annot."
            err-port)
           (newline err-port))
-        (or ret-type
-            (and (hash-table-exists? scheme-ht proc/mac)
-                 (caar ($bracket-apply$ scheme-ht proc/mac)))))
+        (or ret-type (scheme-return-type proc/mac)))
        ((hash-table-exists? ovrld-ht-proc proc/mac)
         (:=
          args-types
@@ -2157,11 +2158,11 @@
          err-port)
         (display ($bracket-apply$ scheme-ht proc/mac) err-port)
         (newline err-port)
-        (:= rv (caar ($bracket-apply$ scheme-ht proc/mac)))
+        (:= rv (scheme-return-type proc/mac))
         (display "annot+.rkt : find-type : rv=" err-port)
         (display rv err-port)
         (newline err-port)
-        rv)
+        (or rv 'sexpr))
        (else 'sexpr)))
      (else #f)))
   (define (match-type-with-one-ovrld? one-ovrld types)
@@ -3117,7 +3118,9 @@
       (:= named? (and (eq? proc/mac 'let) (symbol? (cadr s))))
       (:= bindings (cond (named? (caddr s)) (else (cadr s))))
       (:= body (cond (named? (cdddr s)) (else (cddr s))))
-      (:= mod-level-ht (new-level-table s))
+      (:=
+       mod-level-ht
+       (if (eq? proc/mac 'let*) (make-hash-table) (new-level-table s)))
       (:= sequential? (memq proc/mac '(let* letrec letrec*)))
       (:=
        level-for-inits
@@ -3140,16 +3143,30 @@
               ovrld-ht-n-ary
               ovrld-ht-proc
               level-for-inits))
-            (when (and init-type (not (eq? init-type 'sexpr)))
-              (update-type init-type name mod-level-ht))
-            (:=
-             init-recalled
-             (annot
-              init
-              ovrld-ht
-              ovrld-ht-n-ary
-              ovrld-ht-proc
-              (cons (make-hash-table) level-for-inits)))
+            (cond
+             ((eq? proc/mac 'let*)
+              (:=
+               init-recalled
+               (annot
+                init
+                ovrld-ht
+                ovrld-ht-n-ary
+                ovrld-ht-proc
+                (cons (make-hash-table) level-for-inits)))
+              (mark-local-binding! name mod-level-ht)
+              (when (and init-type (not (eq? init-type 'sexpr)))
+                (update-type init-type name mod-level-ht)))
+             (else
+              (when (and init-type (not (eq? init-type 'sexpr)))
+                (update-type init-type name mod-level-ht))
+              (:=
+               init-recalled
+               (annot
+                init
+                ovrld-ht
+                ovrld-ht-n-ary
+                ovrld-ht-proc
+                (cons (make-hash-table) level-for-inits)))))
             (list name init-recalled))
            (else b)))
         bindings))
@@ -3164,21 +3181,61 @@
       (cond
        (named? (list* proc/mac (cadr s) processed-bindings body-processed))
        (else (list* proc/mac processed-bindings body-processed))))
+     ((and (eq? proc/mac 'do) (do-R7RS? s))
+      (declare do-level specs-processed)
+      (:= do-level (new-level-table s))
+      (for-each
+       (λ (e)
+         (when (and (pair? e) (is-type? (car e)))
+           (store-types (second e) (cddr e) do-level)))
+       (cdddr s))
+      (:=
+       specs-processed
+       (map-in-order
+        (λ (spec)
+          (if (pair? (cdr spec))
+            (list*
+             (car spec)
+             (annot
+              (cadr spec)
+              ovrld-ht
+              ovrld-ht-n-ary
+              ovrld-ht-proc
+              (cons (make-hash-table) annot-ht-lst))
+             (map-in-order
+              (λ (step)
+                (annot
+                 step
+                 ovrld-ht
+                 ovrld-ht-n-ary
+                 ovrld-ht-proc
+                 (cons (make-hash-table) (cons do-level annot-ht-lst))))
+              (cddr spec)))
+            spec))
+        (cadr s)))
+      (list*
+       proc/mac
+       specs-processed
+       (process-lst-for-annot
+        (caddr s)
+        ovrld-ht
+        ovrld-ht-n-ary
+        ovrld-ht-proc
+        (cons do-level annot-ht-lst))
+       (process-lst-for-annot
+        (cdddr s)
+        ovrld-ht
+        ovrld-ht-n-ary
+        ovrld-ht-proc
+        (cons do-level annot-ht-lst))))
      (else
       (mark-local-definitions! (declared-names s) annot-ht)
-      (define level (new-level-table s))
-      (when (and (eq? proc/mac 'do) (do-R7RS? s))
-        (for-each
-         (λ (e)
-           (when (and (pair? e) (is-type? (car e)))
-             (store-types (second e) (cddr e) level)))
-         (cdddr s)))
       (process-lst-for-annot
        s
        ovrld-ht
        ovrld-ht-n-ary
        ovrld-ht-proc
-       (cons level annot-ht-lst)))))
+       (cons (new-level-table s) annot-ht-lst)))))
   (define (recall-annot L ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
     (map-in-order
      (λ (s)

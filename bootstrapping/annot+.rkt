@@ -89,6 +89,15 @@
 
   {scheme-ht['sqr] := '((real?) procedure? (real?))} ; sqr is a Racket-specific alias for square, not in R7RS, so not in scheme-types
 
+  ; the first return type of name in scheme-ht , #f when name is not there or when its return type is any? (the
+  ; pseudo-predicate of scheme-types.rkt for any value : it is a type of parameter , as a return type it says nothing
+  ; and must not replace a known type , as in {k := (if ...)})
+  (define (scheme-return-type name)
+    (and (hash-table-exists? scheme-ht name)
+         (let ((rv (caar {scheme-ht[name]})))
+           (and (not (eq? rv 'any?))
+                rv))))
+
   ; this macro reinitialise data in procedure in case of re-entring when requiring sub module in a parent module
   ; put here to be shared between SRFI 105 and SRFI 110 for curly infix and with Scheme+
   (define-syntax init-annot-data
@@ -1275,7 +1284,10 @@
                 (pair? (cadr s))
                 (pair? (cddr s)))
            (header-names (cadr s)))
-          ((and (memq head '(lambda λ lambda+))
+          #;((and (memq head '(lambda λ lambda+))
+                (pair? (cdr s)))
+           (formals-names (cadr s)))
+          ((and (memq head '(lambda λ lambda+ lambda-x)) ; lambda+ : lambda with return , lambda-x : the lambda+ of before
                 (pair? (cdr s)))
            (formals-names (cadr s)))
           ((eq? head 'case-lambda) ; the parameters of all the clauses
@@ -1937,8 +1949,9 @@
            (find-if-exists-matching-types-with-ovrld-and-get-return-type-of-procedure {ovrld-ht-proc[f]} types))
           (else
            (or (search-in-annot-hash-tables-list-the-type-of-return f annot-ht-lst)
-               (and (hash-table-exists? scheme-ht f)
-                    (caar {scheme-ht[f]}))))))
+               #;(and (hash-table-exists? scheme-ht f)
+                    (caar {scheme-ht[f]}))
+               (scheme-return-type f)))))
 
   #| typing rules of higher order and container procedures : the type of the result depends on the types of the
      elements and on the procedure passed, not only on a fixed signature from scheme-types (vector-map -> vector?) :
@@ -2399,8 +2412,9 @@
                    ; no entry for these types : the general type given by scheme-types.rkt , if any , as when the procedure is not in
                    ; the tables : (sin x) with x of unknown type is number? (only (sin x) of a flonum is flsin)
                    (or ret-type
-                       (and (hash-table-exists? scheme-ht proc/mac)
-                            (caar {scheme-ht[proc/mac]}))))
+                       #;(and (hash-table-exists? scheme-ht proc/mac)
+                            (caar {scheme-ht[proc/mac]}))
+                       (scheme-return-type proc/mac)))
 
                   ; for procedures (overloaded procedures)
                   ((hash-table-exists? ovrld-ht-proc proc/mac)
@@ -2481,9 +2495,10 @@
                   ((hash-table-exists? scheme-ht proc/mac)
                    (display "annot+.rkt : find-type : proc/mac=" err-port) (display proc/mac err-port) (newline err-port)
                    (display "annot+.rkt : find-type : find proc/mac in scheme-ht:" err-port) (display {scheme-ht[proc/mac]} err-port) (newline err-port)
-                   {rv := (caar scheme-ht[proc/mac])} ; we take only the first returned value (no values support as it is hardly function composable)
+                   #;{rv := (caar scheme-ht[proc/mac])} ; we take only the first returned value (no values support as it is hardly function composable)
+                   {rv := (scheme-return-type proc/mac)} ; the first returned value , #f for any? (unknown)
                    (display "annot+.rkt : find-type : rv=" err-port) (display rv err-port) (newline err-port)
-                   rv)
+                   (or rv 'sexpr)) ; unknown as in the else below
 
                   (else
                     'sexpr))) #| probably not  literal list but code as in Scheme code expressions and lists are homoiconic |#
@@ -3672,7 +3687,10 @@
            {named? := (and (eq? proc/mac 'let) (symbol? (cadr s)))} ; (let loop ((n i) ...) body ...)
            {bindings := (cond (named? (caddr s)) (else (cadr s)))}
            {body := (cond (named? (cdddr s)) (else (cddr s)))}
-           {mod-level-ht := (new-level-table s)} ; already marks every bound name (incl. the loop name) local-without-type
+           #;{mod-level-ht := (new-level-table s)} ; already marks every bound name (incl. the loop name) local-without-type
+           ; let* : the init of a binding sees only the bindings before it and the outer levels , the table starts empty
+           ; and each name is marked after its init (the other forms : every bound name is marked from the start)
+           {mod-level-ht := (if (eq? proc/mac 'let*) (make-hash-table) (new-level-table s))}
            {sequential? := (memq proc/mac '(let* letrec letrec*))} ; later bindings can see earlier ones in THIS form
            {level-for-inits := (cond (sequential? (cons mod-level-ht annot-ht-lst)) (else annot-ht-lst))}
            {processed-bindings :=
@@ -3681,10 +3699,19 @@
                                    {name := (car b)}
                                    {init := (cadr b)}
                                    {init-type := (find-type init ovrld-ht ovrld-ht-n-ary ovrld-ht-proc level-for-inits)}
-                                   (when (and init-type (not (eq? init-type 'sexpr)))
+                                   #;(when (and init-type (not (eq? init-type 'sexpr)))
                                      (update-type init-type name mod-level-ht)) ; else : stays local-without-type
                                    #;{init-recalled := (car (recall-annot (list init) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc level-for-inits))}
-                                   {init-recalled := (annot init ovrld-ht ovrld-ht-n-ary ovrld-ht-proc (cons (make-hash-table) level-for-inits))} ; one expression : annot , as for the key of case
+                                   #;{init-recalled := (annot init ovrld-ht ovrld-ht-n-ary ovrld-ht-proc (cons (make-hash-table) level-for-inits))} ; one expression : annot , as for the key of case
+                                   (cond ((eq? proc/mac 'let*) ; the init is annotated with the types of before its binding
+                                          {init-recalled := (annot init ovrld-ht ovrld-ht-n-ary ovrld-ht-proc (cons (make-hash-table) level-for-inits))}
+                                          (mark-local-binding! name mod-level-ht)
+                                          (when (and init-type (not (eq? init-type 'sexpr)))
+                                            (update-type init-type name mod-level-ht))) ; else : stays local-without-type
+                                         (else ; let , letrec , letrec* : the binding is already visible (letrec) or not seen (let)
+                                          (when (and init-type (not (eq? init-type 'sexpr)))
+                                            (update-type init-type name mod-level-ht)) ; else : stays local-without-type
+                                          {init-recalled := (annot init ovrld-ht ovrld-ht-n-ary ovrld-ht-proc (cons (make-hash-table) level-for-inits))})) ; one expression : annot , as for the key of case
                                    (list name init-recalled))
                                   (else b))) ; not a (name init) pair : leave untouched
                           bindings)}
@@ -3694,12 +3721,41 @@
 
           ; otherwise we will enter the list :
           ; the elements of expression must be parsed recursively for annotation and we should return the expression containing the parsed elements
+          ; (do ((var init step ...) ...) (test expr ...) body ...) of R7RS : the inits are computed before the loop , they
+          ; are annotated with the outer levels ; the (type ...) of the body are known from the start by the steps , the
+          ; test , the expressions of the result and the body , at the level of the do (as for the body of a lambda in
+          ; lambda-return-type) : (do ((k 0 {k + 1})) ({k = n}) (type ℕ k) ...)
+          ((and (eq? proc/mac 'do) (do-R7RS? s))
+           (declare do-level specs-processed)
+           {do-level := (new-level-table s)} ; the variables of the loop are local bindings
+           (for-each (λ (e)
+                       (when (and (pair? e) (is-type? (car e)))
+                         (store-types (second e) (cddr e) do-level)))
+                     (cdddr s))
+           {specs-processed :=
+            (map-in-order (λ (spec) ; (var init step ...)
+                            (if (pair? (cdr spec))
+                                (list* (car spec)
+                                       (annot (cadr spec) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc (cons (make-hash-table) annot-ht-lst))
+                                       (map-in-order (λ (step)
+                                                       (annot step ovrld-ht ovrld-ht-n-ary ovrld-ht-proc
+                                                              (cons (make-hash-table) (cons do-level annot-ht-lst))))
+                                                     (cddr spec)))
+                                spec))
+                          (cadr s))}
+           (list* proc/mac
+                  specs-processed
+                  (process-lst-for-annot (caddr s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc (cons do-level annot-ht-lst))
+                  (process-lst-for-annot (cdddr s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc (cons do-level annot-ht-lst))))
+
+          ; otherwise we will enter the list :
+          ; the elements of expression must be parsed recursively for annotation and we should return the expression containing the parsed elements
           (else ; prepare a new has table for annotation of the next sub nested level of AST (abstract syntax tree)
             (mark-local-definitions! (declared-names s) annot-ht) ; (declare x) , (def x) ... at the current level
-            (define level (new-level-table s)) ; the parameters , the variables of a do loop ... are local bindings
+            #;(define level (new-level-table s)) ; the parameters , the variables of a do loop ... are local bindings
             ; a do of R7RS : the (type ...) of its body are known from the start , by its steps and its test too
             ; (as for the body of a lambda in lambda-return-type) : (do ((k 0 {k + 1})) ({k = n}) (type ℕ k) ...)
-            (when (and (eq? proc/mac 'do) (do-R7RS? s))
+            #;(when (and (eq? proc/mac 'do) (do-R7RS? s))
               (for-each (λ (e)
                           (when (and (pair? e) (is-type? (car e)))
                             (store-types (second e) (cddr e) level)))
@@ -3709,9 +3765,9 @@
                                    ovrld-ht ovrld-ht-n-ary ovrld-ht-proc
                                    #;(cons (make-hash-table)
                                          annot-ht-lst)
-                                   #;(cons (new-level-table s) ; the parameters , the variables of a do loop ... are local bindings
+                                   (cons (new-level-table s) ; the parameters , the variables of a do loop ... are local bindings
                                          annot-ht-lst)
-                                   (cons level annot-ht-lst)))))
+                                   #;(cons level annot-ht-lst)))))
 
 
 
