@@ -56,7 +56,8 @@
 ;; but as it is done automatically i can not figure out exactly how much
 (module scheme-types racket/base
 
-  (provide scheme-types)
+  (provide scheme-types
+           container-procedures-types)
 
   (define scheme-types
 
@@ -411,5 +412,69 @@
       (void             (void?) procedure? ((... any?)))
 
       ))
+
+  ;; The list and vector procedures whose result has a type given by the type of the elements of a container argument
+  ;; (a composite type (T) or #(T) , or the bracket notation {L[]}) , read by the type annotation (annot+.rkt ,
+  ;; higher-order-type). Each element of the list has the form: (name rule position container)
+  ;;   rule : element - the result is an element of the container : E
+  ;;          same    - the result is a container of the same elements : (E) or #(E)
+  ;;          build   - the result is a container of the values of the procedure at the position , called on an index ℕ
+  ;;          fill    - the result is a container of the value at the position : (T) or #(T) , T type of the value
+  ;;   position  : the position of the container argument (of the procedure for build , of the value for fill) , all :
+  ;;               every argument
+  ;;   container : list or vector
+  ;; Procedures of R7RS , SRFI 1 and Racket (racket/base , racket/list , racket/vector).
+  ;; make-vector : with the annotation a vector keeps the type of its initial elements , the fill value must have the
+  ;; type of the elements put after ((make-vector n 0.0) for a vector of floats) ; (make-vector n) : no element type.
+  (define container-procedures-types
+    '(;; an element
+      (car              element 0 list)
+      (first            element 0 list)
+      (second           element 0 list)
+      (third            element 0 list)
+      (fourth           element 0 list)
+      (fifth            element 0 list)
+      (cadr             element 0 list)
+      (caddr            element 0 list)
+      (last             element 0 list)
+      (list-ref         element 0 list)
+      (argmin           element 1 list)   ; (argmin proc lst)
+      (argmax           element 1 list)
+      (vector-ref       element 0 vector)
+      (vector-argmin    element 1 vector) ; (vector-argmin proc vec)
+      (vector-argmax    element 1 vector)
+      ;; a container of the same elements
+      (cdr              same 0 list)
+      (rest             same 0 list)
+      (cddr             same 0 list)
+      (reverse          same 0 list)
+      (list-copy        same 0 list)
+      (list-tail        same 0 list)
+      (take             same 0 list)
+      (drop             same 0 list)
+      (take-right       same 0 list)
+      (drop-right       same 0 list)
+      (sort             same 0 list)      ; (sort lst less-than?)
+      (remove-duplicates same 0 list)
+      (delete-duplicates same 0 list)
+      (shuffle          same 0 list)
+      (filter           same 1 list)      ; (filter pred lst)
+      (remove           same 1 list)      ; (remove v lst) of Racket , (remove pred lst) of SRFI 1
+      (remq             same 1 list)
+      (remv             same 1 list)
+      (delete           same 1 list)      ; (delete x lst)
+      (append           same all list)
+      (vector-copy      same 0 vector)
+      (vector-take      same 0 vector)
+      (vector-drop      same 0 vector)
+      (vector-sort      same 0 vector)    ; (vector-sort vec less-than?)
+      (vector-filter    same 1 vector)    ; (vector-filter pred vec)
+      (vector-append    same all vector)
+      ;; a container of the fill value
+      (make-list        fill 1 list)      ; (make-list n v)
+      (make-vector      fill 1 vector)    ; (make-vector n v)
+      ;; a container of the values of a procedure on the indexes
+      (build-list       build 1 list)     ; (build-list n proc)
+      (build-vector     build 1 vector)))
 
   ) ;; module scheme-types

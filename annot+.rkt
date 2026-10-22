@@ -23,7 +23,8 @@
             Scheme+/parse-square-brackets
             parse-square-brackets-arguments-lister-syntax)
            racket/flonum
-           racket/fixnum)
+           racket/fixnum
+           (only-in racket/port open-output-nowhere))
   (provide annot
            type-for-repl
            remove-expr
@@ -33,7 +34,11 @@
            remove-annotation-markers
            remove-types-and-annotation-markers
            insert-top-level-markers-in-module)
-  (:= err-port (current-error-port))
+  (:=
+   err-port
+   (if (getenv "SCHEME_PLUS_ANNOT_DEBUG")
+     (current-error-port)
+     (open-output-nowhere)))
   (:= err-flag-type-changed #f)
   (:= err-flag-args-changed #f)
   (:= err-flag-type-changed-in-find-type #t)
@@ -1535,6 +1540,51 @@
        annot-ht-lst))
     (declare e elts f r types rev fixed)
     (define nb (length argus))
+    (define (container-procedure-type entry)
+      (declare e r f types)
+      (define rule (second entry))
+      (define pos (third entry))
+      (define container (cadddr entry))
+      (define (wrap t) (if (eq? container 'vector) (vector t) (list t)))
+      (define (elements-of a)
+        (define t (ft a))
+        (and (or (not (known? t))
+                 (eq?
+                  (type-base t)
+                  (if (eq? container 'vector) 'vector? 'list?)))
+             (et a)))
+      (cond
+       ((eq? pos 'all)
+        (and (≥ nb 1)
+             (:= types (map-in-order elements-of argus))
+             (every known? types)
+             (every (λ (t) (equal? t (car types))) types)
+             (wrap (car types))))
+       ((≤ nb pos) #f)
+       ((eq? rule 'element)
+        (and (:= e (elements-of (list-ref argus pos))) (known? e) e))
+       ((eq? rule 'same)
+        (and (:= e (elements-of (list-ref argus pos))) (known? e) (wrap e)))
+       ((eq? rule 'fill)
+        (and (:= e (ft (list-ref argus pos))) (known? e) (wrap e)))
+       ((eq? rule 'build)
+        (and (:= f (list-ref argus pos))
+             (:=
+              r
+              (if (lambda-form? f)
+                (and (list? (cadr f))
+                     (= (length (cadr f)) 1)
+                     (lambda-return-type
+                      f
+                      '(natural-fixnum?)
+                      ovrld-ht
+                      ovrld-ht-n-ary
+                      ovrld-ht-proc
+                      annot-ht-lst))
+                (rt f '(natural-fixnum?) #f)))
+             (known? r)
+             (wrap r)))
+       (else #f)))
     (cond
      ((memq proc/mac '(vector-map map))
       (and (≥ nb 2)
@@ -1559,8 +1609,7 @@
            (:= e (et (car argus)))
            (and (known? e)
                 (if (eq? proc/mac 'vector->list) (list e) (vector e)))))
-     ((memq proc/mac '(vector-ref list-ref))
-      (and (= nb 2) (:= e (et (car argus))) (known? e) e))
+     ((assq proc/mac container-procedures-types) => container-procedure-type)
      ((memq proc/mac '(vector list))
       (and (≥ nb 1)
            (:= types (map-in-order ft argus))
@@ -2376,6 +2425,7 @@
      ((integer-type-name? t) 'fixnum?)
      ((real-type-name? t) 'flonum?)
      ((pair? t) (cons (canonical-type (car t)) (canonical-type (cdr t))))
+     ((and (vector? t) (= (vector-length t) 0)) 'vector?)
      ((vector? t) (list->vector (map canonical-type (vector->list t))))
      (else t)))
   (define (store-types t L annot-ht)

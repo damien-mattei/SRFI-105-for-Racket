@@ -54,6 +54,7 @@
     (display use-only-syntax-transformers)
     (newline))
   (define flag-r6rs #f)
+  (define annot-debug (getenv "SCHEME_PLUS_ANNOT_DEBUG"))
   (declare ovrld-ht ovrld-ht-n-arity ovrld-ht-proc annot-ht-lst)
   (define (skip-comments-and-empty-lines in)
     (let loop ()
@@ -172,18 +173,19 @@
            annot-ht-lst))
         (if (and (get-annot-on-read) (not (null? result)))
           then
-          (newline)
-          (display "Annotation data for src=")
-          (display src)
-          (newline)
-          (display
-           "Overload hash table before annotation parsing : ovrld-ht-n-arity :")
-          (newline)
-          (hash-table-walk
-           ovrld-ht-n-arity
-           (lambda (k v) (printf " (~s → ~s)\n" k v)))
-          (newline)
-          (newline)
+          (when annot-debug
+            (newline)
+            (display "Annotation data for src=")
+            (display src)
+            (newline)
+            (display
+             "Overload hash table before annotation parsing : ovrld-ht-n-arity :")
+            (newline)
+            (hash-table-walk
+             ovrld-ht-n-arity
+             (lambda (k v) (printf " (~s → ~s)\n" k v)))
+            (newline)
+            (newline))
           (let ((parsed-annotated-module
                  (annot
                   result-modul
@@ -191,38 +193,39 @@
                   ovrld-ht-n-arity
                   ovrld-ht-proc
                   annot-ht-lst)))
-            (display "Annotation data after parsing annotation for src=")
-            (display src)
-            (newline)
-            (newline)
+            (when annot-debug
+              (display "Annotation data after parsing annotation for src=")
+              (display src)
+              (newline)
+              (newline)
+              (display "Overload hash table : ovrld-ht :")
+              (newline)
+              (hash-table-walk
+               ovrld-ht
+               (lambda (k v) (printf " (~s → ~s)\n" k v)))
+              (newline)
+              (display "Overload hash table : ovrld-ht-n-arity :")
+              (newline)
+              (hash-table-walk
+               ovrld-ht-n-arity
+               (lambda (k v) (printf " (~s → ~s)\n" k v)))
+              (newline)
+              (display "Overload hash table : ovrld-ht-proc :")
+              (newline)
+              (hash-table-walk
+               ovrld-ht-proc
+               (lambda (k v) (printf " (~s → ~s)\n" k v)))
+              (newline)
+              (display "Overload hash table : annot-ht-lst :")
+              (display annot-ht-lst)
+              (newline)
+              (display "Overload hash table : (first annot-ht-lst) :")
+              (newline)
+              (hash-table-walk
+               (first annot-ht-lst)
+               (lambda (k v) (printf " (~s → ~s)\n" k v)))
+              (newline))
             (display "Annotated code")
-            (newline)
-            (display "Overload hash table : ovrld-ht :")
-            (newline)
-            (hash-table-walk
-             ovrld-ht
-             (lambda (k v) (printf " (~s → ~s)\n" k v)))
-            (newline)
-            (display "Overload hash table : ovrld-ht-n-arity :")
-            (newline)
-            (hash-table-walk
-             ovrld-ht-n-arity
-             (lambda (k v) (printf " (~s → ~s)\n" k v)))
-            (newline)
-            (display "Overload hash table : ovrld-ht-proc :")
-            (newline)
-            (hash-table-walk
-             ovrld-ht-proc
-             (lambda (k v) (printf " (~s → ~s)\n" k v)))
-            (newline)
-            (display "Overload hash table : annot-ht-lst :")
-            (display annot-ht-lst)
-            (newline)
-            (display "Overload hash table : (first annot-ht-lst) :")
-            (newline)
-            (hash-table-walk
-             (first annot-ht-lst)
-             (lambda (k v) (printf " (~s → ~s)\n" k v)))
             (newline)
             (pretty-print parsed-annotated-module (current-output-port) 1)
             (newline)

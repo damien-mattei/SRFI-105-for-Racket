@@ -70,6 +70,10 @@
 
 (define flag-r6rs #f) ; reinitialised in procedure in case of re-entring when requiring sub module of a different R*RS
 
+; the annotation data (the overload hash tables before and after the annotation pass) are displayed only when the
+; environment variable SCHEME_PLUS_ANNOT_DEBUG is set (e.g. SCHEME_PLUS_ANNOT_DEBUG=1 racket prog.rkt) , as the debug traces of annot+.rkt
+(define annot-debug (getenv "SCHEME_PLUS_ANNOT_DEBUG"))
+
 #;(when verbose
   (display "annotation flag set to:") (display (get-annot-flag)) (newline))
 
@@ -319,46 +323,47 @@
 	(if (and (get-annot-on-read) ; was : (get-annot-flag)
                  (not (null? result))) ; no need to parse annotations of a no code module
           then
-            (newline)
-            (display "Annotation data for src=") (display src) (newline)
-            (display "Overload hash table before annotation parsing : ovrld-ht-n-arity :") (newline)
-	    (hash-table-walk ovrld-ht-n-arity
-                             (lambda (k v)
-                               (printf " (~s → ~s)\n" k v)))
-	    (newline)
-	    (newline)
+            (when annot-debug
+              (newline)
+              (display "Annotation data for src=") (display src) (newline)
+              (display "Overload hash table before annotation parsing : ovrld-ht-n-arity :") (newline)
+              (hash-table-walk ovrld-ht-n-arity
+                               (lambda (k v)
+                                 (printf " (~s → ~s)\n" k v)))
+              (newline)
+              (newline))
 	    (let ((parsed-annotated-module (annot result-modul ovrld-ht ovrld-ht-n-arity ovrld-ht-proc annot-ht-lst)))
-              (display "Annotation data after parsing annotation for src=") (display src) (newline)
-	      (newline)
-	      (display "Annotated code") (newline)
-              (display "Overload hash table : ovrld-ht :") (newline)
-	           (hash-table-walk ovrld-ht
-                               (lambda (k v)
-                                 (printf " (~s → ~s)\n" k v)))
-	      (newline)
-	      (display "Overload hash table : ovrld-ht-n-arity :") (newline)
-	      (hash-table-walk ovrld-ht-n-arity
-                               (lambda (k v)
-                                 (printf " (~s → ~s)\n" k v)))
-	      (newline)
-	      
-	      (display "Overload hash table : ovrld-ht-proc :") (newline)
-	      (hash-table-walk ovrld-ht-proc
-                               (lambda (k v)
-                                 (printf " (~s → ~s)\n" k v)))
-	      (newline)
+              (when annot-debug
+                (display "Annotation data after parsing annotation for src=") (display src) (newline)
+                (newline)
+                (display "Overload hash table : ovrld-ht :") (newline)
+                (hash-table-walk ovrld-ht
+                                 (lambda (k v)
+                                   (printf " (~s → ~s)\n" k v)))
+                (newline)
+                (display "Overload hash table : ovrld-ht-n-arity :") (newline)
+                (hash-table-walk ovrld-ht-n-arity
+                                 (lambda (k v)
+                                   (printf " (~s → ~s)\n" k v)))
+                (newline)
 
-              ; unfortunately we can not get the full annot-ht-lst list back for display
-              ; as we pass the list (hash-table) and the list is cons-tructed as this:
-              ; (hash-tableN .... hash-table1 hash-table) , so we only have the top-level hash table in the list.
-              (display "Overload hash table : annot-ht-lst :") (display annot-ht-lst) (newline)
-              (display "Overload hash table : (first annot-ht-lst) :") (newline)
-	      (hash-table-walk (first annot-ht-lst)
-                               (lambda (k v)
-                                 (printf " (~s → ~s)\n" k v)))
-	      (newline)
-              
-	      
+                (display "Overload hash table : ovrld-ht-proc :") (newline)
+                (hash-table-walk ovrld-ht-proc
+                                 (lambda (k v)
+                                   (printf " (~s → ~s)\n" k v)))
+                (newline)
+
+                ; unfortunately we can not get the full annot-ht-lst list back for display
+                ; as we pass the list (hash-table) and the list is cons-tructed as this:
+                ; (hash-tableN .... hash-table1 hash-table) , so we only have the top-level hash table in the list.
+                (display "Overload hash table : annot-ht-lst :") (display annot-ht-lst) (newline)
+                (display "Overload hash table : (first annot-ht-lst) :") (newline)
+                (hash-table-walk (first annot-ht-lst)
+                                 (lambda (k v)
+                                   (printf " (~s → ~s)\n" k v)))
+                (newline))
+
+              (display "Annotated code") (newline)
 	      (pretty-print parsed-annotated-module
 			    (current-output-port)
 			    1)

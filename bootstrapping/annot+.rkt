@@ -38,7 +38,8 @@
            SRFI-105/scheme-types ; static R7RS (scheme base)/(scheme inexact)/core-syntax type table, see scheme-types.rkt
            (only-in Scheme+/parse-square-brackets parse-square-brackets-arguments-lister-syntax) ; to count the indexes of {M[i j]}
            racket/flonum
-           racket/fixnum)
+           racket/fixnum
+           (only-in racket/port open-output-nowhere)) ; the port of the debug traces when they are off
 
   (provide annot
            type-for-repl ; (:print-type expr) at the REPL
@@ -57,7 +58,10 @@
            )
 
 
-  {err-port := (current-error-port)}
+  ; the debug traces of the annotation go to stderr only when the environment variable
+  ; SCHEME_PLUS_ANNOT_DEBUG is set (e.g. SCHEME_PLUS_ANNOT_DEBUG=1 racket prog.rkt) , otherwise nowhere
+  #;{err-port := (current-error-port)}
+  {err-port := (if (getenv "SCHEME_PLUS_ANNOT_DEBUG") (current-error-port) (open-output-nowhere))}
 
   ; by default in parse-expressions:
   {err-flag-type-changed := #f} ; set to #t to display debug information with error halting program
@@ -703,103 +707,7 @@
                                      [(inexact?) orig-** (inexact?)])}
 
          ;; expt not n-ary
-         #; {ovrld-ht-n-ary['expt] := '([(integer?) orig-expt (integer?)]
-                                          [(number?) orig-expt (number?)]
-                                          [(real?) orig-expt (real?)]
-                                          [(complex?) orig-expt (complex?)]
-                                          [(inexact?) orig-expt (inexact?)])}
-
-         ;; the overload below seems only used internally by the parser for args-types-after-annot
-         ;; uncomment below if you want args-types-after-annot being displayed
-         #|
-         ; now original overload with itself !!!
-         {ovrld-ht['orig-+] := '([(fixnum?) orig-+ (fixnum? fixnum?)]
-                                [(exact-integer?) orig-+ (exact-integer? fixnum?)]
-                                [(exact-integer?) orig-+ (fixnum? exact-integer?)]
-                                [(exact-integer?) orig-+ (exact-integer? exact-integer?)]
-                                [(integer?) orig-+ (integer? integer?)]
-                                [(number?) orig-+ (number? number?)]
-                                [(flonum?) orig-+ (flonum? flonum?)]
-                                 ;[(flonum?) orig-+ (integer? flonum?)]
-                                 ;[(flonum?) orig-+ (flonum? integer?)]
-                                [(real?) orig-+ (real? real?)]
-                                [(rational?) orig-+ (rational? rational?)]
-                                [(complex?) orig-+ (complex? complex?)]
-                                [(inexact?) orig-+ (inexact? number?)]
-                                [(inexact?) orig-+ (number? inexact?)]
-                                [(inexact?) orig-+ (inexact? inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
-
-         {ovrld-ht['orig--] := '([(fixnum?) orig-- (fixnum? fixnum?)]
-                                [(exact-integer?) orig-- (exact-integer? fixnum?)]
-                                [(exact-integer?) orig-- (fixnum? exact-integer?)]
-                                [(exact-integer?) orig-- (exact-integer? exact-integer?)]
-                                [(integer?) orig-- (integer? integer?)]
-                                [(number?) orig-- (number? number?)]
-                                [(flonum?) orig-- (flonum? flonum?)]
-                                [(real?) orig-- (real? real?)]
-                                [(rational?) orig-- (rational? rational?)]
-                                [(complex?) orig-- (complex? complex?)]
-                                [(inexact?) orig-- (inexact? inexact?)]
-                                 #;[(inexact?) orig-- (inexact?)])} ; unary ? TODO? should i put unary operator in another functions table (n-ary ?)
-
-         {ovrld-ht['orig-/] := '(#;[(fixnum?) fx/ (fixnum? fixnum?)] ; fx/ does not exist !
-                                [(exact-integer?) orig-/ (exact-integer? exact-integer?)] ;not sure it is a good idea as / is in general not integer
-                                [(integer?) orig-/ (integer? integer?)]
-                                [(number?) orig-/ (number? number?)]
-                                [(flonum?) orig-/ (flonum? flonum?)]
-                                [(real?) orig-/ (real? real?)]
-                                [(rational?) orig-/ (rational? rational?)]
-                                [(complex?) orig-/ (complex? complex?)]
-                                [(inexact?) orig-/ (inexact? inexact?)])}
-
-         {ovrld-ht['orig-*] := '([(fixnum?) orig-* (fixnum? fixnum?)]
-                                [(exact-integer?) orig-* (exact-integer? fixnum?)]
-                                [(exact-integer?) orig-* (fixnum? exact-integer?)]
-                                [(exact-integer?) orig-* (exact-integer? exact-integer?)]
-                                [(integer?) orig-* (integer? integer?)]
-                                [(number?) orig-* (number? number?)]
-                                [(flonum?) orig-* (flonum? flonum?)]
-                                [(real?) orig-* (real? real?)]
-                                [(rational?) orig-* (rational? rational?)]
-                                [(complex?) orig-* (complex? complex?)]
-                                [(inexact?) orig-* (inexact? inexact?)])}
-
-      
-         {ovrld-ht['orig-·] := '([(fixnum?) orig-· (fixnum? fixnum?)]
-                                [(exact-integer?) orig-· (exact-integer? fixnum?)]
-                                [(exact-integer?) orig-· (fixnum? exact-integer?)]
-                                [(exact-integer?) orig-· (exact-integer? exact-integer?)]
-                                [(integer?) orig-· (integer? integer?)]
-                                [(number?) orig-· (number? number?)]
-                                [(flonum?) orig-· (flonum? flonum?)]
-                                [(real?) orig-· (real? real?)]
-                                [(rational?) orig-· (rational? rational?)]
-                                [(complex?) orig-· (complex? complex?)]
-                                [(inexact?) orig-· (inexact? inexact?)])}
-
-         {ovrld-ht['orig-**] := '([(fixnum?) orig-** (fixnum? fixnum?)]
-                                 [(exact-integer?) orig-** (exact-integer? exact-integer?)]
-                                 [(integer?) orig-** (integer? integer?)]
-                                 [(number?) orig-** (number? number?)]
-                                 [(flonum?) orig-** (flonum? flonum?)] ; TODO goal is also to return flonum? with orig-** but is it retrieved from here?? to avoid breaking floating point computation instead of real scheme
-                                 [(real?) orig-** (real? real?)]
-                                 [(complex?) orig-** (complex? complex?)]
-                                 [(inexact?) orig-** (inexact? inexact?)]
-                                 [(inexact?) orig-** (inexact? integer?)]
-                                 [(inexact?) orig-** (integer? inexact?)])}
-
-         {ovrld-ht['orig-expt] := '([(fixnum?) orig-expt (fixnum? fixnum?)]
-                                   [(exact-integer?) orig-expt (exact-integer? exact-integer?)]
-                                   [(integer?) orig-expt (integer? integer?)]
-                                   [(number?) orig-expt (number? number?)]
-                                   [(flonum?) orig-expt (flonum? flonum?)]
-                                   [(real?) orig-expt (real? real?)]
-                                   [(complex?) orig-expt (complex? complex?)]
-                                   [(inexact?) orig-expt (inexact? inexact?)]
-                                   [(inexact?) orig-expt (inexact? integer?)]
-                                   [(inexact?) orig-expt (integer? inexact?)])}
-
-|#
+        
 
          {ovrld-ht-n-ary['+] := '([(fixnum?) fx+ (fixnum?)]
                                     [(exact-integer?) orig-+ (exact-integer?)]
@@ -1850,6 +1758,7 @@
   #| composite types : a homogeneous container is typed with the type of its elements :
        #(T) : vector of elements of type T       example: (type #(flonum?) v1 v2)
        (T)  : list of elements of type T         example: (type (flonum?) L)
+       #()  : a vector, the type of its elements not given (the same as vector?) , example: (type #() w)
      composable : #(#(flonum?)) is a vector of vectors of flonums.
      No ambiguity with a procedure signature ((ret ...) procedure? (param ...)) : 3 elements,
      and its return part is always the list of the return types, ex: ((flonum?)) returns a list of flonums.
@@ -1971,6 +1880,10 @@
        (vector-map f v1 ... vn) -> #(R) , R return type of f on the element types of v1 ... vn ; (map f l ...) -> (R)
        (vector->list v) -> (E) , (list->vector l) -> #(E)
        (vector-ref v i) -> E , (list-ref l i) -> E , E element type of v/l (symmetric to vector->list/list->vector)
+       the procedures of container-procedures-types (scheme-types.rkt) : (car l) (first l) (last l) (vector-ref v i) -> E ,
+       (cdr l) (reverse l) (filter p l) (append l ...) (vector-copy v) (sort l <) -> (E) or #(E) ,
+       (make-vector n x) -> #(T) , (make-list n x) -> (T) , T type of x ,
+       (build-vector n f) -> #(R) , (build-list n f) -> (R) , R return type of f on an index ℕ
        (vector a ...) -> #(T) , (list a ...) -> (T) when all the arguments have the same known type T
        (apply f a ... l) -> return type of f on (type(a) ... E E), n-ary overloads only (length of l unknown)
      #f when a type is missing (then find-type goes on as before) |#
@@ -1981,6 +1894,49 @@
     (define (rt f types n-ary-only?) (return-type-of-callable f types n-ary-only? ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
     (declare e elts f r types rev fixed) ; shared local variables used by the clauses below (:= acts as set!, no let needed)
     (define nb (length argus))
+
+    ; the rules of the table container-procedures-types of scheme-types.rkt , entry : (name rule position container)
+    (define (container-procedure-type entry)
+      (declare e r f types)
+      (define rule (second entry)) ; element , same , fill or build
+      (define pos (third entry)) ; position of the container (of the procedure for build) , all : every argument
+      (define container (cadddr entry)) ; list or vector
+      (define (wrap t) (if (eq? container 'vector) (vector t) (list t)))
+      ; the type of the elements of a , #f if a is known to be another container ((last v) of a vector v)
+      (define (elements-of a)
+        (define t (ft a))
+        (and (or (not (known? t)) ; container type unknown : only the bracket notation {L[]}
+                 (eq? (type-base t) (if (eq? container 'vector) 'vector? 'list?)))
+             (et a)))
+      (cond ((eq? pos 'all) ; append , vector-append : the same type of elements for all the arguments
+             (and {nb ≥ 1}
+                  {types := (map-in-order elements-of argus)}
+                  (every known? types)
+                  (every (λ (t) (equal? t (car types))) types)
+                  (wrap (car types))))
+            ({nb ≤ pos} #f)
+            ((eq? rule 'element) ; car , first , last , vector-ref ... : an element
+             (and {e := (elements-of (list-ref argus pos))}
+                  (known? e)
+                  e))
+            ((eq? rule 'same) ; cdr , reverse , filter , vector-copy ... : a container of the same elements
+             (and {e := (elements-of (list-ref argus pos))}
+                  (known? e)
+                  (wrap e)))
+            ((eq? rule 'fill) ; make-list , make-vector : the type of the fill value
+             (and {e := (ft (list-ref argus pos))}
+                  (known? e)
+                  (wrap e)))
+            ((eq? rule 'build) ; build-list , build-vector : the values of the procedure on an index ℕ
+             (and {f := (list-ref argus pos)}
+                  {r := (if (lambda-form? f)
+                            (and (list? (cadr f))
+                                 {(length (cadr f)) = 1}
+                                 (lambda-return-type f '(natural-fixnum?) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+                            (rt f '(natural-fixnum?) #f))}
+                  (known? r)
+                  (wrap r)))
+            (else #f)))
     (cond ((memq proc/mac '(vector-map map))
            (and {nb ≥ 2}
                 {elts := (map-in-order et (cdr argus))}
@@ -1997,7 +1953,9 @@
                 {e := (et (car argus))}
                 (and (known? e)
                      (if (eq? proc/mac 'vector->list) (list e) (vector e)))))
-          ((memq proc/mac '(vector-ref list-ref))
+          ; car , cdr , filter , append , build-vector ... (vector-ref and list-ref are now in this table)
+          ((assq proc/mac container-procedures-types) => container-procedure-type)
+          #;((memq proc/mac '(vector-ref list-ref))
            (and {nb = 2}
                 {e := (et (car argus))}
                 (known? e)
@@ -2921,6 +2879,7 @@
           ((integer-type-name? t) 'fixnum?) ; ℤ
           ((real-type-name? t) 'flonum?)
           ((pair? t) (cons (canonical-type (car t)) (canonical-type (cdr t))))
+          ((and (vector? t) {(vector-length t) = 0}) 'vector?) ; #() : a vector , the type of its elements not given
           ((vector? t) (list->vector (map canonical-type (vector->list t))))
           (else t)))
 
