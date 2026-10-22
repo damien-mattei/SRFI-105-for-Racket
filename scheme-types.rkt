@@ -420,7 +420,12 @@
   ;;          same    - the result is a container of the same elements : (E) or #(E)
   ;;          build   - the result is a container of the values of the procedure at the position , called on an index ℕ
   ;;          fill    - the result is a container of the value at the position : (T) or #(T) , T type of the value
-  ;;   position  : the position of the container argument (of the procedure for build , of the value for fill) , all :
+  ;;          fold    - (foldl f init l1 ... ln) : f is called on the elements and the accumulator (E1 ... En A) , A type
+  ;;                    of init at the position ; the result is A when f returns A (the accumulator keeps its type)
+  ;;          reduce  - (reduce f ridentity l) : f is called on (E E) , ridentity at the position ; the result is E when f
+  ;;                    returns E and ridentity is of type E (it is the result for an empty list)
+  ;;   position  : the position of the container argument (of the procedure for build , of the value for fill , of the
+  ;;               initial value for fold and reduce , the procedure is the first argument and the lists follow) , all :
   ;;               every argument
   ;;   container : list or vector
   ;; Procedures of R7RS , SRFI 1 and Racket (racket/base , racket/list , racket/vector).
@@ -475,6 +480,13 @@
       (make-vector      fill 1 vector)    ; (make-vector n v)
       ;; a container of the values of a procedure on the indexes
       (build-list       build 1 list)     ; (build-list n proc)
-      (build-vector     build 1 vector)))
+      (build-vector     build 1 vector)
+      ;; an accumulation
+      (foldl            fold 1 list)      ; (foldl f init l ...) of Racket , f called (f e ... acc)
+      (foldr            fold 1 list)
+      (fold             fold 1 list)      ; (fold kons knil l ...) of SRFI 1 , kons called (kons e ... acc)
+      (fold-right       fold 1 list)
+      (reduce           reduce 1 list)    ; (reduce f ridentity l) of SRFI 1
+      (reduce-right     reduce 1 list)))
 
   ) ;; module scheme-types

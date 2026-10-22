@@ -1898,7 +1898,7 @@
     ; the rules of the table container-procedures-types of scheme-types.rkt , entry : (name rule position container)
     (define (container-procedure-type entry)
       (declare e r f types)
-      (define rule (second entry)) ; element , same , fill or build
+      (define rule (second entry)) ; element , same , fill , build , fold or reduce
       (define pos (third entry)) ; position of the container (of the procedure for build) , all : every argument
       (define container (cadddr entry)) ; list or vector
       (define (wrap t) (if (eq? container 'vector) (vector t) (list t)))
@@ -1936,6 +1936,18 @@
                             (rt f '(natural-fixnum?) #f))}
                   (known? r)
                   (wrap r)))
+            ((memq rule '(fold reduce)) ; foldl , foldr , fold , fold-right , reduce , reduce-right
+             (and {types := (fold-procedure-types proc/mac argus ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)}
+                  types ; := does not return the value
+                  {f := (car argus)}
+                  {r := (if (lambda-form? f)
+                            (and {(length (cadr f)) = (length (car types))}
+                                 (lambda-return-type f (car types) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+                            (rt f (car types) #f))}
+                  (equal? r (cdr types)) ; f returns the type of the accumulator : it keeps its type
+                  (or (eq? rule 'fold)
+                      (equal? (ft (list-ref argus pos)) r)) ; reduce : ridentity , the result for an empty list
+                  r))
             (else #f)))
     (cond ((memq proc/mac '(vector-map map))
            (and {nb ≥ 2}
@@ -1978,12 +1990,45 @@
                      r)))
           (else #f)))
 
+  #| the procedure f passed to a fold or a reduce (container-procedures-types of scheme-types.rkt) : the types of its
+     arguments and the type its return must have , (param-types . return-type) , #f if a type is unknown
+       (foldl f init l1 ... ln) , foldr , fold , fold-right : f on (E1 ... En A) must return A , A type of init
+       (reduce f ridentity l) , reduce-right : f on (E E) must return E
+     f must return the type of the accumulator : otherwise the accumulator would change of type after the first call ,
+     and f specialized for the first call would fail at the second |#
+  (define (fold-procedure-types proc/mac argus ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (declare a elts e)
+    (define entry (assq proc/mac container-procedures-types))
+    (define (known? t) (and t (not (eq? t 'sexpr))))
+    (define (et l) (element-type l ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+    (and entry
+         (memq (second entry) '(fold reduce))
+         {(length argus) ≥ (third entry) + 2} ; the procedure , ... , the initial value , a list at least
+         (if (eq? (second entry) 'fold)
+             (and {a := (find-type (list-ref argus (third entry)) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)}
+                  (known? a)
+                  {elts := (map-in-order et (list-tail argus {(third entry) + 1}))}
+                  (every known? elts)
+                  (cons (append elts (list a)) a))
+             (and {(length argus) = (third entry) + 2}
+                  {e := (et (last argus))}
+                  (known? e)
+                  (cons (list e e) e)))))
+
+  ; the procedures of container-procedures-types that call a procedure passed : folds , reduces , build-list , build-vector
+  (define (container-higher-order? proc/mac)
+    (define entry (assq proc/mac container-procedures-types))
+    (and entry
+         (memq (second entry) '(fold reduce build))
+         #t))
+
   #| specialization, at parsing time, of the procedure passed to vector-map, map or apply, when it is an overloaded
      operator/procedure and the types of the elements are known :
        (vector-map * v1 v2) with flonum elements -> (vector-map fl* v1 v2)
        (apply + (vector->list ...)) with flonum elements -> (apply fl+ ...) (n-ary overloads only, the length of the list is unknown)
      returns the rewritten expression, or #f (then the expression is parsed as before, the procedure is dispatched at runtime) |#
   (define (specialize-higher-order s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (declare fpt)
     (define proc/mac (car s))
     (define argus (cdr s))
     (define (ft a) (find-type a ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
@@ -2011,6 +2056,18 @@
                   {types := (append fixed (list e e))}
                   (and (every known? types)
                        (n-ary-spec types)))
+                 ; foldl , foldr , fold , fold-right , reduce , reduce-right : f is called on the elements and the
+                 ; accumulator , specialized only when it returns the type of the accumulator
+                 ((and {fpt := (fold-procedure-types proc/mac argus ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)}
+                       fpt) ; := does not return the value
+                  (and (equal? (return-type-of-callable f (car fpt) #f ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+                               (cdr fpt))
+                       (or (n-ary-spec (car fpt))
+                           (and {(length (car fpt)) = 2}
+                                (hash-table-exists? ovrld-ht f)
+                                (find-if-exists-matching-types-with-ovrld {ovrld-ht[f]} (car fpt)))
+                           (and (hash-table-exists? ovrld-ht-proc f)
+                                (find-if-exists-matching-types-with-ovrld {ovrld-ht-proc[f]} (car fpt))))))
                  (else #f))))
     (and spec
          (not (equal? spec f))
@@ -2074,16 +2131,36 @@
   (define (specialize-higher-order-lambda s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
     (define proc/mac (car s))
     (define argus (cdr s))
-    (declare elts)
-    (and (memq proc/mac '(vector-map map for-each vector-for-each))
-         {(length argus) ≥ 2}
-         (lambda-form? (car argus))
-         {(length (cadr (car argus))) = (length (cdr argus))}
-         {elts := (map-in-order (λ (a) (element-type a ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
-                      (cdr argus))}
-         (cons proc/mac
-               (cons (annot-lambda-with-param-types (car argus) elts ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
-                     (recall-annot (cdr argus) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))))
+    (declare elts fpt)
+    (or (and (memq proc/mac '(vector-map map for-each vector-for-each))
+             {(length argus) ≥ 2}
+             (lambda-form? (car argus))
+             {(length (cadr (car argus))) = (length (cdr argus))}
+             {elts := (map-in-order (λ (a) (element-type a ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+                          (cdr argus))}
+             (cons proc/mac
+                   (cons (annot-lambda-with-param-types (car argus) elts ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+                         (recall-annot (cdr argus) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))))
+        ; foldl , foldr , fold , fold-right , reduce , reduce-right : the lambda typed by the elements and the
+        ; accumulator , annotated only when it returns the type of the accumulator
+        (and {fpt := (fold-procedure-types proc/mac argus ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)}
+             fpt ; := does not return the value
+             (lambda-form? (car argus))
+             {(length (cadr (car argus))) = (length (car fpt))}
+             (equal? (lambda-return-type (car argus) (car fpt) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+                     (cdr fpt))
+             (cons proc/mac
+                   (cons (annot-lambda-with-param-types (car argus) (car fpt) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+                         (recall-annot (cdr argus) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))))
+        ; build-list , build-vector : the lambda called on an index ℕ
+        (and (container-higher-order? proc/mac)
+             (eq? (second (assq proc/mac container-procedures-types)) 'build)
+             {(length argus) = 2}
+             (lambda-form? (second argus))
+             {(length (cadr (second argus))) = 1}
+             (list proc/mac
+                   (car (recall-annot (list (first argus)) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+                   (annot-lambda-with-param-types (second argus) '(natural-fixnum?) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))))
 
 
 
@@ -3533,7 +3610,8 @@
 	  
           ; specialization of the procedure passed to vector-map, map, apply when the types of the elements are known :
           ; (vector-map * v1 v2) -> (vector-map fl* v1 v2) , (apply + (vector->list ...)) -> (apply fl+ ...)
-          (exec {ho-expr := (and (memq proc/mac '(vector-map map apply for-each vector-for-each))
+          (exec {ho-expr := (and (or (memq proc/mac '(vector-map map apply for-each vector-for-each))
+                                     (container-higher-order? proc/mac)) ; folds , reduces , build-list , build-vector
                                  (or (specialize-higher-order-lambda s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst) ; a lambda passed
                                      (specialize-higher-order s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))})
 

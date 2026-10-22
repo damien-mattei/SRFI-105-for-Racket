@@ -1584,6 +1584,33 @@
                 (rt f '(natural-fixnum?) #f)))
              (known? r)
              (wrap r)))
+       ((memq rule '(fold reduce))
+        (and (:=
+              types
+              (fold-procedure-types
+               proc/mac
+               argus
+               ovrld-ht
+               ovrld-ht-n-ary
+               ovrld-ht-proc
+               annot-ht-lst))
+             types
+             (:= f (car argus))
+             (:=
+              r
+              (if (lambda-form? f)
+                (and (= (length (cadr f)) (length (car types)))
+                     (lambda-return-type
+                      f
+                      (car types)
+                      ovrld-ht
+                      ovrld-ht-n-ary
+                      ovrld-ht-proc
+                      annot-ht-lst))
+                (rt f (car types) #f)))
+             (equal? r (cdr types))
+             (or (eq? rule 'fold) (equal? (ft (list-ref argus pos)) r))
+             r))
        (else #f)))
     (cond
      ((memq proc/mac '(vector-map map))
@@ -1629,12 +1656,50 @@
                 (known? r)
                 r)))
      (else #f)))
+  (define (fold-procedure-types
+           proc/mac
+           argus
+           ovrld-ht
+           ovrld-ht-n-ary
+           ovrld-ht-proc
+           annot-ht-lst)
+    (declare a elts e)
+    (define entry (assq proc/mac container-procedures-types))
+    (define (known? t) (and t (not (eq? t 'sexpr))))
+    (define (et l)
+      (element-type l ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+    (and entry
+         (memq (second entry) '(fold reduce))
+         (≥ (length argus) (+ (third entry) 2))
+         (if (eq? (second entry) 'fold)
+           (and (:=
+                 a
+                 (find-type
+                  (list-ref argus (third entry))
+                  ovrld-ht
+                  ovrld-ht-n-ary
+                  ovrld-ht-proc
+                  annot-ht-lst))
+                (known? a)
+                (:=
+                 elts
+                 (map-in-order et (list-tail argus (+ (third entry) 1))))
+                (every known? elts)
+                (cons (append elts (list a)) a))
+           (and (= (length argus) (+ (third entry) 2))
+                (:= e (et (last argus)))
+                (known? e)
+                (cons (list e e) e)))))
+  (define (container-higher-order? proc/mac)
+    (define entry (assq proc/mac container-procedures-types))
+    (and entry (memq (second entry) '(fold reduce build)) #t))
   (define (specialize-higher-order
            s
            ovrld-ht
            ovrld-ht-n-ary
            ovrld-ht-proc
            annot-ht-lst)
+    (declare fpt)
     (define proc/mac (car s))
     (define argus (cdr s))
     (define (ft a)
@@ -1671,6 +1736,36 @@
              (:= fixed (map-in-order ft (reverse (cdr rev))))
              (:= types (append fixed (list e e)))
              (and (every known? types) (n-ary-spec types)))
+            ((and (:=
+                   fpt
+                   (fold-procedure-types
+                    proc/mac
+                    argus
+                    ovrld-ht
+                    ovrld-ht-n-ary
+                    ovrld-ht-proc
+                    annot-ht-lst))
+                  fpt)
+             (and (equal?
+                   (return-type-of-callable
+                    f
+                    (car fpt)
+                    #f
+                    ovrld-ht
+                    ovrld-ht-n-ary
+                    ovrld-ht-proc
+                    annot-ht-lst)
+                   (cdr fpt))
+                  (or (n-ary-spec (car fpt))
+                      (and (= (length (car fpt)) 2)
+                           (hash-table-exists? ovrld-ht f)
+                           (find-if-exists-matching-types-with-ovrld
+                            ($bracket-apply$ ovrld-ht f)
+                            (car fpt)))
+                      (and (hash-table-exists? ovrld-ht-proc f)
+                           (find-if-exists-matching-types-with-ovrld
+                            ($bracket-apply$ ovrld-ht-proc f)
+                            (car fpt))))))
             (else #f))))
     (and spec
          (not (equal? spec f))
@@ -1750,38 +1845,96 @@
            annot-ht-lst)
     (define proc/mac (car s))
     (define argus (cdr s))
-    (declare elts)
-    (and (memq proc/mac '(vector-map map for-each vector-for-each))
-         (≥ (length argus) 2)
-         (lambda-form? (car argus))
-         (= (length (cadr (car argus))) (length (cdr argus)))
-         (:=
-          elts
-          (map-in-order
-           (λ (a)
-             (element-type
-              a
-              ovrld-ht
-              ovrld-ht-n-ary
-              ovrld-ht-proc
-              annot-ht-lst))
-           (cdr argus)))
-         (cons
-          proc/mac
-          (cons
-           (annot-lambda-with-param-types
-            (car argus)
-            elts
-            ovrld-ht
-            ovrld-ht-n-ary
-            ovrld-ht-proc
-            annot-ht-lst)
-           (recall-annot
-            (cdr argus)
-            ovrld-ht
-            ovrld-ht-n-ary
-            ovrld-ht-proc
-            annot-ht-lst)))))
+    (declare elts fpt)
+    (or (and (memq proc/mac '(vector-map map for-each vector-for-each))
+             (≥ (length argus) 2)
+             (lambda-form? (car argus))
+             (= (length (cadr (car argus))) (length (cdr argus)))
+             (:=
+              elts
+              (map-in-order
+               (λ (a)
+                 (element-type
+                  a
+                  ovrld-ht
+                  ovrld-ht-n-ary
+                  ovrld-ht-proc
+                  annot-ht-lst))
+               (cdr argus)))
+             (cons
+              proc/mac
+              (cons
+               (annot-lambda-with-param-types
+                (car argus)
+                elts
+                ovrld-ht
+                ovrld-ht-n-ary
+                ovrld-ht-proc
+                annot-ht-lst)
+               (recall-annot
+                (cdr argus)
+                ovrld-ht
+                ovrld-ht-n-ary
+                ovrld-ht-proc
+                annot-ht-lst))))
+        (and (:=
+              fpt
+              (fold-procedure-types
+               proc/mac
+               argus
+               ovrld-ht
+               ovrld-ht-n-ary
+               ovrld-ht-proc
+               annot-ht-lst))
+             fpt
+             (lambda-form? (car argus))
+             (= (length (cadr (car argus))) (length (car fpt)))
+             (equal?
+              (lambda-return-type
+               (car argus)
+               (car fpt)
+               ovrld-ht
+               ovrld-ht-n-ary
+               ovrld-ht-proc
+               annot-ht-lst)
+              (cdr fpt))
+             (cons
+              proc/mac
+              (cons
+               (annot-lambda-with-param-types
+                (car argus)
+                (car fpt)
+                ovrld-ht
+                ovrld-ht-n-ary
+                ovrld-ht-proc
+                annot-ht-lst)
+               (recall-annot
+                (cdr argus)
+                ovrld-ht
+                ovrld-ht-n-ary
+                ovrld-ht-proc
+                annot-ht-lst))))
+        (and (container-higher-order? proc/mac)
+             (eq? (second (assq proc/mac container-procedures-types)) 'build)
+             (= (length argus) 2)
+             (lambda-form? (second argus))
+             (= (length (cadr (second argus))) 1)
+             (list
+              proc/mac
+              (car
+               (recall-annot
+                (list (first argus))
+                ovrld-ht
+                ovrld-ht-n-ary
+                ovrld-ht-proc
+                annot-ht-lst))
+              (annot-lambda-with-param-types
+               (second argus)
+               '(natural-fixnum?)
+               ovrld-ht
+               ovrld-ht-n-ary
+               ovrld-ht-proc
+               annot-ht-lst)))))
   (define (if-branches s)
     (define blocks (cddr s))
     (cond
@@ -3060,7 +3213,10 @@
      (exec
       (:=
        ho-expr
-       (and (memq proc/mac '(vector-map map apply for-each vector-for-each))
+       (and (or (memq
+                 proc/mac
+                 '(vector-map map apply for-each vector-for-each))
+                (container-higher-order? proc/mac))
             (or (specialize-higher-order-lambda
                  s
                  ovrld-ht
