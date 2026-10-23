@@ -18,8 +18,9 @@
 
 (provide gen-program print-program shrink-candidates program-size)
 
-;; an expression or a statement : type is nat fx fl vfl vfx mfl (a 4×4 matrix of floats) str chr bool , cnt (a loop
-;; counter : a natural never assigned) , or stmt for a statement
+;; an expression or a statement : type is nat fx fl vfl vfx mfl (a 4×4 matrix of floats) lfl lfx (lists of floats ,
+;; of fixnums) str chr bool , cnt (a loop counter : a natural never assigned) , lam (a lambda passed to a procedure) , sym
+;; (a procedure passed by its name) , or stmt for a statement
 (struct ex (type kind args) #:transparent)
 
 ;; ------------------------------------------------------------------ random helpers
@@ -29,7 +30,7 @@
 (define names '(a b i k x y))         ; few names : shadowing is frequent
 (define fnames '(f g))
 (define chars '(#\a #\b #\c #\d))
-(define value-types '(nat fx fl vfl vfx mfl str chr)) ; the types of the variables
+(define value-types '(nat fx fl vfl vfx mfl lfl lfx str chr)) ; the types of the variables
 
 (define (lit-of ty)
   (case ty
@@ -40,6 +41,8 @@
     ((vfl) (ex 'vfl 'vec (for/list ((n 4)) (lit-of 'fl))))
     ((vfx) (ex 'vfx 'vec (for/list ((n 4)) (lit-of 'fx))))
     ((mfl) (ex 'mfl 'vec (for/list ((n 4)) (lit-of 'vfl))))
+    ((lfl) (ex 'lfl 'lst (for/list ((n 4)) (lit-of 'fl))))
+    ((lfx) (ex 'lfx 'lst (for/list ((n 4)) (lit-of 'fx))))
     ((str) (ex 'str 'str (list (for/list ((n 4)) (pick chars)))))
     ((chr) (ex 'chr 'lit (list (pick chars))))))
 
@@ -56,6 +59,8 @@
     ((vfl) (pick '("#(flonum?)" "#(ℝ)" vector?)))
     ((vfx) (pick '("#(fixnum?)" vector?)))
     ((mfl) (pick '("#(#(flonum?))" "#(#(ℝ))" vector?)))
+    ((lfl) (pick '("(flonum?)" "(ℝ)" list?)))
+    ((lfx) (pick '("(fixnum?)" "(ℤ)" list?)))
     ((str) 'string?)
     ((chr) 'char?)
     ((bool) 'boolean?)))
@@ -101,7 +106,8 @@
                            (λ () (ex 'nat 'call (list 'quotient (sub 'nat) (ex 'nat 'lit '(2)))))
                            (λ () (ex 'nat 'call (list 'modulo (sub 'fx) (ex 'nat 'lit '(4)))))
                            (λ () (ex 'nat 'call (list 'vector-length (sub (pick '(vfl vfx))))))
-                           (λ () (ex 'nat 'call (list 'string-length (sub 'str))))))
+                           (λ () (ex 'nat 'call (list 'string-length (sub 'str))))
+                           (λ () (ex 'nat 'call (list 'length (gen-any-list (pick '(lfl lfx)) env d fenv))))))
               ((fx) (list (λ () (bin '+ 'fx))
                           (λ () (bin '- 'fx))
                           (λ () (ex 'fx 'op (list '* (chance 0.6) (sub 'fx) (lit-of 'fx))))
@@ -109,7 +115,9 @@
                           (λ () (ex 'fx 'call (list 'remainder (sub 'fx) (ex 'nat 'lit '(3)))))
                           (λ () (ex 'fx 'call (list 'abs (sub 'fx))))
                           (λ () (ex 'fx 'ref (list (gen-vec-var 'vfx env d fenv) (gen-index env d))))
-                          (λ () (ex 'fx 'call (list 'twice (sub 'fx))))))     ; an overloaded procedure
+                          (λ () (ex 'fx 'call (list 'twice (sub 'fx))))     ; an overloaded procedure
+                          (λ () (gen-element 'fx env d fenv))
+                          (λ () (gen-fold 'fx env d fenv))))
               ((fl) (list (λ () (bin '+ 'fl))
                           (λ () (bin '- 'fl))
                           (λ () (ex 'fl 'op (list '* (chance 0.6) (sub 'fl) (lit-of 'fl))))
@@ -120,7 +128,9 @@
                           (λ () (ex 'fl 'ref (list (gen-vec-var 'vfl env d fenv) (gen-index env d))))
                           (λ () (ex 'fl 'ref2 (list (gen-vec-var 'mfl env d fenv) (gen-index env d) (gen-index env d)))) ; M[i j]
                           (λ () (ex 'fl 'refref (list (gen-vec-var 'mfl env d fenv) (gen-index env d) (gen-index env d)))) ; M[i][j]
-                          (λ () (ex 'fl 'call (list 'twice (sub 'fl))))))
+                          (λ () (ex 'fl 'call (list 'twice (sub 'fl))))
+                          (λ () (gen-element 'fl env d fenv))
+                          (λ () (gen-fold 'fl env d fenv))))
               ((bool) (list (λ () (let ((t (pick '(fx fl nat))))
                                     (ex 'bool 'op (list (pick '(< > = <=)) (chance 0.6) (sub t) (sub t)))))
                             (λ () (ex 'bool 'call (list 'not (sub 'bool))))
@@ -133,12 +143,31 @@
               ((vfl vfx) (list (λ () (lit-of ty))
                                (λ () (ex ty 'call (list 'make-vector (ex 'nat 'lit '(4))
                                                         (lit-of (if (eq? ty 'vfl) 'fl 'fx)))))
-                               (λ () (ex ty 'op (list '+ (chance 0.6) (sub ty) (sub ty)))))))   ; + overloaded on the vectors
+                               (λ () (ex ty 'op (list '+ (chance 0.6) (sub ty) (sub ty))))   ; + overloaded on the vectors
+                               (λ () (ex ty 'call (list 'vector-copy (sub ty))))
+                               ;; 4 elements always : + of the vectors (vector-map) needs vectors of the same length
+                               (λ () (ex ty 'call (list 'vector-append (ex ty 'call (list 'vector-take (sub ty) (ex 'nat 'lit '(2))))
+                                                        (ex ty 'call (list 'vector-drop (sub ty) (ex 'nat 'lit '(2)))))))
+                               (λ () (ex ty 'call (list 'vector-sort (sub ty) (ex 'sym 'sym '(<)))))
+                               (λ () (ex ty 'call (list 'list->vector (sub (if (eq? ty 'vfl) 'lfl 'lfx)))))
+                               (λ () (ex ty 'call (list 'build-vector (ex 'nat 'lit '(4)) (gen-index-lambda ty env d fenv))))))
+              ;; a list of 4 elements (car , list-ref ... are always possible , list->vector gives a vector of 4 elements)
+              ((lfl lfx) (list (λ () (lit-of ty))
+                               (λ () (ex ty 'call (list 'reverse (sub ty))))
+                               (λ () (ex ty 'call (list 'sort (sub ty) (ex 'sym 'sym '(<)))))
+                               (λ () (ex ty 'call (list 'list-copy (sub ty))))
+                               (λ () (ex ty 'call (list 'append (ex ty 'call (list 'take (sub ty) (ex 'nat 'lit '(2))))
+                                                        (ex ty 'call (list 'drop (sub ty) (ex 'nat 'lit '(2)))))))
+                               (λ () (ex ty 'call (list 'make-list (ex 'nat 'lit '(4)) (sub (elem-type ty)))))
+                               (λ () (ex ty 'call (list 'vector->list (sub (if (eq? ty 'lfl) 'vfl 'vfx)))))
+                               (λ () (ex ty 'call (list 'map (gen-lambda-node (list (elem-type ty)) (elem-type ty) env d fenv)
+                                                        (sub ty))))
+                               (λ () (ex ty 'call (list 'build-list (ex 'nat 'lit '(4)) (gen-index-lambda ty env d fenv)))))))
             ;; forms common to the types
             (if (memq ty '(nat fx fl))
                 (list (λ () (ex ty 'if (list (sub 'bool) (sub ty) (sub ty))))
                       (λ () (ex ty 'cond (list (sub 'bool) (sub ty) (sub ty))))
-                      (λ () (ex ty 'unknown (list (pick '(car-list cdr-cons opaque)) (sub ty)))) ; type unknown to the pass
+                      (λ () (ex ty 'unknown (list (pick '(opaque-vector cdr-cons opaque)) (sub ty)))) ; type unknown to the pass
                       (λ () (gen-let ty env d fenv))
                       (λ () (gen-loop ty env d fenv))
                       (λ () (gen-lambda-call ty env d fenv)))
@@ -155,6 +184,60 @@
 (define (gen-vec-var vty env d fenv)
   (define vs (vars-of vty env))
   (if (and (pair? vs) (chance 0.8)) (ex vty 'var (list (pick vs))) (lit-of vty)))
+
+;; the type of the elements of a list or a vector type
+(define (elem-type ty)
+  (case ty ((lfl vfl) 'fl) ((lfx vfx) 'fx)))
+
+;; a list of any length (maybe empty) : only given to the folds and to length
+(define (gen-any-list ty env d fenv)
+  (define (sub t) (gen-ex t env (sub1 d) fenv))
+  (define e (elem-type ty))
+  ((pick (list (λ () (sub ty))
+               (λ () (ex ty 'call (list 'cdr (sub ty))))
+               (λ () (ex ty 'call (list 'rest (sub ty))))
+               (λ () (ex ty 'call (list 'filter (ex 'sym 'sym '(positive?)) (sub ty))))
+               (λ () (ex ty 'call (list 'remove (lit-of e) (sub ty))))
+               (λ () (ex ty 'call (list 'take (sub ty) (ex 'nat 'lit '(2)))))
+               (λ () (ex ty 'call (list 'drop (sub ty) (ex 'nat 'lit '(2)))))
+               (λ () (ex ty 'call (list 'delete-duplicates (sub ty))))))))
+
+;; a lambda passed to a procedure : (λ (p ...) [(type T p) ...] body) , the parameters of the types pts , the body of
+;; type rt ; the types of the parameters are given by the context , sometimes declared in the body too
+(define (gen-lambda-node pts rt env d fenv)
+  (define ps (take (shuffle names) (length pts)))
+  (define penv (append (map cons ps (map (λ (t) (if (eq? t 'nat) 'cnt t)) pts)) env))
+  (define decls (for/list ((p ps) (t pts) #:when (chance 0.3)) (ex 'stmt 'type (list (type-name t) p))))
+  (ex 'lam 'lam (list ps decls (gen-ex rt penv (sub1 d) fenv))))
+
+;; the lambda of build-vector , build-list : called on an index ℕ , returns an element
+(define (gen-index-lambda ty env d fenv)
+  (gen-lambda-node '(nat) (elem-type ty) env d fenv))
+
+;; an element of a list (of at least 4 elements) or of a vector
+(define (gen-element ty env d fenv)
+  (define lty (if (eq? ty 'fl) 'lfl 'lfx))
+  (define vty (if (eq? ty 'fl) 'vfl 'vfx))
+  (define (L) (gen-ex lty env (sub1 d) fenv))
+  ((pick (list (λ () (ex ty 'call (list (pick '(car first second third last)) (L))))
+               (λ () (ex ty 'call (list 'list-ref (L) (gen-index env d))))
+               (λ () (ex ty 'call (list 'argmax (ex 'sym 'sym '(values)) (L))))
+               (λ () (ex ty 'call (list 'vector-ref (gen-vec-var vty env d fenv) (gen-index env d))))
+               (λ () (ex ty 'call (list 'vector-argmax (ex 'sym 'sym '(values)) (gen-vec-var vty env d fenv))))))))
+
+;; an accumulation : foldl , foldr , fold , fold-right with + , max or a lambda (element accumulator) , reduce with + or
+;; max ; the initial value of the type of the result , or for the floats a fixnum on a list of at least 4 elements (the
+;; result is then a float : the pass must leave the code generic)
+(define (gen-fold ty env d fenv)
+  (define lty (if (eq? ty 'fl) 'lfl 'lfx))
+  (define (sub t) (gen-ex t env (sub1 d) fenv))
+  (define proc (if (chance 0.5) (ex 'sym 'sym (list (pick '(+ max)))) #f))
+  (define fold-name (pick '(foldl foldr fold fold-right reduce)))
+  (define wrong-init? (and proc (eq? ty 'fl) (chance 0.3)))
+  (define init (if wrong-init? (lit-of 'fx) (sub ty)))
+  (define lst (if wrong-init? (gen-ex lty env (sub1 d) fenv) (gen-any-list lty env d fenv)))
+  (define f (or proc (gen-lambda-node (if (eq? fold-name 'reduce) (list ty ty) (list (elem-type lty) ty)) ty env d fenv)))
+  (ex ty 'call (list fold-name f init lst)))
 
 ;; let , let* , letrec : the bindings shadow often the outer names with another type
 (define (gen-let ty env d fenv)
@@ -357,6 +440,11 @@
   (case (ex-kind e)
     ((lit) (num->string (first a)))
     ((vec) (string-append "(vector " (string-join (map pr a) " ") ")"))
+    ((lst) (string-append "(list " (string-join (map pr a) " ") ")"))
+    ((sym) (symbol->string (first a)))
+    ((lam) (format "(λ (~a) ~a~a)" (string-join (map symbol->string (first a)) " ")
+                   (string-append* (map (λ (t) (string-append (pr t) " ")) (second a)))
+                   (pr (third a))))
     ((str) (format "(string ~a)" (string-join (map (λ (c) (format "~s" c)) (first a)) " ")))
     ((ref2) (format "{~a[~a ~a]}" (pr (first a)) (pr (second a)) (pr (third a))))
     ((refref) (format "{~a[~a][~a]}" (pr (first a)) (pr (second a)) (pr (third a))))
@@ -371,7 +459,8 @@
     ((if) (format "(if ~a ~a ~a)" (pr (first a)) (pr (second a)) (pr (third a))))
     ((cond) (format "(cond (~a ~a) (else ~a))" (pr (first a)) (pr (second a)) (pr (third a))))
     ((unknown) (case (first a)
-                 ((car-list) (format "(car (list ~a))" (pr (second a))))
+                 #;((car-list) (format "(car (list ~a))" (pr (second a)))) ; typed now : car of a list (T) is T
+                 ((opaque-vector) (format "(vector-ref (opaque (vector ~a)) 0)" (pr (second a))))
                  ((cdr-cons) (format "(cdr (cons 0 ~a))" (pr (second a))))
                  ((opaque) (format "(opaque ~a)" (pr (second a))))))
     ((let) (format "(~a (~a)\n~a~a)" (first a)

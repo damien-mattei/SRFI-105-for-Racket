@@ -27,6 +27,7 @@
 (define (module-text programs annotation?)
   (string-append
    "#lang reader SRFI-105\n\n(module fuzz racket\n(require Scheme+)\n"
+   "(require (only-in srfi/1 fold fold-right reduce delete-duplicates list-copy))\n" ; the accumulations of SRFI 1
    (if annotation? "ANNOTATION-ON\n" "")
    "(define (opaque z) z) ; a procedure the pass does not know : the type of its result is unknown\n"
    ;; overloads : a procedure twice on the floats and the fixnums , + on the vectors (element by element)
