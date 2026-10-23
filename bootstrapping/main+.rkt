@@ -299,11 +299,12 @@
 
         
         (unless (null? result)
-          (display "Parser : main.rkt : Postfix operators list :") (display (get-postfix-lst)) (newline)
-          (unless (null? (get-executables-lst))
-            (display "Parser : main.rkt : Procedures and macros list :") (display (get-executables-lst)) (newline))
-          (unless (null? (get-data-lst))
-            (display "Parser : main.rkt : Typed data list :") (display (get-data-lst)) (newline))
+          (when annot-debug ; the declarations for the parser (SCHEME_PLUS_ANNOT_DEBUG , as the annotation data)
+            (display "Parser : main.rkt : Postfix operators list :") (display (get-postfix-lst)) (newline)
+            (unless (null? (get-executables-lst))
+              (display "Parser : main.rkt : Procedures and macros list :") (display (get-executables-lst)) (newline))
+            (unless (null? (get-data-lst))
+              (display "Parser : main.rkt : Typed data list :") (display (get-data-lst)) (newline)))
           (newline)
           (pretty-print result-modul
                         (current-output-port)
