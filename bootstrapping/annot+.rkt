@@ -124,7 +124,8 @@
          ; this continues with other arithmetic operators
          ; TODO what happens if mixing addition of real and integer? see in action, does it optimise something? or not !
          ; selection of type should have to be made regarding to the internal precision ,ex:  3.0 versus 3
-         {ovrld-ht['+] := '([(fixnum?) fx+ (fixnum? fixnum?)]
+         {ovrld-ht['+] := '([(nonnegative-flonum?) fl+ (nonnegative-flonum? nonnegative-flonum?)] ; ℝ⁺ : a sum or a product of floats not negative is not negative (before the rows of flonums)
+                            [(fixnum?) fx+ (fixnum? fixnum?)]
                            [(exact-integer?) orig-+ (exact-integer? fixnum?)]
                            [(exact-integer?) orig-+ (fixnum? exact-integer?)]
                            [(exact-integer?) orig-+ (exact-integer? exact-integer?)]
@@ -241,7 +242,8 @@
          {ovrld-ht['fxremainder] := '([(fixnum?) fxremainder (fixnum? fixnum?)])}
          {ovrld-ht['fx->fl] := '([(flonum?) fx->fl (fixnum?)])}
 
-         {ovrld-ht['orig-+] := '([(fixnum?) fx+ (fixnum? fixnum?)]
+         {ovrld-ht['orig-+] := '([(nonnegative-flonum?) fl+ (nonnegative-flonum? nonnegative-flonum?)]
+                                 [(fixnum?) fx+ (fixnum? fixnum?)]
                            [(exact-integer?) orig-+ (exact-integer? fixnum?)]
                            [(exact-integer?) orig-+ (fixnum? exact-integer?)]
                            [(exact-integer?) orig-+ (exact-integer? exact-integer?)]
@@ -349,7 +351,8 @@
                            [(fixnum?) orig-% (exact-integer? fixnum?)])}
 
          ; BEGIN-STRICT-SRFI-105-REGION ; otherwise will set in prefix expressions
-         {ovrld-ht['*] := '([(fixnum?) fx* (fixnum? fixnum?)]
+         {ovrld-ht['*] := '([(nonnegative-flonum?) fl* (nonnegative-flonum? nonnegative-flonum?)]
+                            [(fixnum?) fx* (fixnum? fixnum?)]
                            [(exact-integer?) orig-* (exact-integer? fixnum?)]
                            [(exact-integer?) orig-* (fixnum? exact-integer?)]
                            [(exact-integer?) orig-* (exact-integer? exact-integer?)]
@@ -361,7 +364,8 @@
                            [(complex?) orig-* (complex? complex?)]
                            [(inexact?) orig-* (inexact? inexact?)])}
 
-         {ovrld-ht['orig-*] := '([(fixnum?) fx* (fixnum? fixnum?)]
+         {ovrld-ht['orig-*] := '([(nonnegative-flonum?) fl* (nonnegative-flonum? nonnegative-flonum?)]
+                                 [(fixnum?) fx* (fixnum? fixnum?)]
                            [(exact-integer?) orig-* (exact-integer? fixnum?)]
                            [(exact-integer?) orig-* (fixnum? exact-integer?)]
                            [(exact-integer?) orig-* (exact-integer? exact-integer?)]
@@ -374,7 +378,8 @@
                            [(inexact?) orig-* (inexact? inexact?)])}
 
          ; END-STRICT-SRFI-105-REGION
-         {ovrld-ht['·] := '([(fixnum?) fx* (fixnum? fixnum?)]
+         {ovrld-ht['·] := '([(nonnegative-flonum?) fl* (nonnegative-flonum? nonnegative-flonum?)]
+                            [(fixnum?) fx* (fixnum? fixnum?)]
                            [(exact-integer?) orig-· (exact-integer? fixnum?)]
                            [(exact-integer?) orig-· (fixnum? exact-integer?)]
                            [(exact-integer?) orig-· (exact-integer? exact-integer?)]
@@ -386,7 +391,8 @@
                            [(complex?) orig-· (complex? complex?)]
                            [(inexact?) orig-· (inexact? inexact?)])}
 
-         {ovrld-ht['orig-·] := '([(fixnum?) fx* (fixnum? fixnum?)]
+         {ovrld-ht['orig-·] := '([(nonnegative-flonum?) fl* (nonnegative-flonum? nonnegative-flonum?)]
+                                 [(fixnum?) fx* (fixnum? fixnum?)]
                            [(exact-integer?) orig-· (exact-integer? fixnum?)]
                            [(exact-integer?) orig-· (fixnum? exact-integer?)]
                            [(exact-integer?) orig-· (exact-integer? exact-integer?)]
@@ -399,7 +405,8 @@
                            [(inexact?) orig-· (inexact? inexact?)])}
 
          ; × is also a Scheme+ multiplication, same overloads as ·
-         {ovrld-ht['×] := '([(fixnum?) fx* (fixnum? fixnum?)]
+         {ovrld-ht['×] := '([(nonnegative-flonum?) fl* (nonnegative-flonum? nonnegative-flonum?)]
+                            [(fixnum?) fx* (fixnum? fixnum?)]
                            [(exact-integer?) orig-× (exact-integer? fixnum?)]
                            [(exact-integer?) orig-× (fixnum? exact-integer?)]
                            [(exact-integer?) orig-× (exact-integer? exact-integer?)]
@@ -411,7 +418,8 @@
                            [(complex?) orig-× (complex? complex?)]
                            [(inexact?) orig-× (inexact? inexact?)])}
 
-         {ovrld-ht['orig-×] := '([(fixnum?) fx* (fixnum? fixnum?)]
+         {ovrld-ht['orig-×] := '([(nonnegative-flonum?) fl* (nonnegative-flonum? nonnegative-flonum?)]
+                                 [(fixnum?) fx* (fixnum? fixnum?)]
                            [(exact-integer?) orig-× (exact-integer? fixnum?)]
                            [(exact-integer?) orig-× (fixnum? exact-integer?)]
                            [(exact-integer?) orig-× (exact-integer? exact-integer?)]
@@ -753,7 +761,8 @@
          ; n-ary operator hash table
          {ovrld-ht-n-ary := (make-hash-table)} ; this hash table will be used for overloading n-ary operators
 
-         {ovrld-ht-n-ary['+] := '([(fixnum?) fx+ (fixnum?)]
+         {ovrld-ht-n-ary['+] := '([(nonnegative-flonum?) fl+ (nonnegative-flonum?)]
+                                  [(fixnum?) fx+ (fixnum?)]
                                    [(exact-integer?) orig-+ (exact-integer?)]
                                    [(integer?) orig-+ (integer?)]
                                    [(number?) orig-+ (number?)]
@@ -763,7 +772,8 @@
                                    [(complex?) orig-+ (complex?)]
                                    [(inexact?) orig-+ (inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
-         {ovrld-ht-n-ary['orig-+] := '([(fixnum?) fx+ (fixnum?)]
+         {ovrld-ht-n-ary['orig-+] := '([(nonnegative-flonum?) fl+ (nonnegative-flonum?)]
+                                       [(fixnum?) fx+ (fixnum?)]
                                    [(exact-integer?) orig-+ (exact-integer?)]
                                    [(integer?) orig-+ (integer?)]
                                    [(number?) orig-+ (number?)]
@@ -812,7 +822,8 @@
                                     [(complex?) orig-/ (complex?)]
                                     [(inexact?) orig-/ (inexact?)])}
 
-         {ovrld-ht-n-ary['*] := '([(fixnum?) fx* (fixnum?)]
+         {ovrld-ht-n-ary['*] := '([(nonnegative-flonum?) fl* (nonnegative-flonum?)]
+                                  [(fixnum?) fx* (fixnum?)]
                                     [(exact-integer?) orig-* (exact-integer?)]
                                     [(integer?) orig-* (integer?)]
                                     [(number?) orig-* (number?)]
@@ -822,7 +833,8 @@
                                     [(complex?) orig-* (complex?)]
                                     [(inexact?) orig-* (inexact?)])}
 
-         {ovrld-ht-n-ary['orig-*] := '([(fixnum?) fx* (fixnum?)]
+         {ovrld-ht-n-ary['orig-*] := '([(nonnegative-flonum?) fl* (nonnegative-flonum?)]
+                                       [(fixnum?) fx* (fixnum?)]
                                     [(exact-integer?) orig-* (exact-integer?)]
                                     [(integer?) orig-* (integer?)]
                                     [(number?) orig-* (number?)]
@@ -832,7 +844,8 @@
                                     [(complex?) orig-* (complex?)]
                                     [(inexact?) orig-* (inexact?)])}
 
-         {ovrld-ht-n-ary['·] := '([(fixnum?) fx* (fixnum?)]
+         {ovrld-ht-n-ary['·] := '([(nonnegative-flonum?) fl* (nonnegative-flonum?)]
+                                  [(fixnum?) fx* (fixnum?)]
                                     [(exact-integer?) orig-· (exact-integer?)]
                                     [(integer?) orig-· (integer?)]
                                     [(number?) orig-· (number?)]
@@ -842,7 +855,8 @@
                                     [(complex?) orig-· (complex?)]
                                     [(inexact?) orig-· (inexact?)])}
 
-         {ovrld-ht-n-ary['orig-·] := '([(fixnum?) fx* (fixnum?)]
+         {ovrld-ht-n-ary['orig-·] := '([(nonnegative-flonum?) fl* (nonnegative-flonum?)]
+                                       [(fixnum?) fx* (fixnum?)]
                                     [(exact-integer?) orig-· (exact-integer?)]
                                     [(integer?) orig-· (integer?)]
                                     [(number?) orig-· (number?)]
@@ -853,7 +867,8 @@
                                     [(inexact?) orig-· (inexact?)])}
 
          ; × is also a Scheme+ multiplication, same overloads as ·
-         {ovrld-ht-n-ary['×] := '([(fixnum?) fx* (fixnum?)]
+         {ovrld-ht-n-ary['×] := '([(nonnegative-flonum?) fl* (nonnegative-flonum?)]
+                                  [(fixnum?) fx* (fixnum?)]
                                     [(exact-integer?) orig-× (exact-integer?)]
                                     [(integer?) orig-× (integer?)]
                                     [(number?) orig-× (number?)]
@@ -863,7 +878,8 @@
                                     [(complex?) orig-× (complex?)]
                                     [(inexact?) orig-× (inexact?)])}
 
-         {ovrld-ht-n-ary['orig-×] := '([(fixnum?) fx* (fixnum?)]
+         {ovrld-ht-n-ary['orig-×] := '([(nonnegative-flonum?) fl* (nonnegative-flonum?)]
+                                       [(fixnum?) fx* (fixnum?)]
                                     [(exact-integer?) orig-× (exact-integer?)]
                                     [(integer?) orig-× (integer?)]
                                     [(number?) orig-× (number?)]
@@ -961,7 +977,8 @@
          ; now flonum  overload with itself !!!
          ; only the row of flonums is kept : the other rows gave only the return type flonum? , that racket-types.rkt gives
          ; now for all the arguments (fl+ returns a flonum or raises an error)
-         {ovrld-ht['fl+] := '(#;[(flonum?) fl+ (fixnum? fixnum?)]
+         {ovrld-ht['fl+] := '([(nonnegative-flonum?) fl+ (nonnegative-flonum? nonnegative-flonum?)]
+                              #;[(flonum?) fl+ (fixnum? fixnum?)]
                              #;[(flonum?) fl+ (exact-integer? fixnum?)]
                              #;[(flonum?) fl+ (fixnum? exact-integer?)]
                              #;[(flonum?) fl+ (exact-integer? exact-integer?)]
@@ -1016,7 +1033,8 @@
 
 
 
-         {ovrld-ht['fl*] := '(#;[(flonum?) fl* (fixnum? fixnum?)]
+         {ovrld-ht['fl*] := '([(nonnegative-flonum?) fl* (nonnegative-flonum? nonnegative-flonum?)]
+                              #;[(flonum?) fl* (fixnum? fixnum?)]
                              #;[(flonum?) fl* (exact-integer? fixnum?)]
                              #;[(flonum?) fl* (fixnum? exact-integer?)]
                              #;[(flonum?) fl* (exact-integer? exact-integer?)]
@@ -1034,7 +1052,8 @@
 
 
 
-         {ovrld-ht-n-ary['fl+] := '(#;[(flonum?) fl+ (fixnum?)]
+         {ovrld-ht-n-ary['fl+] := '([(nonnegative-flonum?) fl+ (nonnegative-flonum?)]
+                                    #;[(flonum?) fl+ (fixnum?)]
                                      #;[(flonum?) fl+ (exact-integer?)]
                                      #;[(flonum?) fl+ (integer?)]
                                      #;[(flonum?) fl+ (number?)]
@@ -1068,7 +1087,8 @@
 
 
 
-         {ovrld-ht-n-ary['fl*] := '(#;[(flonum?) fl* (fixnum?)]
+         {ovrld-ht-n-ary['fl*] := '([(nonnegative-flonum?) fl* (nonnegative-flonum?)]
+                                    #;[(flonum?) fl* (fixnum?)]
                                      #;[(flonum?) fl* (exact-integer?)]
                                      #;[(flonum?) fl* (integer?)]
                                      #;[(flonum?) fl* (number?)]
@@ -2503,6 +2523,10 @@
                                          (if-branches-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))})
                   (if-type if-type)
 
+                  ; the square of a float is not negative : ℝ⁺ (a table compares only the types , not the value 2 of the
+                  ; exponent : {x ³} can be negative) , see square-of-float?
+                  ((square-of-float? s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst) 'nonnegative-flonum?)
+
                   ; check first for literal lists possibility:
                   ; (list ...)
                   ; (quote (...))
@@ -3347,6 +3371,28 @@
            (if (symbol? b)
                (list 'fl* b b)
                (list 'let (list (list '$power-base$ b)) '(fl* $power-base$ $power-base$))))))
+
+  ; the square of a float : {x ²} , {x ** 2} , (expt x 2) of a float x (the literal exact integer 2 , without an overload
+  ; of the user as in square-of-flonum) , or {x * x} , (fl* x x) of a variable x (fl* x x is written by square-of-flonum) :
+  ; its type is ℝ⁺ , not only flonum? (x * x is not negative , or +nan.0)
+  (define (square-of-float? s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (define (float? e) (eq? (type-base (find-type e ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)) 'flonum?))
+    (define op (first s))
+    (and {(length s) = 3}
+         (or (and (EXPONENTIATION-op? op) ; ** or expt
+                  (eqv? (third s) 2)
+                  (float? (second s))
+                  (hash-table-exists? ovrld-ht op)
+                  (memq (find-if-exists-matching-types-with-ovrld {ovrld-ht[op]} '(flonum? fixnum?)) '(orig-** orig-expt)) ; no overload of the user
+                  #t)
+             (and #;(eq? op 'fl*) ; the product of a variable by itself
+                  ; the product of a variable by itself : an operator whose product of two floats is fl* (* · × orig-* fl* ,
+                  ; not an overload of the user)
+                  (hash-table-exists? ovrld-ht op)
+                  (eq? (find-if-exists-matching-types-with-ovrld {ovrld-ht[op]} '(flonum? flonum?)) 'fl*)
+                  (symbol? (second s))
+                  (eq? (second s) (third s))
+                  (float? (second s))))))
 
   (define (parse-expressions s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
 

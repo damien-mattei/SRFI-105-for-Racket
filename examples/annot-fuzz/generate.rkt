@@ -147,6 +147,12 @@
                           (λ () (ex 'fl 'call (list 'expt (sub 'flp) (sub 'fl))))))
               ;; a float not negative : abs , exp , sqr of a float , sqrt of a ℝ⁺ , + and * of ℝ⁺
               ((flp) (list (λ () (ex 'flp 'call (list (pick '(abs exp sqr)) (sub 'fl))))
+                           ;; a square of a float : {e ** 2} , {x * x} of a variable x of type fl
+                           (λ () (ex 'flp 'op (list '** (chance 0.6) (sub 'fl) (ex 'nat 'lit '(2)))))
+                           (λ () (let ((fv (vars-of 'fl env)))
+                                   (if (pair? fv)
+                                       (let ((v (ex 'fl 'var (list (pick fv))))) (ex 'flp 'op (list '* (chance 0.6) v v)))
+                                       (lit-of 'flp))))
                            (λ () (ex 'flp 'call (list 'sqrt (sub 'flp))))
                            (λ () (ex 'flp 'op (list '+ (chance 0.6) (sub 'flp) (sub 'flp))))
                            (λ () (ex 'flp 'op (list '* (chance 0.6) (sub 'flp) (lit-of 'flp))))))
