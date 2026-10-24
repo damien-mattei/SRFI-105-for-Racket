@@ -91,10 +91,22 @@
          (:= ($bracket-apply$ ovrld-ht 'cos) '(((flonum?) flcos (flonum?))))
          (:= ($bracket-apply$ ovrld-ht 'tan) '(((flonum?) fltan (flonum?))))
          (:= ($bracket-apply$ ovrld-ht 'atan) '(((flonum?) flatan (flonum?))))
-         (:= ($bracket-apply$ ovrld-ht 'exp) '(((flonum?) flexp (flonum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'exp)
+          '(((nonnegative-flonum?) flexp (flonum?))))
          (:=
           ($bracket-apply$ ovrld-ht 'abs)
-          '(((flonum?) flabs (flonum?)) ((fixnum?) fxabs (fixnum?))))
+          '(((nonnegative-flonum?) flabs (flonum?))
+            ((fixnum?) fxabs (fixnum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'sqrt)
+          '(((nonnegative-flonum?) flsqrt (nonnegative-flonum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht '√)
+          '(((nonnegative-flonum?) flsqrt (nonnegative-flonum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'log)
+          '(((flonum?) fllog (nonnegative-flonum?))))
          (:=
           ($bracket-apply$ ovrld-ht 'min)
           '(((flonum?) flmin (flonum? flonum?))
@@ -148,10 +160,11 @@
           '(((flonum?) fltruncate (flonum?)) ((fixnum?) truncate (fixnum?))))
          (:=
           ($bracket-apply$ ovrld-ht 'square)
-          '(((flonum?) square (flonum?)) ((fixnum?) square (fixnum?))))
+          '(((nonnegative-flonum?) square (flonum?))
+            ((fixnum?) square (fixnum?))))
          (:=
           ($bracket-apply$ ovrld-ht 'sqr)
-          '(((flonum?) sqr (flonum?)) ((fixnum?) sqr (fixnum?))))
+          '(((nonnegative-flonum?) sqr (flonum?)) ((fixnum?) sqr (fixnum?))))
          (:=
           ($bracket-apply$ ovrld-ht 'add1)
           '(((flonum?) add1 (flonum?))
@@ -180,8 +193,12 @@
          (:=
           ($bracket-apply$ ovrld-ht 'flatan)
           '(((flonum?) flatan (flonum?))))
-         (:= ($bracket-apply$ ovrld-ht 'flexp) '(((flonum?) flexp (flonum?))))
-         (:= ($bracket-apply$ ovrld-ht 'flabs) '(((flonum?) flabs (flonum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'flexp)
+          '(((nonnegative-flonum?) flexp (flonum?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'flabs)
+          '(((nonnegative-flonum?) flabs (flonum?))))
          (:= ($bracket-apply$ ovrld-ht 'fxabs) '(((fixnum?) fxabs (fixnum?))))
          (:=
           ($bracket-apply$ ovrld-ht 'flmin)
@@ -385,7 +402,8 @@
             ((inexact?) orig-× (inexact? inexact?))))
          (:=
           ($bracket-apply$ ovrld-ht '**)
-          '(((fixnum?) orig-** (fixnum? fixnum?))
+          '(((flonum?) flexpt (nonnegative-flonum? flonum?))
+            ((fixnum?) orig-** (fixnum? fixnum?))
             ((rational?) orig-** (exact-integer? exact-integer?))
             ((real?) orig-** (integer? integer?))
             ((number?) orig-** (number? number?))
@@ -398,7 +416,8 @@
             ((number?) orig-** (integer? inexact?))))
          (:=
           ($bracket-apply$ ovrld-ht 'orig-**)
-          '(((fixnum?) orig-** (fixnum? fixnum?))
+          '(((flonum?) flexpt (nonnegative-flonum? flonum?))
+            ((fixnum?) orig-** (fixnum? fixnum?))
             ((rational?) orig-** (exact-integer? exact-integer?))
             ((real?) orig-** (integer? integer?))
             ((number?) orig-** (number? number?))
@@ -411,7 +430,8 @@
             ((number?) orig-** (integer? inexact?))))
          (:=
           ($bracket-apply$ ovrld-ht 'expt)
-          '(((fixnum?) orig-expt (fixnum? fixnum?))
+          '(((flonum?) flexpt (nonnegative-flonum? flonum?))
+            ((fixnum?) orig-expt (fixnum? fixnum?))
             ((rational?) orig-expt (exact-integer? exact-integer?))
             ((real?) orig-expt (integer? integer?))
             ((number?) orig-expt (number? number?))
@@ -424,7 +444,8 @@
             ((number?) orig-expt (integer? inexact?))))
          (:=
           ($bracket-apply$ ovrld-ht 'orig-expt)
-          '(((fixnum?) orig-expt (fixnum? fixnum?))
+          '(((flonum?) flexpt (nonnegative-flonum? flonum?))
+            ((fixnum?) orig-expt (fixnum? fixnum?))
             ((rational?) orig-expt (exact-integer? exact-integer?))
             ((real?) orig-expt (integer? integer?))
             ((number?) orig-expt (number? number?))
@@ -1421,7 +1442,7 @@
     (cond
      ((vector-type? t) 'vector?)
      ((list-type? t) 'list?)
-     ((eq? t 'natural-fixnum?) 'fixnum?)
+     ((domain-type-base t))
      (else t)))
   (define (composite-element-type t)
     (cond
@@ -2568,6 +2589,7 @@
      ((natural-type-name? t) 'natural-fixnum?)
      ((integer-type-name? t) 'fixnum?)
      ((real-type-name? t) 'flonum?)
+     ((nonnegative-real-type-name? t) 'nonnegative-flonum?)
      ((pair? t) (cons (canonical-type (car t)) (canonical-type (cdr t))))
      ((and (vector? t) (= (vector-length t) 0)) 'vector?)
      ((vector? t) (list->vector (map canonical-type (vector->list t))))
@@ -2703,12 +2725,13 @@
          (eqv? (third s) 2)
          (not (number? (second s)))
          (eq?
-          (find-type
-           (second s)
-           ovrld-ht
-           ovrld-ht-n-ary
-           ovrld-ht-proc
-           annot-ht-lst)
+          (type-base
+           (find-type
+            (second s)
+            ovrld-ht
+            ovrld-ht-n-ary
+            ovrld-ht-proc
+            annot-ht-lst))
           'flonum?)
          (hash-table-exists? ovrld-ht op)
          (memq

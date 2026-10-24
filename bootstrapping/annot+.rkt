@@ -148,16 +148,25 @@
                             [(exact-integer?) bitwise-not (exact-integer?)])}
 
          ; the numeric procedures : specialized only for the types where the result is the same , the other calls stay
-         ; generic and are typed by scheme-types.rkt ; not sqrt , log , asin , acos : with a negative float (or outside
-         ; [-1 , 1]) they return a complex number where flsqrt , fllog ... return +nan.0 ; not sin ... of a fixnum : (sin 0) is
+         ; generic and are typed by scheme-types.rkt ; not sqrt , log , asin , acos of a flonum? : with a negative float (or
+         ; outside [-1 , 1]) they return a complex number where flsqrt , fllog ... return +nan.0 ; sqrt , log , expt of a ℝ⁺
+         ; (nonnegative-flonum? , a float not negative) are flsqrt , fllog , flexpt ; not sin ... of a fixnum : (sin 0) is
          ; the exact 0
          {ovrld-ht['sin] := '([(flonum?) flsin (flonum?)])}
          {ovrld-ht['cos] := '([(flonum?) flcos (flonum?)])}
          {ovrld-ht['tan] := '([(flonum?) fltan (flonum?)])}
          {ovrld-ht['atan] := '([(flonum?) flatan (flonum?)])} ; one argument only
-         {ovrld-ht['exp] := '([(flonum?) flexp (flonum?)])}
-         {ovrld-ht['abs] := '([(flonum?) flabs (flonum?)]
+         #;{ovrld-ht['exp] := '([(flonum?) flexp (flonum?)])}
+         {ovrld-ht['exp] := '([(nonnegative-flonum?) flexp (flonum?)])} ; an exponential is not negative : ℝ⁺
+         #;{ovrld-ht['abs] := '([(flonum?) flabs (flonum?)]
                               [(fixnum?) fxabs (fixnum?)])}
+         {ovrld-ht['abs] := '([(nonnegative-flonum?) flabs (flonum?)] ; ℝ⁺
+                              [(fixnum?) fxabs (fixnum?)])}
+         ; of a ℝ⁺ (a float not negative) : the same results as sqrt , log , expt (checked on 0.0 , -0.0 , +nan.0 , +inf.0 :
+         ; (log -0.0) is -inf.0) ; √ is sqrt
+         {ovrld-ht['sqrt] := '([(nonnegative-flonum?) flsqrt (nonnegative-flonum?)])}
+         {ovrld-ht['√] := '([(nonnegative-flonum?) flsqrt (nonnegative-flonum?)])}
+         {ovrld-ht['log] := '([(flonum?) fllog (nonnegative-flonum?)])} ; one argument only
          {ovrld-ht['min] := '([(flonum?) flmin (flonum? flonum?)]
                               [(fixnum?) fxmin (fixnum? fixnum?)]
                               ; mixed types : the generic procedure , only the return type is given ((max 3 2.0) is 3.0)
@@ -199,9 +208,9 @@
                                    [(fixnum?) truncate (fixnum?)])}
          ; the square : the procedure is kept , only the type is given (as fx* , a square too big for a fixnum is an error
          ; of the next fx operation)
-         {ovrld-ht['square] := '([(flonum?) square (flonum?)]
+         {ovrld-ht['square] := '([(nonnegative-flonum?) square (flonum?)] ; ℝ⁺
                                  [(fixnum?) square (fixnum?)])}
-         {ovrld-ht['sqr] := '([(flonum?) sqr (flonum?)]
+         {ovrld-ht['sqr] := '([(nonnegative-flonum?) sqr (flonum?)] ; ℝ⁺
                               [(fixnum?) sqr (fixnum?)])}
          ; add1 and sub1 of Racket : the procedure is kept , only the type is given (as fx+ , an add1 too big for a fixnum
          ; is an error of the next fx operation)
@@ -221,8 +230,8 @@
          {ovrld-ht['flcos] := '([(flonum?) flcos (flonum?)])}
          {ovrld-ht['fltan] := '([(flonum?) fltan (flonum?)])}
          {ovrld-ht['flatan] := '([(flonum?) flatan (flonum?)])}
-         {ovrld-ht['flexp] := '([(flonum?) flexp (flonum?)])}
-         {ovrld-ht['flabs] := '([(flonum?) flabs (flonum?)])}
+         {ovrld-ht['flexp] := '([(nonnegative-flonum?) flexp (flonum?)])} ; ℝ⁺
+         {ovrld-ht['flabs] := '([(nonnegative-flonum?) flabs (flonum?)])} ; ℝ⁺
          {ovrld-ht['fxabs] := '([(fixnum?) fxabs (fixnum?)])}
          {ovrld-ht['flmin] := '([(flonum?) flmin (flonum? flonum?)])}
          {ovrld-ht['flmax] := '([(flonum?) flmax (flonum? flonum?)])}
@@ -414,7 +423,8 @@
                            [(complex?) orig-× (complex? complex?)]
                            [(inexact?) orig-× (inexact? inexact?)])}
 
-         {ovrld-ht['**] := '([(fixnum?) orig-** (fixnum? fixnum?)]
+         {ovrld-ht['**] := '([(flonum?) flexpt (nonnegative-flonum? flonum?)] ; a ℝ⁺ to a float power : a float , not a complex (before the rows of flonums)
+                            [(fixnum?) orig-** (fixnum? fixnum?)]
                             #;[(exact-integer?) orig-** (exact-integer? exact-integer?)] [(rational?) orig-** (exact-integer? exact-integer?)] ; (expt 2 -1) is 1/2
                             #;[(integer?) orig-** (integer? integer?)] [(real?) orig-** (integer? integer?)] ; (expt 2 -1) is 1/2
                             [(number?) orig-** (number? number?)]
@@ -436,7 +446,8 @@
          |#
 
          ; overload with itself because if we recall annot on arguments we can get as result an orig- operator and need its return value type
-         {ovrld-ht['orig-**] := '([(fixnum?) orig-** (fixnum? fixnum?)]
+         {ovrld-ht['orig-**] := '([(flonum?) flexpt (nonnegative-flonum? flonum?)] ; a ℝ⁺ to a float power : a float , not a complex (before the rows of flonums)
+                                  [(fixnum?) orig-** (fixnum? fixnum?)]
                                   #;[(exact-integer?) orig-** (exact-integer? exact-integer?)] [(rational?) orig-** (exact-integer? exact-integer?)] ; (expt 2 -1) is 1/2
                                   #;[(integer?) orig-** (integer? integer?)] [(real?) orig-** (integer? integer?)] ; (expt 2 -1) is 1/2
                                   [(number?) orig-** (number? number?)]
@@ -450,7 +461,8 @@
 
          ; this continues overloading with others orig-*** operators
         
-         {ovrld-ht['expt] := '([(fixnum?) orig-expt (fixnum? fixnum?)]
+         {ovrld-ht['expt] := '([(flonum?) flexpt (nonnegative-flonum? flonum?)] ; a ℝ⁺ to a float power : a float , not a complex (before the rows of flonums)
+                              [(fixnum?) orig-expt (fixnum? fixnum?)]
                               #;[(exact-integer?) orig-expt (exact-integer? exact-integer?)] [(rational?) orig-expt (exact-integer? exact-integer?)] ; (expt 2 -1) is 1/2
                               #;[(integer?) orig-expt (integer? integer?)] [(real?) orig-expt (integer? integer?)] ; (expt 2 -1) is 1/2
                               [(number?) orig-expt (number? number?)]
@@ -462,7 +474,8 @@
                               [(inexact?) orig-expt (inexact? integer?)]
                               #;[(inexact?) orig-expt (integer? inexact?)] [(number?) orig-expt (integer? inexact?)])}
 
-         {ovrld-ht['orig-expt] := '([(fixnum?) orig-expt (fixnum? fixnum?)]
+         {ovrld-ht['orig-expt] := '([(flonum?) flexpt (nonnegative-flonum? flonum?)] ; a ℝ⁺ to a float power : a float , not a complex (before the rows of flonums)
+                              [(fixnum?) orig-expt (fixnum? fixnum?)]
                               #;[(exact-integer?) orig-expt (exact-integer? exact-integer?)] [(rational?) orig-expt (exact-integer? exact-integer?)] ; (expt 2 -1) is 1/2
                               #;[(integer?) orig-expt (integer? integer?)] [(real?) orig-expt (integer? integer?)] ; (expt 2 -1) is 1/2
                               [(number?) orig-expt (number? number?)]
@@ -1958,7 +1971,9 @@
   (define (type-base t)
     (cond ((vector-type? t) 'vector?)
           ((list-type? t) 'list?)
-          ((eq? t 'natural-fixnum?) 'fixnum?) ; ℕ : a fixnum for the overloads , {i + 1} --> (fx+ i 1)
+          #;((eq? t 'natural-fixnum?) 'fixnum?) ; ℕ : a fixnum for the overloads , {i + 1} --> (fx+ i 1)
+          ; the types of a domain (Scheme+/type) : ℕ is a fixnum for the overloads , {i + 1} --> (fx+ i 1) , ℝ⁺ a flonum
+          ((domain-type-base t)) ; its base type , #f for the other types
           (else t)))
 
   ; the type of the elements of a composite type, or #f
@@ -3136,7 +3151,7 @@
 
 
   ; store types in the hash table
-  ; the reserved names of Scheme+ for the types : ℕ and ℤ are fixnum? , ℝ is flonum? (defined in Scheme+/type) ; the
+  ; the reserved names of Scheme+ for the types : ℕ and ℤ are fixnum? , ℝ is flonum? , ℝ⁺ nonnegative-flonum? (defined in Scheme+/type) ; the
   ; annotation knows only fixnum? and flonum? : a type is put in this canonical form when it enters the tables ,
   ; recursively : #(ℝ) , (ℕ) , a signature ((ℝ) procedure? (ℝ ℝ))
   (define (canonical-type t)
@@ -3148,6 +3163,7 @@
           ((natural-type-name? t) 'natural-fixnum?) ; Scheme+/type : ℕ , a fixnum >= 0 (an index without negative value)
           ((integer-type-name? t) 'fixnum?) ; ℤ
           ((real-type-name? t) 'flonum?)
+          ((nonnegative-real-type-name? t) 'nonnegative-flonum?) ; ℝ⁺ , a float not negative (sqrt , log , expt of floats)
           ((pair? t) (cons (canonical-type (car t)) (canonical-type (cdr t))))
           ((and (vector? t) {(vector-length t) = 0}) 'vector?) ; #() : a vector , the type of its elements not given
           ((vector? t) (list->vector (map canonical-type (vector->list t))))
@@ -3323,7 +3339,8 @@
          {(length s) = 3}
          (eqv? (third s) 2) ; the literal exact integer 2
          (not (number? (second s))) ; a literal base is left to the computation of the constants
-         (eq? (find-type (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst) 'flonum?)
+         #;(eq? (find-type (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst) 'flonum?)
+         (eq? (type-base (find-type (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)) 'flonum?) ; also a ℝ⁺
          (hash-table-exists? ovrld-ht op)
          (memq (find-if-exists-matching-types-with-ovrld {ovrld-ht[op]} '(flonum? fixnum?)) '(orig-** orig-expt)) ; no overload of the user
          (let ((b (annot (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))

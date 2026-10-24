@@ -18,7 +18,7 @@
 
 (provide gen-program print-program shrink-candidates program-size)
 
-;; an expression or a statement : type is nat fx fl vfl vfx mfl (a 4×4 matrix of floats) lfl lfx (lists of floats ,
+;; an expression or a statement : type is nat fx fl flp (a float not negative : ℝ⁺) vfl vfx mfl (a 4×4 matrix of floats) lfl lfx (lists of floats ,
 ;; of fixnums) str chr bool , cnt (a loop counter : a natural never assigned) , lam (a lambda passed to a procedure) , sym
 ;; (a procedure passed by its name) , or stmt for a statement
 (struct ex (type kind args) #:transparent)
@@ -30,13 +30,15 @@
 (define names '(a b i k x y))         ; few names : shadowing is frequent
 (define fnames '(f g))
 (define chars '(#\a #\b #\c #\d))
-(define value-types '(nat fx fl vfl vfx mfl lfl lfx str chr)) ; the types of the variables
+(define value-types '(nat fx fl flp vfl vfx mfl lfl lfx str chr)) ; the types of the variables
+(define scalar-types '(nat fx fl flp)) ; the numbers
 
 (define (lit-of ty)
   (case ty
     ((nat) (ex 'nat 'lit (list (random 6))))
     ((fx) (ex 'fx 'lit (list (- (random 11) 5))))
     ((fl) (ex 'fl 'lit (list (exact->inexact (/ (- (random 13) 6) 2))))) ; (/ 0 2.0) is the exact 0 in Racket
+    ((flp) (ex 'flp 'lit (list (if (chance 0.1) -0.0 (exact->inexact (/ (random 7) 2)))))) ; ℝ⁺ : -0.0 included
     ((bool) (ex 'bool 'lit (list (chance 0.5))))
     ((vfl) (ex 'vfl 'vec (for/list ((n 4)) (lit-of 'fl))))
     ((vfx) (ex 'vfx 'vec (for/list ((n 4)) (lit-of 'fx))))
@@ -56,6 +58,7 @@
     ((nat) (pick '(ℕ fixnum? ℤ)))     ; a natural is also a fixnum
     ((fx) (pick '(fixnum? ℤ fixnum? ℤ exact-integer?))) ; exact-integer? : a true declaration , less precise
     ((fl) (pick '(flonum? ℝ flonum? ℝ real?)))          ; real? : a true declaration , less precise
+    ((flp) (pick '(ℝ⁺ ℝ⁺ flonum?)))                       ; a float not negative is also a flonum?
     ((vfl) (pick '("#(flonum?)" "#(ℝ)" vector?)))
     ((vfx) (pick '("#(fixnum?)" vector?)))
     ((mfl) (pick '("#(#(flonum?))" "#(#(ℝ))" vector?)))
@@ -77,6 +80,7 @@
           (else (loop (cdr e) (cons (caar e) seen)
                       (if (or (eq? (cdar e) ty)
                               (and (eq? ty 'fx) (memq (cdar e) '(nat cnt)))
+                              (and (eq? ty 'fl) (eq? (cdar e) 'flp))           ; a ℝ⁺ is read as a float
                               (and (eq? ty 'nat) (eq? (cdar e) 'cnt)))  ; a loop counter is read as a natural
                           (cons (caar e) acc)
                           acc))))))
@@ -136,7 +140,16 @@
                           (λ () (gen-fold 'fl env d fenv))
                           ;; fl+ ... written in the program : typed flonum? whatever the types of the arguments
                           (λ () (ex 'fl 'call (list (pick '(fl+ fl- fl*)) (sub 'fl) (sub 'fl))))
-                          (λ () (ex 'fl 'call (list 'fl/ (sub 'fl) (ex 'fl 'lit '(2.0)))))))
+                          (λ () (ex 'fl 'call (list 'fl/ (sub 'fl) (ex 'fl 'lit '(2.0)))))
+                          ;; sqrt , log , expt of a ℝ⁺ : flsqrt , fllog , flexpt (a float , not a complex)
+                          (λ () (ex 'fl 'call (list (pick '(sqrt √ log)) (sub 'flp))))
+                          (λ () (ex 'fl 'op (list '** (chance 0.6) (sub 'flp) (lit-of 'fl))))
+                          (λ () (ex 'fl 'call (list 'expt (sub 'flp) (sub 'fl))))))
+              ;; a float not negative : abs , exp , sqr of a float , sqrt of a ℝ⁺ , + and * of ℝ⁺
+              ((flp) (list (λ () (ex 'flp 'call (list (pick '(abs exp sqr)) (sub 'fl))))
+                           (λ () (ex 'flp 'call (list 'sqrt (sub 'flp))))
+                           (λ () (ex 'flp 'op (list '+ (chance 0.6) (sub 'flp) (sub 'flp))))
+                           (λ () (ex 'flp 'op (list '* (chance 0.6) (sub 'flp) (lit-of 'flp))))))
               ((bool) (list (λ () (let ((t (pick '(fx fl nat))))
                                     (ex 'bool 'op (list (pick '(< > = <=)) (chance 0.6) (sub t) (sub t)))))
                             (λ () (ex 'bool 'call (list 'not (sub 'bool))))
@@ -172,7 +185,7 @@
                                                         (sub ty))))
                                (λ () (ex ty 'call (list 'build-list (ex 'nat 'lit '(4)) (gen-index-lambda ty env d fenv)))))))
             ;; forms common to the types
-            (if (memq ty '(nat fx fl))
+            (if (memq ty scalar-types)
                 (list (λ () (ex ty 'if (list (sub 'bool) (sub ty) (sub ty))))
                       (λ () (ex ty 'cond (list (sub 'bool) (sub ty) (sub ty))))
                       (λ () (ex ty 'unknown (list (pick '(opaque-vector cdr-cons opaque)) (sub ty)))) ; type unknown to the pass
@@ -182,7 +195,7 @@
                 '())
             ;; the walrus operator : assigns a variable and returns the value
             (let ((ts (assignable ty env)))
-              (if (and (pair? ts) (memq ty '(nat fx fl)))
+              (if (and (pair? ts) (memq ty scalar-types))
                   (list (λ () (ex ty 'walrus (list (pick ts) (sub ty)))))
                   '()))
             (map (λ (f) (λ () (ex ty 'fcall (cons (first f) (map (λ (pt) (sub pt)) (second f)))))) fs)))
@@ -254,7 +267,7 @@
   (define bound (take (shuffle names) n))
   (define-values (bindings inner-env)
     (for/fold ((bs '()) (e env)) ((nm bound))
-      (define t (pick '(nat fx fl vfl)))
+      (define t (pick '(nat fx fl flp vfl)))
       (define init-env (case kind
                          ((let) env)
                          ((let*) e)
@@ -283,7 +296,7 @@
 (define (gen-lambda-call ty env d fenv)
   (define n (+ 1 (random 2)))
   (define ps (take (shuffle names) n))
-  (define pts (for/list ((p ps)) (pick '(nat fx fl))))
+  (define pts (for/list ((p ps)) (pick scalar-types)))
   (define args (for/list ((t pts)) (gen-ex t env (sub1 d) fenv)))
   (define penv (append (map cons ps pts) env))
   (define plus? (chance 0.5))
@@ -352,7 +365,7 @@
                                stmts)
                          defined))))
             ((when)
-             (define cands (filter (λ (p) (memq (cdr p) '(nat fx fl))) (visible env)))
+             (define cands (filter (λ (p) (memq (cdr p) scalar-types)) (visible env)))
              (if (null? cands)
                  (loop (add1 i) env fenv stmts defined)
                  (let ((p (pick cands)))
@@ -382,7 +395,7 @@
                          (cons (ex 'stmt 'chain (list (first g) (second g) (gen-ex t env d fenv) (pick '(:= <-)))) stmts)
                          defined))))
             ((massign) ; {(x y) := (values e1 e2)} : the old values on the right
-             (define vs (filter (λ (p) (memq (cdr p) '(nat fx fl))) (visible env)))
+             (define vs (filter (λ (p) (memq (cdr p) scalar-types)) (visible env)))
              (if (< (length vs) 2)
                  (loop (add1 i) env fenv stmts defined)
                  (let ((two (take (shuffle vs) 2)))
@@ -413,8 +426,8 @@
                  (loop (add1 i) env fenv stmts defined)
                  (let* ((fname (pick free-f))
                         (ps (take (shuffle names) (+ 1 (random 2))))
-                        (pts (for/list ((p ps)) (pick '(nat fx fl))))
-                        (rt (pick '(nat fx fl)))
+                        (pts (for/list ((p ps)) (pick scalar-types)))
+                        (rt (pick scalar-types))
                         (penv (append (map cons ps pts) env)))
                    (define decls (for/list ((p ps) (t pts) #:when (chance 0.6)) (ex 'stmt 'type (list (type-name t) p))))
                    (define-values (fstmts fenv2 ffenv) (gen-body penv fenv (sub1 d) (random 3) (list 'def rt) decls))
@@ -434,7 +447,7 @@
 (define (gen-program [depth 4])
   (define-values (stmts env fenv) (gen-body '() '() depth (+ 2 (random 5)) #f))
   (define shown (take (visible env) (min 3 (length (visible env)))))
-  (ex 'prog 'prog (list stmts (map car shown) (gen-ex (pick '(nat fx fl)) env depth fenv))))
+  (ex 'prog 'prog (list stmts (map car shown) (gen-ex (pick scalar-types) env depth fenv))))
 
 ;; ------------------------------------------------------------------ printing
 (define (num->string v)
@@ -546,7 +559,7 @@
                         (map (λ (c) (cons (car l) c)) (in-list (cdr l)))))))
   (define (one x)
     (cond ((ex? x)
-           (append (if (and (memq (ex-type x) '(nat fx fl bool chr)) (not (eq? (ex-kind x) 'lit)))
+           (append (if (and (memq (ex-type x) '(nat fx fl flp bool chr)) (not (eq? (ex-kind x) 'lit)))
                        (list (lit-of (ex-type x)))
                        '())
                    (map (λ (args) (ex (ex-type x) (ex-kind x) args)) (in-list (ex-args x)))))

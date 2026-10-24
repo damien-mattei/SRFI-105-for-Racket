@@ -48,6 +48,7 @@
 (define (predicate-of type)
   (case type
     ((natural-fixnum?) (λ (x) (and (fixnum? x) (>= x 0))))
+    ((nonnegative-flonum?) (λ (x) (and (flonum? x) (not (< x 0.0))))) ; ℝ⁺ : -0.0 and +nan.0 included
     ((any?) (λ (x) #t)) ; the pseudo-predicate of scheme-types.rkt
     (else (value-of type))))
 

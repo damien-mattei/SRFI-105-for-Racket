@@ -51,7 +51,8 @@
       (fl-              (flonum?) procedure? (flonum? (... flonum?)))
       (fl*              (flonum?) procedure? ((... flonum?)))
       (fl/              (flonum?) procedure? (flonum? (... flonum?)))
-      (flsqrt           (flonum?) procedure? (flonum?))
+      #;(flsqrt           (flonum?) procedure? (flonum?))
+      (flsqrt           (nonnegative-flonum?) procedure? (flonum?)) ; ℝ⁺ : (flsqrt -1.0) is +nan.0 , in ℝ⁺
       (fllog            (flonum?) procedure? (flonum?))
       (flasin           (flonum?) procedure? (flonum?))
       (flacos           (flonum?) procedure? (flonum?))
@@ -59,7 +60,7 @@
       (->fl             (flonum?) procedure? (exact-integer?))
       (flvector-ref     (flonum?) procedure? (flvector? exact-nonnegative-integer?))
       (flrandom         (flonum?) procedure? (pseudo-random-generator?))
-      (flvector-length  (fixnum?) procedure? (flvector?))
+      (flvector-length  (natural-fixnum?) procedure? (flvector?)) ; ℕ
       (fl->exact-integer (exact-integer?) procedure? (flonum?)) ; an exact-integer? , not a fixnum? : (fl->exact-integer 1e30)
       (fl=              (boolean?) procedure? (flonum? (... flonum?)))
       (fl<              (boolean?) procedure? (flonum? (... flonum?)))
@@ -81,7 +82,7 @@
       (fxlshift         (fixnum?) procedure? (fixnum? fixnum?))
       (fxrshift         (fixnum?) procedure? (fixnum? fixnum?))
       (fxvector-ref     (fixnum?) procedure? (fxvector? exact-nonnegative-integer?))
-      (fxvector-length  (fixnum?) procedure? (fxvector?))
+      (fxvector-length  (natural-fixnum?) procedure? (fxvector?)) ; ℕ
       (fx=              (boolean?) procedure? (fixnum? (... fixnum?)))
       (fx<              (boolean?) procedure? (fixnum? (... fixnum?)))
       (fx>              (boolean?) procedure? (fixnum? (... fixnum?)))
@@ -90,8 +91,8 @@
 
       ;; the byte strings of Racket (the bytevectors of R7RS above are not in racket) : a length in memory is a fixnum , a
       ;; byte is 0 to 255
-      (bytes-length     (fixnum?) procedure? (bytes?))
-      (bytes-ref        (fixnum?) procedure? (bytes? exact-nonnegative-integer?))
+      (bytes-length     (natural-fixnum?) procedure? (bytes?)) ; ℕ
+      (bytes-ref        (natural-fixnum?) procedure? (bytes? exact-nonnegative-integer?)) ; 0 to 255 : ℕ
 
       ;; the exact roundings (racket/math) : an error for +inf.0 and +nan.0 , an exact integer otherwise
       (exact-round      (exact-integer?) procedure? (rational?))
