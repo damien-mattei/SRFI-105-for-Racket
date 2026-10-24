@@ -135,7 +135,10 @@
                            [(complex?) orig-+ (complex? complex?)]
                            [(inexact?) orig-+ (inexact? number?)]
                            [(inexact?) orig-+ (number? inexact?)]
-                           [(inexact?) #; fl+ orig-+ (inexact? inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
+                           [(inexact?) #; fl+ orig-+ (inexact? inexact?)]
+                           ; mixed types : the generic procedure , only the return type is given
+                           [(flonum?) orig-+ (fixnum? flonum?)]
+                           [(flonum?) orig-+ (flonum? fixnum?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
          ; ~ (bitwise not) , unary : in the table of the overloads with an exact number of arguments
          {ovrld-ht['~] := '([(fixnum?) fxnot (fixnum?)]
@@ -153,12 +156,32 @@
          {ovrld-ht['abs] := '([(flonum?) flabs (flonum?)]
                               [(fixnum?) fxabs (fixnum?)])}
          {ovrld-ht['min] := '([(flonum?) flmin (flonum? flonum?)]
-                              [(fixnum?) fxmin (fixnum? fixnum?)])}
+                              [(fixnum?) fxmin (fixnum? fixnum?)]
+                              ; mixed types : the generic procedure , only the return type is given ((max 3 2.0) is 3.0)
+                              [(flonum?) min (fixnum? flonum?)]
+                              [(flonum?) min (flonum? fixnum?)]
+                              [(flonum?) min (flonum? exact-integer?)]
+                              [(flonum?) min (exact-integer? flonum?)]
+                              [(exact-integer?) min (fixnum? exact-integer?)]
+                              [(exact-integer?) min (exact-integer? fixnum?)]
+                              [(exact-integer?) min (exact-integer? exact-integer?)])}
          {ovrld-ht['max] := '([(flonum?) flmax (flonum? flonum?)]
-                              [(fixnum?) fxmax (fixnum? fixnum?)])}
+                              [(fixnum?) fxmax (fixnum? fixnum?)]
+                              ; mixed types : the generic procedure , only the return type is given ((max 3 2.0) is 3.0)
+                              [(flonum?) max (fixnum? flonum?)]
+                              [(flonum?) max (flonum? fixnum?)]
+                              [(flonum?) max (flonum? exact-integer?)]
+                              [(flonum?) max (exact-integer? flonum?)]
+                              [(exact-integer?) max (fixnum? exact-integer?)]
+                              [(exact-integer?) max (exact-integer? fixnum?)]
+                              [(exact-integer?) max (exact-integer? exact-integer?)])}
          {ovrld-ht['quotient] := '([(fixnum?) fxquotient (fixnum? fixnum?)])}
-         {ovrld-ht['remainder] := '([(fixnum?) fxremainder (fixnum? fixnum?)])}
-         {ovrld-ht['modulo] := '([(fixnum?) fxmodulo (fixnum? fixnum?)])}
+         {ovrld-ht['remainder] := '([(fixnum?) fxremainder (fixnum? fixnum?)]
+                                    ; the rest is smaller than a fixnum divisor : a fixnum
+                                    [(fixnum?) remainder (exact-integer? fixnum?)])}
+         {ovrld-ht['modulo] := '([(fixnum?) fxmodulo (fixnum? fixnum?)]
+                                 ; the rest is smaller than a fixnum divisor : a fixnum
+                                 [(fixnum?) modulo (exact-integer? fixnum?)])}
          {ovrld-ht['exact->inexact] := '([(flonum?) fx->fl (fixnum?)])}
          {ovrld-ht['inexact] := '([(flonum?) fx->fl (fixnum?)])}
          ; rounding : of a float a float (flfloor ...) , of a fixnum the same fixnum (the procedure is kept , only the type is
@@ -210,7 +233,13 @@
                            [(complex?) orig-+ (complex? complex?)]
                            [(inexact?) orig-+ (inexact? number?)]
                            [(inexact?) orig-+ (number? inexact?)]
-                           [(inexact?) #; fl+ orig-+ (inexact? inexact?)])}
+                           [(inexact?) #; fl+ orig-+ (inexact? inexact?)]
+                           ; as in the table of +
+                           [(flonum?) orig-+ (flonum? exact-integer?)]
+                           [(flonum?) orig-+ (exact-integer? flonum?)]
+                           ; mixed types : the generic procedure , only the return type is given
+                           [(flonum?) orig-+ (fixnum? flonum?)]
+                           [(flonum?) orig-+ (flonum? fixnum?)])}
 
          {ovrld-ht['-] := '([(fixnum?) fx- (fixnum? fixnum?)]
                            [(exact-integer?) orig-- (exact-integer? fixnum?)]
@@ -223,7 +252,12 @@
                            [(rational?) orig-- (rational? rational?)]
                            [(complex?) orig-- (complex? complex?)]
                            [(inexact?) orig-- (inexact? inexact?)]
-                           #;[(inexact?) orig-- (inexact?)])} ; unary is only a special case of n-ary
+                           #;[(inexact?) orig-- (inexact?)]
+                           ; mixed types : the generic procedure , only the return type is given
+                           [(flonum?) orig-- (fixnum? flonum?)]
+                           [(flonum?) orig-- (flonum? fixnum?)]
+                           [(flonum?) orig-- (flonum? exact-integer?)]
+                           [(flonum?) orig-- (exact-integer? flonum?)])} ; unary is only a special case of n-ary
 
          {ovrld-ht['orig--] := '([(fixnum?) fx- (fixnum? fixnum?)]
                            [(exact-integer?) orig-- (exact-integer? fixnum?)]
@@ -235,30 +269,41 @@
                            [(real?) orig-- (real? real?)]
                            [(rational?) orig-- (rational? rational?)]
                            [(complex?) orig-- (complex? complex?)]
-                           [(inexact?) orig-- (inexact? inexact?)])}
+                           [(inexact?) orig-- (inexact? inexact?)]
+                           ; mixed types : the generic procedure , only the return type is given
+                           [(flonum?) orig-- (fixnum? flonum?)]
+                           [(flonum?) orig-- (flonum? fixnum?)]
+                           [(flonum?) orig-- (flonum? exact-integer?)]
+                           [(flonum?) orig-- (exact-integer? flonum?)])}
 
          {ovrld-ht['/] := '(#;[(fixnum?) orig-/ (fixnum? fixnum?)] ; fx/ does not exist !
-                            [(exact-integer?) orig-/ (exact-integer? exact-integer?)] ;not sure it is a good idea as / is in general not integer
-                            [(integer?) orig-/ (integer? integer?)]
+                            #;[(exact-integer?) orig-/ (exact-integer? exact-integer?)] [(rational?) orig-/ (exact-integer? exact-integer?)] ; (/ 1 2) is 1/2 ;not sure it is a good idea as / is in general not integer
+                            #;[(integer?) orig-/ (integer? integer?)] [(real?) orig-/ (integer? integer?)] ; (/ 1 2) is 1/2
                             [(number?) orig-/ (number? number?)]
                             [(flonum?) fl/ (flonum? flonum?)]
                             [(real?) orig-/ (real? real?)]
                             [(rational?) orig-/ (rational? rational?)]
                             [(complex?) orig-/ (complex? complex?)]
-                            [(inexact?) orig-/ (inexact? inexact?)])}
+                            [(inexact?) orig-/ (inexact? inexact?)]
+                            ; mixed types : the generic procedure , only the return type is given (a division by an exact 0 is an error , (/ 0 2.0) is the exact 0)
+                            [(flonum?) orig-/ (flonum? fixnum?)]
+                            [(flonum?) orig-/ (flonum? exact-integer?)])}
 
          {ovrld-ht['orig-/] := '(#;[(fixnum?) fx/ (fixnum? fixnum?)] ; fx/ does not exist !
-                           [(exact-integer?) orig-/ (exact-integer? exact-integer?)] ;not sure it is a good idea as / is in general not integer
-                           [(integer?) orig-/ (integer? integer?)]
+                           #;[(exact-integer?) orig-/ (exact-integer? exact-integer?)] [(rational?) orig-/ (exact-integer? exact-integer?)] ; (/ 1 2) is 1/2 ;not sure it is a good idea as / is in general not integer
+                           #;[(integer?) orig-/ (integer? integer?)] [(real?) orig-/ (integer? integer?)] ; (/ 1 2) is 1/2
                            [(number?) orig-/ (number? number?)]
                            [(flonum?) fl/ (flonum? flonum?)]
                            [(real?) orig-/ (real? real?)]
                            [(rational?) orig-/ (rational? rational?)]
                            [(complex?) orig-/ (complex? complex?)]
-                           [(inexact?) orig-/ (inexact? inexact?)])}
+                           [(inexact?) orig-/ (inexact? inexact?)]
+                           ; mixed types : the generic procedure , only the return type is given (a division by an exact 0 is an error , (/ 0 2.0) is the exact 0)
+                           [(flonum?) orig-/ (flonum? fixnum?)]
+                           [(flonum?) orig-/ (flonum? exact-integer?)])}
 
          {ovrld-ht['%] := '([(fixnum?) fxmodulo (fixnum? fixnum?)]
-                           [(fixnum?) fxmodulo (fixnum? exact-integer?)] ; the result should be fixnum
+                           #;[(fixnum?) fxmodulo (fixnum? exact-integer?)] ; the result should be fixnum
                            [(exact-integer?) orig-% (exact-integer? exact-integer?)] ;not sure it is a good idea as / is in general not integer
                            [(integer?) orig-% (integer? integer?)]
                            [(number?) orig-% (number? number?)]
@@ -266,10 +311,12 @@
                            [(real?) orig-% (real? real?)]
                            [(rational?) orig-% (rational? rational?)]
                            [(complex?) orig-% (complex? complex?)]
-                           [(inexact?) orig-% (inexact? inexact?)])}
+                           [(inexact?) orig-% (inexact? inexact?)]
+                           ; the rest is smaller than a fixnum divisor : a fixnum
+                           [(fixnum?) orig-% (exact-integer? fixnum?)])}
 
          {ovrld-ht['orig-%] := '([(fixnum?) fxmodulo (fixnum? fixnum?)]
-                           [(fixnum?) fxmodulo (fixnum? exact-integer?)] ; the result should be fixnum
+                           #;[(fixnum?) fxmodulo (fixnum? exact-integer?)] ; the result should be fixnum
                            [(exact-integer?) orig-% (exact-integer? exact-integer?)] ;not sure it is a good idea as / is in general not integer
                            [(integer?) orig-% (integer? integer?)]
                            [(number?) orig-% (number? number?)]
@@ -277,7 +324,9 @@
                            [(real?) orig-% (real? real?)]
                            [(rational?) orig-% (rational? rational?)]
                            [(complex?) orig-% (complex? complex?)]
-                           [(inexact?) orig-% (inexact? inexact?)])}
+                           [(inexact?) orig-% (inexact? inexact?)]
+                           ; the rest is smaller than a fixnum divisor : a fixnum
+                           [(fixnum?) orig-% (exact-integer? fixnum?)])}
 
          ; BEGIN-STRICT-SRFI-105-REGION ; otherwise will set in prefix expressions
          {ovrld-ht['*] := '([(fixnum?) fx* (fixnum? fixnum?)]
@@ -355,16 +404,16 @@
                            [(inexact?) orig-× (inexact? inexact?)])}
 
          {ovrld-ht['**] := '([(fixnum?) orig-** (fixnum? fixnum?)]
-                            [(exact-integer?) orig-** (exact-integer? exact-integer?)]
-                            [(integer?) orig-** (integer? integer?)]
+                            #;[(exact-integer?) orig-** (exact-integer? exact-integer?)] [(rational?) orig-** (exact-integer? exact-integer?)] ; (expt 2 -1) is 1/2
+                            #;[(integer?) orig-** (integer? integer?)] [(real?) orig-** (integer? integer?)] ; (expt 2 -1) is 1/2
                             [(number?) orig-** (number? number?)]
-                            [(flonum?) orig-** (flonum? flonum?)] ; goal is also to return flonum? with orig-** but is it retrieved from here?? to avoid breaking floating point computation instead of real? scheme
+                            #;[(flonum?) orig-** (flonum? flonum?)] [(inexact?) orig-** (flonum? flonum?)] ; (expt -1.0 1.5) is a complex ; goal is also to return flonum? with orig-** but is it retrieved from here?? to avoid breaking floating point computation instead of real? scheme
                             [(flonum?) orig-** (flonum? fixnum?)] ; a flonum to an integer power , as {z ²} : a flonum (the exponent 0 must be written 0.0)
-                            [(real?) orig-** (real? real?)]
+                            #;[(real?) orig-** (real? real?)] [(number?) orig-** (real? real?)] ; (expt -1 1/2) is +i
                             [(complex?) orig-** (complex? complex?)]
                             [(inexact?) orig-** (inexact? inexact?)]
                             [(inexact?) orig-** (inexact? integer?)]
-                            [(inexact?) orig-** (integer? inexact?)])}
+                            #;[(inexact?) orig-** (integer? inexact?)] [(number?) orig-** (integer? inexact?)])}
 
 
          #|
@@ -377,42 +426,42 @@
 
          ; overload with itself because if we recall annot on arguments we can get as result an orig- operator and need its return value type
          {ovrld-ht['orig-**] := '([(fixnum?) orig-** (fixnum? fixnum?)]
-                                  [(exact-integer?) orig-** (exact-integer? exact-integer?)]
-                                  [(integer?) orig-** (integer? integer?)]
+                                  #;[(exact-integer?) orig-** (exact-integer? exact-integer?)] [(rational?) orig-** (exact-integer? exact-integer?)] ; (expt 2 -1) is 1/2
+                                  #;[(integer?) orig-** (integer? integer?)] [(real?) orig-** (integer? integer?)] ; (expt 2 -1) is 1/2
                                   [(number?) orig-** (number? number?)]
-                                  [(flonum?) orig-** (flonum? flonum?)]
+                                  #;[(flonum?) orig-** (flonum? flonum?)] [(inexact?) orig-** (flonum? flonum?)] ; (expt -1.0 1.5) is a complex
                                   [(flonum?) orig-** (flonum? fixnum?)] ; a flonum to an integer power , as {z ²} : a flonum (the exponent 0 must be written 0.0)
-                                  [(real?) orig-** (real? real?)]
+                                  #;[(real?) orig-** (real? real?)] [(number?) orig-** (real? real?)] ; (expt -1 1/2) is +i
                                   [(complex?) orig-** (complex? complex?)]
                                   [(inexact?) orig-** (inexact? inexact?)]
                                   [(inexact?) orig-** (inexact? integer?)]
-                                  [(inexact?) orig-** (integer? inexact?)])}
+                                  #;[(inexact?) orig-** (integer? inexact?)] [(number?) orig-** (integer? inexact?)])}
 
          ; this continues overloading with others orig-*** operators
         
          {ovrld-ht['expt] := '([(fixnum?) orig-expt (fixnum? fixnum?)]
-                              [(exact-integer?) orig-expt (exact-integer? exact-integer?)]
-                              [(integer?) orig-expt (integer? integer?)]
+                              #;[(exact-integer?) orig-expt (exact-integer? exact-integer?)] [(rational?) orig-expt (exact-integer? exact-integer?)] ; (expt 2 -1) is 1/2
+                              #;[(integer?) orig-expt (integer? integer?)] [(real?) orig-expt (integer? integer?)] ; (expt 2 -1) is 1/2
                               [(number?) orig-expt (number? number?)]
-                              [(flonum?) orig-expt (flonum? flonum?)]
+                              #;[(flonum?) orig-expt (flonum? flonum?)] [(inexact?) orig-expt (flonum? flonum?)] ; (expt -1.0 1.5) is a complex
                               [(flonum?) orig-expt (flonum? fixnum?)] ; a flonum to an integer power , as {z ²} : a flonum (the exponent 0 must be written 0.0)
-                              [(real?) orig-expt (real? real?)]
+                              #;[(real?) orig-expt (real? real?)] [(number?) orig-expt (real? real?)] ; (expt -1 1/2) is +i
                               [(complex?) orig-expt (complex? complex?)]
                               [(inexact?) orig-expt (inexact? inexact?)]
                               [(inexact?) orig-expt (inexact? integer?)]
-                              [(inexact?) orig-expt (integer? inexact?)])}
+                              #;[(inexact?) orig-expt (integer? inexact?)] [(number?) orig-expt (integer? inexact?)])}
 
          {ovrld-ht['orig-expt] := '([(fixnum?) orig-expt (fixnum? fixnum?)]
-                              [(exact-integer?) orig-expt (exact-integer? exact-integer?)]
-                              [(integer?) orig-expt (integer? integer?)]
+                              #;[(exact-integer?) orig-expt (exact-integer? exact-integer?)] [(rational?) orig-expt (exact-integer? exact-integer?)] ; (expt 2 -1) is 1/2
+                              #;[(integer?) orig-expt (integer? integer?)] [(real?) orig-expt (integer? integer?)] ; (expt 2 -1) is 1/2
                               [(number?) orig-expt (number? number?)]
-                              [(flonum?) orig-expt (flonum? flonum?)]
+                              #;[(flonum?) orig-expt (flonum? flonum?)] [(inexact?) orig-expt (flonum? flonum?)] ; (expt -1.0 1.5) is a complex
                               [(flonum?) orig-expt (flonum? fixnum?)] ; a flonum to an integer power , as {z ²} : a flonum (the exponent 0 must be written 0.0)
-                              [(real?) orig-expt (real? real?)]
+                              #;[(real?) orig-expt (real? real?)] [(number?) orig-expt (real? real?)] ; (expt -1 1/2) is +i
                               [(complex?) orig-expt (complex? complex?)]
                               [(inexact?) orig-expt (inexact? inexact?)]
                               [(inexact?) orig-expt (inexact? integer?)]
-                              [(inexact?) orig-expt (integer? inexact?)])}
+                              #;[(inexact?) orig-expt (integer? inexact?)] [(number?) orig-expt (integer? inexact?)])}
 
          
          {ovrld-ht['<] := '([(boolean?) fx< (fixnum? fixnum?)]
@@ -422,7 +471,14 @@
                            [(boolean?) fl< (flonum? flonum?)]
                            [(boolean?) orig-< (real? real?)]
                            [(boolean?) orig-< (complex? complex?)]
-                           [(boolean?) orig-< (inexact? inexact?)])}
+                           [(boolean?) orig-< (inexact? inexact?)]
+                           ; mixed types : the generic procedure , only the return type is given
+                           [(boolean?) orig-< (fixnum? flonum?)]
+                           [(boolean?) orig-< (flonum? fixnum?)]
+                           [(boolean?) orig-< (fixnum? exact-integer?)]
+                           [(boolean?) orig-< (exact-integer? fixnum?)]
+                           [(boolean?) orig-< (flonum? exact-integer?)]
+                           [(boolean?) orig-< (exact-integer? flonum?)])}
 
          {ovrld-ht['orig-<] := '([(boolean?) fx< (fixnum? fixnum?)]
                            [(boolean?) orig-< (exact-integer? exact-integer?)]
@@ -431,7 +487,14 @@
                            [(boolean?) fl< (flonum? flonum?)]
                            [(boolean?) orig-< (real? real?)]
                            [(boolean?) orig-< (complex? complex?)]
-                           [(boolean?) orig-< (inexact? inexact?)])}
+                           [(boolean?) orig-< (inexact? inexact?)]
+                           ; mixed types : the generic procedure , only the return type is given
+                           [(boolean?) orig-< (fixnum? flonum?)]
+                           [(boolean?) orig-< (flonum? fixnum?)]
+                           [(boolean?) orig-< (fixnum? exact-integer?)]
+                           [(boolean?) orig-< (exact-integer? fixnum?)]
+                           [(boolean?) orig-< (flonum? exact-integer?)]
+                           [(boolean?) orig-< (exact-integer? flonum?)])}
 
          {ovrld-ht['>] := '([(boolean?) fx> (fixnum? fixnum?)]
                            [(boolean?) orig-> (exact-integer? exact-integer?)]
@@ -440,7 +503,14 @@
                            [(boolean?) fl> (flonum? flonum?)]
                            [(boolean?) orig-> (real? real?)]
                            [(boolean?) orig-> (complex? complex?)]
-                           [(boolean?) orig-> (inexact? inexact?)])}
+                           [(boolean?) orig-> (inexact? inexact?)]
+                           ; mixed types : the generic procedure , only the return type is given
+                           [(boolean?) orig-> (fixnum? flonum?)]
+                           [(boolean?) orig-> (flonum? fixnum?)]
+                           [(boolean?) orig-> (fixnum? exact-integer?)]
+                           [(boolean?) orig-> (exact-integer? fixnum?)]
+                           [(boolean?) orig-> (flonum? exact-integer?)]
+                           [(boolean?) orig-> (exact-integer? flonum?)])}
 
          {ovrld-ht['orig->] := '([(boolean?) fx> (fixnum? fixnum?)]
                            [(boolean?) orig-> (exact-integer? exact-integer?)]
@@ -449,7 +519,14 @@
                            [(boolean?) fl> (flonum? flonum?)]
                            [(boolean?) orig-> (real? real?)]
                            [(boolean?) orig-> (complex? complex?)]
-                           [(boolean?) orig-> (inexact? inexact?)])}
+                           [(boolean?) orig-> (inexact? inexact?)]
+                           ; mixed types : the generic procedure , only the return type is given
+                           [(boolean?) orig-> (fixnum? flonum?)]
+                           [(boolean?) orig-> (flonum? fixnum?)]
+                           [(boolean?) orig-> (fixnum? exact-integer?)]
+                           [(boolean?) orig-> (exact-integer? fixnum?)]
+                           [(boolean?) orig-> (flonum? exact-integer?)]
+                           [(boolean?) orig-> (exact-integer? flonum?)])}
 
 
          {ovrld-ht['<=] := '([(boolean?) fx<= (fixnum? fixnum?)]
@@ -459,7 +536,14 @@
                             [(boolean?) fl<= (flonum? flonum?)]
                             [(boolean?) orig-<= (real? real?)]
                             [(boolean?) orig-<= (complex? complex?)]
-                            [(boolean?) orig-<= (inexact? inexact?)])}
+                            [(boolean?) orig-<= (inexact? inexact?)]
+                            ; mixed types : the generic procedure , only the return type is given
+                            [(boolean?) orig-<= (fixnum? flonum?)]
+                            [(boolean?) orig-<= (flonum? fixnum?)]
+                            [(boolean?) orig-<= (fixnum? exact-integer?)]
+                            [(boolean?) orig-<= (exact-integer? fixnum?)]
+                            [(boolean?) orig-<= (flonum? exact-integer?)]
+                            [(boolean?) orig-<= (exact-integer? flonum?)])}
 
          {ovrld-ht['orig-<=] := '([(boolean?) fx<= (fixnum? fixnum?)]
                                   [(boolean?) orig-<= (exact-integer? exact-integer?)]
@@ -468,7 +552,14 @@
                                   [(boolean?) fl<= (flonum? flonum?)]
                                   [(boolean?) orig-<= (real? real?)]
                                   [(boolean?) orig-<= (complex? complex?)]
-                                  [(boolean?) orig-<= (inexact? inexact?)])}
+                                  [(boolean?) orig-<= (inexact? inexact?)]
+                                  ; mixed types : the generic procedure , only the return type is given
+                                  [(boolean?) orig-<= (fixnum? flonum?)]
+                                  [(boolean?) orig-<= (flonum? fixnum?)]
+                                  [(boolean?) orig-<= (fixnum? exact-integer?)]
+                                  [(boolean?) orig-<= (exact-integer? fixnum?)]
+                                  [(boolean?) orig-<= (flonum? exact-integer?)]
+                                  [(boolean?) orig-<= (exact-integer? flonum?)])}
 
          ; ≤ and ≥ are the same procedures as <= and >= (see Scheme+/little-greater-or-equal)
          {ovrld-ht['≤] := '([(boolean?) fx<= (fixnum? fixnum?)]
@@ -478,7 +569,14 @@
                             [(boolean?) fl<= (flonum? flonum?)]
                             [(boolean?) orig-<= (real? real?)]
                             [(boolean?) orig-<= (complex? complex?)]
-                            [(boolean?) orig-<= (inexact? inexact?)])}
+                            [(boolean?) orig-<= (inexact? inexact?)]
+                            ; mixed types : the generic procedure , only the return type is given
+                            [(boolean?) orig-<= (fixnum? flonum?)]
+                            [(boolean?) orig-<= (flonum? fixnum?)]
+                            [(boolean?) orig-<= (fixnum? exact-integer?)]
+                            [(boolean?) orig-<= (exact-integer? fixnum?)]
+                            [(boolean?) orig-<= (flonum? exact-integer?)]
+                            [(boolean?) orig-<= (exact-integer? flonum?)])}
 
          {ovrld-ht['≥] := '([(boolean?) fx>= (fixnum? fixnum?)]
                             [(boolean?) orig->= (exact-integer? exact-integer?)]
@@ -487,7 +585,14 @@
                             [(boolean?) fl>= (flonum? flonum?)]
                             [(boolean?) orig->= (real? real?)]
                             [(boolean?) orig->= (complex? complex?)]
-                            [(boolean?) orig->= (inexact? inexact?)])}
+                            [(boolean?) orig->= (inexact? inexact?)]
+                            ; mixed types : the generic procedure , only the return type is given
+                            [(boolean?) orig->= (fixnum? flonum?)]
+                            [(boolean?) orig->= (flonum? fixnum?)]
+                            [(boolean?) orig->= (fixnum? exact-integer?)]
+                            [(boolean?) orig->= (exact-integer? fixnum?)]
+                            [(boolean?) orig->= (flonum? exact-integer?)]
+                            [(boolean?) orig->= (exact-integer? flonum?)])}
 
          ; ≠ and <> are (not (= x y)) (see Scheme+/not-equal) , fx≠ and fl≠ are their versions for fixnums and flonums,
          ; orig-≠ and orig-<> the original ≠ and <> (backup operators, as ≠ and <> can be overloaded too)
@@ -498,7 +603,14 @@
                             [(boolean?) fl≠ (flonum? flonum?)]
                             [(boolean?) orig-≠ (real? real?)]
                             [(boolean?) orig-≠ (complex? complex?)]
-                            [(boolean?) orig-≠ (inexact? inexact?)])}
+                            [(boolean?) orig-≠ (inexact? inexact?)]
+                            ; mixed types : the generic procedure , only the return type is given
+                            [(boolean?) orig-≠ (fixnum? flonum?)]
+                            [(boolean?) orig-≠ (flonum? fixnum?)]
+                            [(boolean?) orig-≠ (fixnum? exact-integer?)]
+                            [(boolean?) orig-≠ (exact-integer? fixnum?)]
+                            [(boolean?) orig-≠ (flonum? exact-integer?)]
+                            [(boolean?) orig-≠ (exact-integer? flonum?)])}
 
          {ovrld-ht['orig-≠] := '([(boolean?) fx≠ (fixnum? fixnum?)]
                                  [(boolean?) orig-≠ (exact-integer? exact-integer?)]
@@ -507,7 +619,14 @@
                                  [(boolean?) fl≠ (flonum? flonum?)]
                                  [(boolean?) orig-≠ (real? real?)]
                                  [(boolean?) orig-≠ (complex? complex?)]
-                                 [(boolean?) orig-≠ (inexact? inexact?)])}
+                                 [(boolean?) orig-≠ (inexact? inexact?)]
+                                 ; mixed types : the generic procedure , only the return type is given
+                                 [(boolean?) orig-≠ (fixnum? flonum?)]
+                                 [(boolean?) orig-≠ (flonum? fixnum?)]
+                                 [(boolean?) orig-≠ (fixnum? exact-integer?)]
+                                 [(boolean?) orig-≠ (exact-integer? fixnum?)]
+                                 [(boolean?) orig-≠ (flonum? exact-integer?)]
+                                 [(boolean?) orig-≠ (exact-integer? flonum?)])}
 
          {ovrld-ht['<>] := '([(boolean?) fx≠ (fixnum? fixnum?)]
                              [(boolean?) orig-<> (exact-integer? exact-integer?)]
@@ -516,7 +635,14 @@
                              [(boolean?) fl≠ (flonum? flonum?)]
                              [(boolean?) orig-<> (real? real?)]
                              [(boolean?) orig-<> (complex? complex?)]
-                             [(boolean?) orig-<> (inexact? inexact?)])}
+                             [(boolean?) orig-<> (inexact? inexact?)]
+                             ; mixed types : the generic procedure , only the return type is given
+                             [(boolean?) orig-<> (fixnum? flonum?)]
+                             [(boolean?) orig-<> (flonum? fixnum?)]
+                             [(boolean?) orig-<> (fixnum? exact-integer?)]
+                             [(boolean?) orig-<> (exact-integer? fixnum?)]
+                             [(boolean?) orig-<> (flonum? exact-integer?)]
+                             [(boolean?) orig-<> (exact-integer? flonum?)])}
 
          {ovrld-ht['orig-<>] := '([(boolean?) fx≠ (fixnum? fixnum?)]
                                   [(boolean?) orig-<> (exact-integer? exact-integer?)]
@@ -525,7 +651,14 @@
                                   [(boolean?) fl≠ (flonum? flonum?)]
                                   [(boolean?) orig-<> (real? real?)]
                                   [(boolean?) orig-<> (complex? complex?)]
-                                  [(boolean?) orig-<> (inexact? inexact?)])}
+                                  [(boolean?) orig-<> (inexact? inexact?)]
+                                  ; mixed types : the generic procedure , only the return type is given
+                                  [(boolean?) orig-<> (fixnum? flonum?)]
+                                  [(boolean?) orig-<> (flonum? fixnum?)]
+                                  [(boolean?) orig-<> (fixnum? exact-integer?)]
+                                  [(boolean?) orig-<> (exact-integer? fixnum?)]
+                                  [(boolean?) orig-<> (flonum? exact-integer?)]
+                                  [(boolean?) orig-<> (exact-integer? flonum?)])}
 
 
          {ovrld-ht['>=] := '([(boolean?) fx>= (fixnum? fixnum?)]
@@ -535,7 +668,14 @@
                             [(boolean?) fl>= (flonum? flonum?)]
                             [(boolean?) orig->= (real? real?)]
                             [(boolean?) orig->= (complex? complex?)]
-                            [(boolean?) orig->= (inexact? inexact?)])}
+                            [(boolean?) orig->= (inexact? inexact?)]
+                            ; mixed types : the generic procedure , only the return type is given
+                            [(boolean?) orig->= (fixnum? flonum?)]
+                            [(boolean?) orig->= (flonum? fixnum?)]
+                            [(boolean?) orig->= (fixnum? exact-integer?)]
+                            [(boolean?) orig->= (exact-integer? fixnum?)]
+                            [(boolean?) orig->= (flonum? exact-integer?)]
+                            [(boolean?) orig->= (exact-integer? flonum?)])}
 
          {ovrld-ht['orig->=] := '([(boolean?) fx>= (fixnum? fixnum?)]
                             [(boolean?) orig->= (exact-integer? exact-integer?)]
@@ -544,7 +684,14 @@
                             [(boolean?) fl>= (flonum? flonum?)]
                             [(boolean?) orig->= (real? real?)]
                             [(boolean?) orig->= (complex? complex?)]
-                            [(boolean?) orig->= (inexact? inexact?)])}
+                            [(boolean?) orig->= (inexact? inexact?)]
+                            ; mixed types : the generic procedure , only the return type is given
+                            [(boolean?) orig->= (fixnum? flonum?)]
+                            [(boolean?) orig->= (flonum? fixnum?)]
+                            [(boolean?) orig->= (fixnum? exact-integer?)]
+                            [(boolean?) orig->= (exact-integer? fixnum?)]
+                            [(boolean?) orig->= (flonum? exact-integer?)]
+                            [(boolean?) orig->= (exact-integer? flonum?)])}
 
          {ovrld-ht['=] := '([(boolean?) fx= (fixnum? fixnum?)]
                            [(boolean?) orig-= (exact-integer? exact-integer?)]
@@ -553,7 +700,14 @@
                            [(boolean?) fl= (flonum? flonum?)]
                            [(boolean?) orig-= (real? real?)]
                            [(boolean?) orig-= (complex? complex?)]
-                           [(boolean?) orig-= (inexact? inexact?)])}
+                           [(boolean?) orig-= (inexact? inexact?)]
+                           ; mixed types : the generic procedure , only the return type is given
+                           [(boolean?) orig-= (fixnum? flonum?)]
+                           [(boolean?) orig-= (flonum? fixnum?)]
+                           [(boolean?) orig-= (fixnum? exact-integer?)]
+                           [(boolean?) orig-= (exact-integer? fixnum?)]
+                           [(boolean?) orig-= (flonum? exact-integer?)]
+                           [(boolean?) orig-= (exact-integer? flonum?)])}
 
          {ovrld-ht['orig-=] := '([(boolean?) fx= (fixnum? fixnum?)]
                            [(boolean?) orig-= (exact-integer? exact-integer?)]
@@ -562,7 +716,14 @@
                            [(boolean?) fl= (flonum? flonum?)]
                            [(boolean?) orig-= (real? real?)]
                            [(boolean?) orig-= (complex? complex?)]
-                           [(boolean?) orig-= (inexact? inexact?)])}
+                           [(boolean?) orig-= (inexact? inexact?)]
+                           ; mixed types : the generic procedure , only the return type is given
+                           [(boolean?) orig-= (fixnum? flonum?)]
+                           [(boolean?) orig-= (flonum? fixnum?)]
+                           [(boolean?) orig-= (fixnum? exact-integer?)]
+                           [(boolean?) orig-= (exact-integer? fixnum?)]
+                           [(boolean?) orig-= (flonum? exact-integer?)]
+                           [(boolean?) orig-= (exact-integer? flonum?)])}
 
 
          ; n-ary operator hash table
@@ -609,8 +770,8 @@
                                    [(complex?) orig-- (complex?)]
                                    [(inexact?) orig-- (inexact?)])}
 
-         {ovrld-ht-n-ary['/] := '([(exact-integer?) orig-/ (exact-integer?)] ;not sure it is a good idea as / is in general not integer
-                                    [(integer?) orig-/ (integer?)]
+         {ovrld-ht-n-ary['/] := '(#;[(exact-integer?) orig-/ (exact-integer?)] [(rational?) orig-/ (exact-integer?)] ; (/ 1 2) is 1/2 ;not sure it is a good idea as / is in general not integer
+                                    #;[(integer?) orig-/ (integer?)] [(real?) orig-/ (integer?)] ; (/ 1 2) is 1/2
                                     [(number?) orig-/ (number?)]
                                     [(flonum?) fl/ (flonum?)]
                                     [(real?) orig-/ (real?)]
@@ -618,8 +779,8 @@
                                     [(complex?) orig-/ (complex?)]
                                     [(inexact?) orig-/ (inexact?)])}
 
-         {ovrld-ht-n-ary['orig-/] := '([(exact-integer?) orig-/ (exact-integer?)] ;not sure it is a good idea as / is in general not integer
-                                    [(integer?) orig-/ (integer?)]
+         {ovrld-ht-n-ary['orig-/] := '(#;[(exact-integer?) orig-/ (exact-integer?)] [(rational?) orig-/ (exact-integer?)] ; (/ 1 2) is 1/2 ;not sure it is a good idea as / is in general not integer
+                                    #;[(integer?) orig-/ (integer?)] [(real?) orig-/ (integer?)] ; (/ 1 2) is 1/2
                                     [(number?) orig-/ (number?)]
                                     [(flonum?) fl/ (flonum?)]
                                     [(real?) orig-/ (real?)]
@@ -689,27 +850,28 @@
                                     [(inexact?) orig-× (inexact?)])}
 
          {ovrld-ht-n-ary['**] := '([(fixnum?) orig-** (fixnum?)]
-                                     [(exact-integer?) orig-** (exact-integer?)]
-                                     [(integer?) orig-** (integer?)]
+                                     #;[(exact-integer?) orig-** (exact-integer?)] [(rational?) orig-** (exact-integer?)] ; (expt 2 -1) is 1/2
+                                     #;[(integer?) orig-** (integer?)] [(real?) orig-** (integer?)] ; (expt 2 -1) is 1/2
                                      [(number?) orig-** (number?)]
-                                     [(flonum?) orig-** (flonum?)]
-                                     [(real?) orig-** (real?)]
+                                     #;[(flonum?) orig-** (flonum?)] [(inexact?) orig-** (flonum?)] ; (expt -1.0 1.5) is a complex
+                                     #;[(real?) orig-** (real?)] [(number?) orig-** (real?)] ; (expt -1 1/2) is +i
                                      [(complex?) orig-** (complex?)]
                                      [(inexact?) orig-** (inexact?)])}
 
          {ovrld-ht-n-ary['orig-**] := '([(fixnum?) orig-** (fixnum?)]
-                                     [(exact-integer?) orig-** (exact-integer?)]
-                                     [(integer?) orig-** (integer?)]
+                                     #;[(exact-integer?) orig-** (exact-integer?)] [(rational?) orig-** (exact-integer?)] ; (expt 2 -1) is 1/2
+                                     #;[(integer?) orig-** (integer?)] [(real?) orig-** (integer?)] ; (expt 2 -1) is 1/2
                                      [(number?) orig-** (number?)]
-                                     [(flonum?) orig-** (flonum?)]
-                                     [(real?) orig-** (real?)]
+                                     #;[(flonum?) orig-** (flonum?)] [(inexact?) orig-** (flonum?)] ; (expt -1.0 1.5) is a complex
+                                     #;[(real?) orig-** (real?)] [(number?) orig-** (real?)] ; (expt -1 1/2) is +i
                                      [(complex?) orig-** (complex?)]
                                      [(inexact?) orig-** (inexact?)])}
 
          ;; expt not n-ary
         
 
-         {ovrld-ht-n-ary['+] := '([(fixnum?) fx+ (fixnum?)]
+         ; the same n-ary tables as above (they were written twice)
+         #;{ovrld-ht-n-ary['+] := '([(fixnum?) fx+ (fixnum?)]
                                     [(exact-integer?) orig-+ (exact-integer?)]
                                     [(integer?) orig-+ (integer?)]
                                     [(number?) orig-+ (number?)]
@@ -719,7 +881,7 @@
                                     [(complex?) orig-+ (complex?)]
                                     [(inexact?) orig-+ (inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
-         {ovrld-ht-n-ary['-] := '([(fixnum?) fx- (fixnum?)]
+         #;{ovrld-ht-n-ary['-] := '([(fixnum?) fx- (fixnum?)]
                                     [(exact-integer?) orig-- (exact-integer?)]
                                     [(integer?) orig-- (integer?)]
                                     [(number?) orig-- (number?)]
@@ -729,7 +891,7 @@
                                     [(complex?) orig-- (complex?)]
                                     [(inexact?) orig-- (inexact?)])}
 
-         {ovrld-ht-n-ary['/] := '([(exact-integer?) orig-/ (exact-integer?)] ;not sure it is a good idea as / is in general not integer
+         #;{ovrld-ht-n-ary['/] := '([(exact-integer?) orig-/ (exact-integer?)] ;not sure it is a good idea as / is in general not integer
                                     [(integer?) orig-/ (integer?)]
                                     [(number?) orig-/ (number?)]
                                     [(flonum?) fl/ (flonum?)]
@@ -738,7 +900,7 @@
                                     [(complex?) orig-/ (complex?)]
                                     [(inexact?) orig-/ (inexact?)])}
 
-         {ovrld-ht-n-ary['*] := '([(fixnum?) fx* (fixnum?)]
+         #;{ovrld-ht-n-ary['*] := '([(fixnum?) fx* (fixnum?)]
                                     [(exact-integer?) orig-* (exact-integer?)]
                                     [(integer?) orig-* (integer?)]
                                     [(number?) orig-* (number?)]
@@ -748,7 +910,7 @@
                                     [(complex?) orig-* (complex?)]
                                     [(inexact?) orig-* (inexact?)])}
 
-         {ovrld-ht-n-ary['·] := '([(fixnum?) fx* (fixnum?)]
+         #;{ovrld-ht-n-ary['·] := '([(fixnum?) fx* (fixnum?)]
                                     [(exact-integer?) orig-· (exact-integer?)]
                                     [(integer?) orig-· (integer?)]
                                     [(number?) orig-· (number?)]
@@ -758,7 +920,7 @@
                                     [(complex?) orig-· (complex?)]
                                     [(inexact?) orig-· (inexact?)])}
 
-         {ovrld-ht-n-ary['**] := '([(fixnum?) orig-** (fixnum?)]
+         #;{ovrld-ht-n-ary['**] := '([(fixnum?) orig-** (fixnum?)]
                                      [(exact-integer?) orig-** (exact-integer?)]
                                      [(integer?) orig-** (integer?)]
                                      [(number?) orig-** (number?)]
@@ -773,10 +935,10 @@
          ;; uncomment below if you want args-types-after-annot being displayed
 
          ; now flonum  overload with itself !!!
-         {ovrld-ht['fl+] := '([(flonum?) fl+ (fixnum? fixnum?)]
-                             [(flonum?) fl+ (exact-integer? fixnum?)]
-                             [(flonum?) fl+ (fixnum? exact-integer?)]
-                             [(flonum?) fl+ (exact-integer? exact-integer?)]
+         {ovrld-ht['fl+] := '(#;[(flonum?) fl+ (fixnum? fixnum?)]
+                             #;[(flonum?) fl+ (exact-integer? fixnum?)]
+                             #;[(flonum?) fl+ (fixnum? exact-integer?)]
+                             #;[(flonum?) fl+ (exact-integer? exact-integer?)]
                              [(flonum?) fl+ (integer? integer?)]
                              [(flonum?) fl+ (number? number?)]
                              [(flonum?) fl+ (flonum? flonum?)]
@@ -789,10 +951,10 @@
                              [(flonum?) fl+ (number? inexact?)]
                              [(flonum?) fl+ (inexact? inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
-         {ovrld-ht['fl-] := '([(flonum?) fl- (fixnum? fixnum?)]
-                             [(flonum?) fl- (exact-integer? fixnum?)]
-                             [(flonum?) fl- (fixnum? exact-integer?)]
-                             [(flonum?) fl- (exact-integer? exact-integer?)]
+         {ovrld-ht['fl-] := '(#;[(flonum?) fl- (fixnum? fixnum?)]
+                             #;[(flonum?) fl- (exact-integer? fixnum?)]
+                             #;[(flonum?) fl- (fixnum? exact-integer?)]
+                             #;[(flonum?) fl- (exact-integer? exact-integer?)]
                              [(flonum?) fl- (integer? integer?)]
                              [(flonum?) fl- (number? number?)]
                              [(flonum?) fl- (flonum? flonum?)]
@@ -808,10 +970,10 @@
 
 
 
-         {ovrld-ht['fl/] := '([(flonum?) fl/ (fixnum? fixnum?)]
-                             [(flonum?) fl/ (exact-integer? fixnum?)]
-                             [(flonum?) fl/ (fixnum? exact-integer?)]
-                             [(flonum?) fl/ (exact-integer? exact-integer?)]
+         {ovrld-ht['fl/] := '(#;[(flonum?) fl/ (fixnum? fixnum?)]
+                             #;[(flonum?) fl/ (exact-integer? fixnum?)]
+                             #;[(flonum?) fl/ (fixnum? exact-integer?)]
+                             #;[(flonum?) fl/ (exact-integer? exact-integer?)]
                              [(flonum?) fl/ (integer? integer?)]
                              [(flonum?) fl/ (number? number?)]
                              [(flonum?) fl/ (flonum? flonum?)]
@@ -828,10 +990,10 @@
 
 
 
-         {ovrld-ht['fl*] := '([(flonum?) fl* (fixnum? fixnum?)]
-                             [(flonum?) fl* (exact-integer? fixnum?)]
-                             [(flonum?) fl* (fixnum? exact-integer?)]
-                             [(flonum?) fl* (exact-integer? exact-integer?)]
+         {ovrld-ht['fl*] := '(#;[(flonum?) fl* (fixnum? fixnum?)]
+                             #;[(flonum?) fl* (exact-integer? fixnum?)]
+                             #;[(flonum?) fl* (fixnum? exact-integer?)]
+                             #;[(flonum?) fl* (exact-integer? exact-integer?)]
                              [(flonum?) fl* (integer? integer?)]
                              [(flonum?) fl* (number? number?)]
                              [(flonum?) fl* (flonum? flonum?)]
@@ -846,8 +1008,8 @@
 
 
 
-         {ovrld-ht-n-ary['fl+] := '([(flonum?) fl+ (fixnum?)]
-                                     [(flonum?) fl+ (exact-integer?)]
+         {ovrld-ht-n-ary['fl+] := '(#;[(flonum?) fl+ (fixnum?)]
+                                     #;[(flonum?) fl+ (exact-integer?)]
                                      [(flonum?) fl+ (integer?)]
                                      [(flonum?) fl+ (number?)]
                                      [(flonum?) fl+ (flonum?)]
@@ -856,8 +1018,8 @@
                                      [(flonum?) fl+ (complex?)] ; error ;
                                      [(flonum?) fl+ (inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
-         {ovrld-ht-n-ary['fl-] := '([(flonum?) fl- (fixnum?)]
-                                     [(flonum?) fl- (exact-integer?)]
+         {ovrld-ht-n-ary['fl-] := '(#;[(flonum?) fl- (fixnum?)]
+                                     #;[(flonum?) fl- (exact-integer?)]
                                      [(flonum?) fl- (integer?)]
                                      [(flonum?) fl- (number?)]
                                      [(flonum?) fl- (flonum?)]
@@ -868,8 +1030,8 @@
 
 
 
-         {ovrld-ht-n-ary['fl/] := '([(flonum?) fl/ (fixnum?)]
-                                     [(flonum?) fl/ (exact-integer?)]
+         {ovrld-ht-n-ary['fl/] := '(#;[(flonum?) fl/ (fixnum?)]
+                                     #;[(flonum?) fl/ (exact-integer?)]
                                      [(flonum?) fl/ (integer?)]
                                      [(flonum?) fl/ (number?)]
                                      [(flonum?) fl/ (flonum?)]
@@ -880,8 +1042,8 @@
 
 
 
-         {ovrld-ht-n-ary['fl*] := '([(flonum?) fl* (fixnum?)]
-                                     [(flonum?) fl* (exact-integer?)]
+         {ovrld-ht-n-ary['fl*] := '(#;[(flonum?) fl* (fixnum?)]
+                                     #;[(flonum?) fl* (exact-integer?)]
                                      [(flonum?) fl* (integer?)]
                                      [(flonum?) fl* (number?)]
                                      [(flonum?) fl* (flonum?)]
