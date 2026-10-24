@@ -18,7 +18,8 @@
 (require racket/list racket/string racket/file racket/format racket/flonum racket/fixnum racket/port
          (only-in srfi/69 hash-table-ref hash-table-keys hash-table-exists?)
          SRFI-105/annot+
-         SRFI-105/scheme-types)
+         SRFI-105/scheme-types
+         SRFI-105/racket-types)
 
 (define source (let ((args (current-command-line-arguments)))
                  (if (and (> (vector-length args) 0) (not (string=? (vector-ref args 0) "")))
@@ -114,7 +115,11 @@
 
 (define (show-args args) (string-join (map ~s args) " "))
 
-;; the numeric procedures of scheme-types.rkt : (name (return-types ...) procedure? (parameter-types ...)) , a parameter
+;; the entries of scheme-types.rkt (R7RS) and racket-types.rkt (the procedures of Racket not in R7RS) , read the same
+;; way by annot+.rkt
+(define type-tables (append scheme-types racket-types))
+
+;; the numeric procedures of scheme-types.rkt and racket-types.rkt : (name (return-types ...) procedure? (parameter-types ...)) , a parameter
 ;; type can be (opt T) or (... T) ; only the entries whose parameters are all numeric are checked (the others are read
 ;; by hand) : each return value must be of its declared type
 (define numeric-types '(number? complex? real? rational? integer? exact-integer? exact-nonnegative-integer? exact-rational?
@@ -125,7 +130,7 @@
 (define (scheme-type-argument-lists params) (scheme-type-argument-lists* params small-values))
 
 (define (check-scheme-types)
-  (for ((entry scheme-types))
+  (for ((entry type-tables))
     (define name (first entry))
     (define rets (second entry))
     (define params (fourth entry))
@@ -144,7 +149,7 @@
                   (call-with-values (λ () (apply proc args)) list) rets)))
       (when bad (report! 'scheme-types name entry bad)))))
 
-;; the other procedures of scheme-types.rkt (lists , strings , characters , vectors , ports ...) : only the first return
+;; the other procedures of scheme-types.rkt and racket-types.rkt (lists , strings , characters , vectors , ports ...) : only the first return
 ;; type is read by annot+.rkt (scheme-return-type) , any? says nothing ; the procedures returning void? (side effects :
 ;; display , set-car! ...) and the macros are not called ; the sizes are small (make-list of 2^70 would not end)
 (define (other-values)
@@ -157,7 +162,7 @@
         (flvector 1.0 2.0) (fxvector 1 2) (bytes 1 255) (make-pseudo-random-generator)))
 
 (define (check-scheme-types-others)
-  (for ((entry scheme-types))
+  (for ((entry type-tables))
     (define name (first entry))
     (define rets (second entry))
     (define kind (third entry))
@@ -196,7 +201,10 @@
                       (append required (list (second (car rest)) (second (car rest))))))))
   (append* (map (λ (ts) (argument-lists ts #f pool)) (types-lists))))
 
-;; container-procedures-types (scheme-types.rkt) : each rule is applied to lists and vectors of floats and of fixnums ,
+;; the two tables of the rules of the list and vector procedures
+(define container-tables (append container-procedures-types racket-container-procedures-types))
+
+;; container-procedures-types (scheme-types.rkt) and racket-container-procedures-types (racket-types.rkt) : each rule is applied to lists and vectors of floats and of fixnums ,
 ;; the result must have the type the rule gives : an element E (element) , a container of E (same) , of the fill value
 ;; (fill) , of the values of the procedure (build) , the type of the accumulator (fold , reduce)
 (define srfi-1-names '(delete-duplicates delete fold fold-right reduce reduce-right list-copy))
@@ -211,7 +219,7 @@
         (list 'fixnum? '(3 -1 2 5 -4) add1 fx+ 0)))
 
 (define (check-container-procedures)
-  (for ((entry container-procedures-types))
+  (for ((entry container-tables))
     (define name (first entry))
     (define rule (second entry))
     (define pos (third entry))
@@ -256,7 +264,7 @@
               (report! 'container name entry (format "(~a ~a ~a '()) = ~s" name plus zero r0))))))))
 
 ;; the procedures of Racket called in converted programs (the Racket code written by the converter , one file or a
-;; directory of files) without any return type : not in scheme-types.rkt , not in the tables of annot+.rkt , not in
+;; directory of files) without any return type : not in scheme-types.rkt nor racket-types.rkt , not in the tables of annot+.rkt , not in
 ;; container-procedures-types ; with the number of calls
 (define (check-usage dir)
   (define files (if (directory-exists? dir)
@@ -274,15 +282,18 @@
       (with-input-from-file f
         (λ () (parameterize ((read-accept-reader #t) (read-accept-lang #t))
                 (let loop () (define d (read)) (unless (eof-object? d) (walk d) (loop))))))))
-  (define typed (append (map first scheme-types) (map first container-procedures-types)
+  (define typed (append (map first type-tables) (map first container-tables)
                         (hash-table-keys ovrld-ht) (hash-table-keys ovrld-ht-n-ary)
-                        '(sqr vector-map map vector->list list->vector vector list apply)))
+                        '(vector-map map vector->list list->vector vector list apply)))
   (define untyped
     (for/list (((name n) counts)
                #:unless (memq name typed)
                #:when (let ((v (value-of name))) (and (procedure? v) (not (struct-constructor-procedure? v)))))
       (cons name n)))
-  (for ((p (sort untyped > #:key cdr)) (i (in-naturals)) #:when (< i 60))
+  (define (before? a b) ; the most called first , then by name (the order of the hash table changes)
+    (or (> (cdr a) (cdr b))
+        (and (= (cdr a) (cdr b)) (string<? (symbol->string (car a)) (symbol->string (car b))))))
+  (for ((p (sort untyped before?)) (i (in-naturals)) #:when (< i 60))
     (report! 'usage (car p) #f (format "~a calls" (cdr p)))))
 
 ;; check of one row
@@ -401,10 +412,10 @@
     (inconsistent . "Inconsistencies between X and orig-X")
     (duplicate . "Tables written several times in the source")
     (missing . "Couples of types without a row (fixnum? flonum? exact-integer?) , with the return type of the oracle")
-    (scheme-types . "scheme-types.rkt : wrong return types of the numeric procedures (small values)")
-    (scheme-types-others . "scheme-types.rkt : wrong return types of the other procedures")
-    (scheme-types-unbound . "scheme-types.rkt : names not bound in racket")
-    (scheme-types-untested . "scheme-types.rkt : procedures not tested (no value of the pool)")
+    (scheme-types . "scheme-types.rkt and racket-types.rkt : wrong return types of the numeric procedures (small values)")
+    (scheme-types-others . "scheme-types.rkt and racket-types.rkt : wrong return types of the other procedures")
+    (scheme-types-unbound . "scheme-types.rkt and racket-types.rkt : names not bound in racket")
+    (scheme-types-untested . "scheme-types.rkt and racket-types.rkt : procedures not tested (no value of the pool)")
     (container-unbound . "container-procedures-types : names not bound")
     (container . "container-procedures-types : results not of the type of the rule")
     (usage . "Procedures of Racket called in the converted files without any return type (the 60 most called)")))

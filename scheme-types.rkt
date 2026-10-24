@@ -49,6 +49,8 @@
 ;;   (... T)  - zero or more additional parameters of type T
 ;;
 ;; This module has no dependencies; it is pure data.
+;; The procedures of Racket that are not in R7RS (void , sqr , add1 , racket/flonum , racket/fixnum ...) are in
+;; racket-types.rkt , with the same form.
 
 ;; AI generated (Anthropic Sonnet 5)
 
@@ -413,61 +415,10 @@
       (guard            (any?) macro? (syntax? (... syntax?)))
 
       ;; =================================================================
-      ;; Racket (not R7RS)
+      ;; Racket (not R7RS) : moved to racket-types.rkt (this table is R7RS only , shared by the ports to Guile and Kawa)
       ;; =================================================================
 
-      (void             (void?) procedure? ((... any?)))
-
-      ;; the flonums (racket/flonum) not in the tables of annot+.rkt : out of their domain they return +nan.0 , never a
-      ;; complex ((flsqrt -1.0) is +nan.0)
-      (flsqrt           (flonum?) procedure? (flonum?))
-      (fllog            (flonum?) procedure? (flonum?))
-      (flasin           (flonum?) procedure? (flonum?))
-      (flacos           (flonum?) procedure? (flonum?))
-      (flexpt           (flonum?) procedure? (flonum? flonum?))
-      (->fl             (flonum?) procedure? (exact-integer?))
-      (flvector-ref     (flonum?) procedure? (flvector? exact-nonnegative-integer?))
-      (flrandom         (flonum?) procedure? (pseudo-random-generator?))
-      (flvector-length  (fixnum?) procedure? (flvector?))
-      (fl->exact-integer (exact-integer?) procedure? (flonum?)) ; an exact-integer? , not a fixnum? : (fl->exact-integer 1e30)
-      (fl=              (boolean?) procedure? (flonum? (... flonum?)))
-      (fl<              (boolean?) procedure? (flonum? (... flonum?)))
-      (fl>              (boolean?) procedure? (flonum? (... flonum?)))
-      (fl<=             (boolean?) procedure? (flonum? (... flonum?)))
-      (fl>=             (boolean?) procedure? (flonum? (... flonum?)))
-
-      ;; the fixnums (racket/fixnum) not in the tables of annot+.rkt
-      (fl->fx           (fixnum?) procedure? (flonum?)) ; truncates
-      (fxand            (fixnum?) procedure? ((... fixnum?)))
-      (fxior            (fixnum?) procedure? ((... fixnum?)))
-      (fxxor            (fixnum?) procedure? ((... fixnum?)))
-      (fxnot            (fixnum?) procedure? (fixnum?))
-      (fxlshift         (fixnum?) procedure? (fixnum? fixnum?))
-      (fxrshift         (fixnum?) procedure? (fixnum? fixnum?))
-      (fxvector-ref     (fixnum?) procedure? (fxvector? exact-nonnegative-integer?))
-      (fxvector-length  (fixnum?) procedure? (fxvector?))
-      (fx=              (boolean?) procedure? (fixnum? (... fixnum?)))
-      (fx<              (boolean?) procedure? (fixnum? (... fixnum?)))
-      (fx>              (boolean?) procedure? (fixnum? (... fixnum?)))
-      (fx<=             (boolean?) procedure? (fixnum? (... fixnum?)))
-      (fx>=             (boolean?) procedure? (fixnum? (... fixnum?)))
-
-      ;; the byte strings of Racket (the bytevectors of R7RS above are not in racket) : a length in memory is a fixnum , a
-      ;; byte is 0 to 255
-      (bytes-length     (fixnum?) procedure? (bytes?))
-      (bytes-ref        (fixnum?) procedure? (bytes? exact-nonnegative-integer?))
-
-      ;; the exact roundings (racket/math) : an error for +inf.0 and +nan.0 , an exact integer otherwise
-      (exact-round      (exact-integer?) procedure? (rational?))
-      (exact-floor      (exact-integer?) procedure? (rational?))
-      (exact-ceiling    (exact-integer?) procedure? (rational?))
-      (exact-truncate   (exact-integer?) procedure? (rational?))
-
-      ;; the bits of the exact integers
-      (bitwise-and      (exact-integer?) procedure? ((... exact-integer?)))
-      (bitwise-ior      (exact-integer?) procedure? ((... exact-integer?)))
-      (bitwise-xor      (exact-integer?) procedure? ((... exact-integer?)))
-      (arithmetic-shift (exact-integer?) procedure? (exact-integer? exact-integer?))
+      #;(void             (void?) procedure? ((... any?)))
 
       ))
 
@@ -486,65 +437,48 @@
   ;;               initial value for fold and reduce , the procedure is the first argument and the lists follow) , all :
   ;;               every argument
   ;;   container : list or vector
-  ;; Procedures of R7RS , SRFI 1 and Racket (racket/base , racket/list , racket/vector).
+  ;; Procedures of R7RS and SRFI 1 (portable : Guile and Kawa have SRFI 1) ; the procedures of Racket only (racket/base ,
+;; racket/list , racket/vector : argmin , sort , build-list , foldl ...) are in racket-container-procedures-types of
+;; racket-types.rkt , with the same form.
   ;; make-vector : with the annotation a vector keeps the type of its initial elements , the fill value must have the
   ;; type of the elements put after ((make-vector n 0.0) for a vector of floats) ; (make-vector n) : no element type.
   (define container-procedures-types
     '(;; an element
       (car              element 0 list)
-      (first            element 0 list)
-      (second           element 0 list)
-      (third            element 0 list)
-      (fourth           element 0 list)
-      (fifth            element 0 list)
+      (first            element 0 list)   ; SRFI 1
+      (second           element 0 list)   ; SRFI 1
+      (third            element 0 list)   ; SRFI 1
+      (fourth           element 0 list)   ; SRFI 1
+      (fifth            element 0 list)   ; SRFI 1
       (cadr             element 0 list)
       (caddr            element 0 list)
-      (last             element 0 list)
+      (last             element 0 list)   ; SRFI 1
       (list-ref         element 0 list)
-      (argmin           element 1 list)   ; (argmin proc lst)
-      (argmax           element 1 list)
       (vector-ref       element 0 vector)
-      (vector-argmin    element 1 vector) ; (vector-argmin proc vec)
-      (vector-argmax    element 1 vector)
       ;; a container of the same elements
       (cdr              same 0 list)
-      (rest             same 0 list)
       (cddr             same 0 list)
       (reverse          same 0 list)
       (list-copy        same 0 list)
       (list-tail        same 0 list)
-      (take             same 0 list)
-      (drop             same 0 list)
-      (take-right       same 0 list)
-      (drop-right       same 0 list)
-      (sort             same 0 list)      ; (sort lst less-than?)
-      (remove-duplicates same 0 list)
-      (delete-duplicates same 0 list)
-      (shuffle          same 0 list)
-      (filter           same 1 list)      ; (filter pred lst)
-      (remove           same 1 list)      ; (remove v lst) of Racket , (remove pred lst) of SRFI 1
-      (remq             same 1 list)
-      (remv             same 1 list)
-      (delete           same 1 list)      ; (delete x lst)
+      (take             same 0 list)      ; SRFI 1
+      (drop             same 0 list)      ; SRFI 1
+      (take-right       same 0 list)      ; SRFI 1
+      (drop-right       same 0 list)      ; SRFI 1
+      (delete-duplicates same 0 list)     ; SRFI 1
+      (filter           same 1 list)      ; SRFI 1 , (filter pred lst)
+      (remove           same 1 list)      ; SRFI 1 , (remove pred lst) of SRFI 1 , (remove v lst) of Racket
+      (delete           same 1 list)      ; SRFI 1 , (delete x lst)
       (append           same all list)
       (vector-copy      same 0 vector)
-      (vector-take      same 0 vector)
-      (vector-drop      same 0 vector)
-      (vector-sort      same 0 vector)    ; (vector-sort vec less-than?)
-      (vector-filter    same 1 vector)    ; (vector-filter pred vec)
       (vector-append    same all vector)
       ;; a container of the fill value
       (make-list        fill 1 list)      ; (make-list n v)
       (make-vector      fill 1 vector)    ; (make-vector n v)
-      ;; a container of the values of a procedure on the indexes
-      (build-list       build 1 list)     ; (build-list n proc)
-      (build-vector     build 1 vector)
       ;; an accumulation
-      (foldl            fold 1 list)      ; (foldl f init l ...) of Racket , f called (f e ... acc)
-      (foldr            fold 1 list)
-      (fold             fold 1 list)      ; (fold kons knil l ...) of SRFI 1 , kons called (kons e ... acc)
-      (fold-right       fold 1 list)
-      (reduce           reduce 1 list)    ; (reduce f ridentity l) of SRFI 1
-      (reduce-right     reduce 1 list)))
+      (fold             fold 1 list)      ; SRFI 1 , (fold kons knil l ...) , kons called (kons e ... acc)
+      (fold-right       fold 1 list)      ; SRFI 1
+      (reduce           reduce 1 list)    ; SRFI 1 , (reduce f ridentity l)
+      (reduce-right     reduce 1 list)))  ; SRFI 1
 
   ) ;; module scheme-types

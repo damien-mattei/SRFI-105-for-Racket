@@ -19,6 +19,7 @@
            Scheme+/operators
            Scheme+/type
            SRFI-105/scheme-types
+           SRFI-105/racket-types
            (only-in
             Scheme+/parse-square-brackets
             parse-square-brackets-arguments-lister-syntax)
@@ -50,7 +51,7 @@
      (λ (entry) (:= ($bracket-apply$ ht (first entry)) (rest entry)))
      entries))
   (populate-scheme-ht! scheme-ht scheme-types)
-  (:= ($bracket-apply$ scheme-ht 'sqr) '((real?) procedure? (real?)))
+  (populate-scheme-ht! scheme-ht racket-types)
   (define (scheme-return-type name)
     (and (hash-table-exists? scheme-ht name)
          (let ((rv (caar ($bracket-apply$ scheme-ht name))))
@@ -1569,6 +1570,9 @@
      (else
       (or (search-in-annot-hash-tables-list-the-type-of-return f annot-ht-lst)
           (scheme-return-type f)))))
+  (define (container-entry proc/mac)
+    (or (assq proc/mac container-procedures-types)
+        (assq proc/mac racket-container-procedures-types)))
   (define (higher-order-type
            proc/mac
            argus
@@ -1688,7 +1692,7 @@
            (:= e (et (car argus)))
            (and (known? e)
                 (if (eq? proc/mac 'vector->list) (list e) (vector e)))))
-     ((assq proc/mac container-procedures-types) => container-procedure-type)
+     ((container-entry proc/mac) => container-procedure-type)
      ((memq proc/mac '(vector list))
       (and (≥ nb 1)
            (:= types (map-in-order ft argus))
@@ -1716,7 +1720,7 @@
            ovrld-ht-proc
            annot-ht-lst)
     (declare a elts e)
-    (define entry (assq proc/mac container-procedures-types))
+    (define entry (container-entry proc/mac))
     (define (known? t) (and t (not (eq? t 'sexpr))))
     (define (et l)
       (element-type l ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
@@ -1743,7 +1747,7 @@
                 (known? e)
                 (cons (list e e) e)))))
   (define (container-higher-order? proc/mac)
-    (define entry (assq proc/mac container-procedures-types))
+    (define entry (container-entry proc/mac))
     (and entry (memq (second entry) '(fold reduce build)) #t))
   (define (specialize-higher-order
            s
@@ -1967,7 +1971,7 @@
                 ovrld-ht-proc
                 annot-ht-lst))))
         (and (container-higher-order? proc/mac)
-             (eq? (second (assq proc/mac container-procedures-types)) 'build)
+             (eq? (second (container-entry proc/mac)) 'build)
              (= (length argus) 2)
              (lambda-form? (second argus))
              (= (length (cadr (second argus))) 1)

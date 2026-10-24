@@ -36,6 +36,7 @@
            Scheme+/operators
            Scheme+/type
            SRFI-105/scheme-types ; static R7RS (scheme base)/(scheme inexact)/core-syntax type table, see scheme-types.rkt
+           SRFI-105/racket-types ; the same for the procedures of Racket not in R7RS , see racket-types.rkt
            (only-in Scheme+/parse-square-brackets parse-square-brackets-arguments-lister-syntax) ; to count the indexes of {M[i j]}
            racket/flonum
            racket/fixnum
@@ -90,8 +91,10 @@
               entries))
 
   (populate-scheme-ht! scheme-ht scheme-types) ; load all R7RS (scheme base)/(scheme inexact)/core-syntax entries
+  (populate-scheme-ht! scheme-ht racket-types) ; the procedures of Racket not in R7RS (sqr , racket/flonum , racket/fixnum ...) , see ../racket-types.rkt
 
-  {scheme-ht['sqr] := '((real?) procedure? (real?))} ; sqr is a Racket-specific alias for square, not in R7RS, so not in scheme-types
+  ; now in racket-types.rkt
+  #;{scheme-ht['sqr] := '((real?) procedure? (real?))} ; sqr is a Racket-specific alias for square, not in R7RS, so not in scheme-types
 
   ; the first return type of name in scheme-ht , #f when name is not there or when its return type is any? (the
   ; pseudo-predicate of scheme-types.rkt for any value : it is a type of parameter , as a return type it says nothing
@@ -2045,12 +2048,18 @@
                     (caar {scheme-ht[f]}))
                (scheme-return-type f)))))
 
+  ; the rule of a list or vector procedure : container-procedures-types of scheme-types.rkt (R7RS and SRFI 1) , then
+  ; racket-container-procedures-types of racket-types.rkt (Racket only) , #f if none
+  (define (container-entry proc/mac)
+    (or (assq proc/mac container-procedures-types)
+        (assq proc/mac racket-container-procedures-types)))
+
   #| typing rules of higher order and container procedures : the type of the result depends on the types of the
      elements and on the procedure passed, not only on a fixed signature from scheme-types (vector-map -> vector?) :
        (vector-map f v1 ... vn) -> #(R) , R return type of f on the element types of v1 ... vn ; (map f l ...) -> (R)
        (vector->list v) -> (E) , (list->vector l) -> #(E)
        (vector-ref v i) -> E , (list-ref l i) -> E , E element type of v/l (symmetric to vector->list/list->vector)
-       the procedures of container-procedures-types (scheme-types.rkt) : (car l) (first l) (last l) (vector-ref v i) -> E ,
+       the procedures of container-procedures-types (scheme-types.rkt) and racket-container-procedures-types (racket-types.rkt) : (car l) (first l) (last l) (vector-ref v i) -> E ,
        (cdr l) (reverse l) (filter p l) (append l ...) (vector-copy v) (sort l <) -> (E) or #(E) ,
        (make-vector n x) -> #(T) , (make-list n x) -> (T) , T type of x ,
        (build-vector n f) -> #(R) , (build-list n f) -> (R) , R return type of f on an index ℕ
@@ -2136,7 +2145,8 @@
                 (and (known? e)
                      (if (eq? proc/mac 'vector->list) (list e) (vector e)))))
           ; car , cdr , filter , append , build-vector ... (vector-ref and list-ref are now in this table)
-          ((assq proc/mac container-procedures-types) => container-procedure-type)
+          #;((assq proc/mac container-procedures-types) => container-procedure-type)
+          ((container-entry proc/mac) => container-procedure-type)
           #;((memq proc/mac '(vector-ref list-ref))
            (and {nb = 2}
                 {e := (et (car argus))}
@@ -2168,7 +2178,8 @@
      and f specialized for the first call would fail at the second |#
   (define (fold-procedure-types proc/mac argus ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
     (declare a elts e)
-    (define entry (assq proc/mac container-procedures-types))
+    #;(define entry (assq proc/mac container-procedures-types))
+    (define entry (container-entry proc/mac))
     (define (known? t) (and t (not (eq? t 'sexpr))))
     (define (et l) (element-type l ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
     (and entry
@@ -2187,7 +2198,8 @@
 
   ; the procedures of container-procedures-types that call a procedure passed : folds , reduces , build-list , build-vector
   (define (container-higher-order? proc/mac)
-    (define entry (assq proc/mac container-procedures-types))
+    #;(define entry (assq proc/mac container-procedures-types))
+    (define entry (container-entry proc/mac))
     (and entry
          (memq (second entry) '(fold reduce build))
          #t))
@@ -2324,7 +2336,7 @@
                          (recall-annot (cdr argus) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))))
         ; build-list , build-vector : the lambda called on an index ℕ
         (and (container-higher-order? proc/mac)
-             (eq? (second (assq proc/mac container-procedures-types)) 'build)
+             (eq? (second #;(assq proc/mac container-procedures-types) (container-entry proc/mac)) 'build)
              {(length argus) = 2}
              (lambda-form? (second argus))
              {(length (cadr (second argus))) = 1}
