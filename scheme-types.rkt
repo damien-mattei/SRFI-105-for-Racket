@@ -119,7 +119,8 @@
       (exact->inexact           (number?) procedure? (number?))
       (inexact->exact           (number?) procedure? (number?))
       (number->string           (string?) procedure? (number? (opt exact-integer?)))
-      (string->number           (number?) procedure? (string? (opt exact-integer?)))
+      #;(string->number           (number?) procedure? (string? (opt exact-integer?)))
+      (string->number           (any?) procedure? (string? (opt exact-integer?))) ; a number or #f ((string->number "a") is #f)
       (=                        (boolean?) procedure? (number? number? (... number?)))
       (<                        (boolean?) procedure? (real? real? (... real?)))
       (>                        (boolean?) procedure? (real? real? (... real?)))
@@ -164,12 +165,18 @@
       (list-tail (list?) procedure? (list? exact-nonnegative-integer?))
       (list-ref  (any?) procedure? (list? exact-nonnegative-integer?))
       (list-set! (void?) procedure? (list? exact-nonnegative-integer? any?))
-      (memq      (list?) procedure? (any? list?))
-      (memv      (list?) procedure? (any? list?))
-      (member    (list?) procedure? (any? list? (opt procedure?)))
-      (assq      (pair?) procedure? (any? list?))
-      (assv      (pair?) procedure? (any? list?))
-      (assoc     (pair?) procedure? (any? list? (opt procedure?)))
+      #;(memq      (list?) procedure? (any? list?))
+      (memq      (any?) procedure? (any? list?)) ; a list or #f , any? : #f is not a list?
+      #;(memv      (list?) procedure? (any? list?))
+      (memv      (any?) procedure? (any? list?)) ; a list or #f , any? : #f is not a list?
+      #;(member    (list?) procedure? (any? list? (opt procedure?)))
+      (member    (any?) procedure? (any? list? (opt procedure?))) ; a list or #f , any? : #f is not a list?
+      #;(assq      (pair?) procedure? (any? list?))
+      (assq      (any?) procedure? (any? list?)) ; a pair or #f , any? : #f is not a pair?
+      #;(assv      (pair?) procedure? (any? list?))
+      (assv      (any?) procedure? (any? list?)) ; a pair or #f , any? : #f is not a pair?
+      #;(assoc     (pair?) procedure? (any? list? (opt procedure?)))
+      (assoc     (any?) procedure? (any? list? (opt procedure?))) ; a pair or #f , any? : #f is not a pair?
       (list-copy (list?) procedure? (list?))
 
       ;; ---------------------------------------------------------------
@@ -410,6 +417,57 @@
       ;; =================================================================
 
       (void             (void?) procedure? ((... any?)))
+
+      ;; the flonums (racket/flonum) not in the tables of annot+.rkt : out of their domain they return +nan.0 , never a
+      ;; complex ((flsqrt -1.0) is +nan.0)
+      (flsqrt           (flonum?) procedure? (flonum?))
+      (fllog            (flonum?) procedure? (flonum?))
+      (flasin           (flonum?) procedure? (flonum?))
+      (flacos           (flonum?) procedure? (flonum?))
+      (flexpt           (flonum?) procedure? (flonum? flonum?))
+      (->fl             (flonum?) procedure? (exact-integer?))
+      (flvector-ref     (flonum?) procedure? (flvector? exact-nonnegative-integer?))
+      (flrandom         (flonum?) procedure? (pseudo-random-generator?))
+      (flvector-length  (fixnum?) procedure? (flvector?))
+      (fl->exact-integer (exact-integer?) procedure? (flonum?)) ; an exact-integer? , not a fixnum? : (fl->exact-integer 1e30)
+      (fl=              (boolean?) procedure? (flonum? (... flonum?)))
+      (fl<              (boolean?) procedure? (flonum? (... flonum?)))
+      (fl>              (boolean?) procedure? (flonum? (... flonum?)))
+      (fl<=             (boolean?) procedure? (flonum? (... flonum?)))
+      (fl>=             (boolean?) procedure? (flonum? (... flonum?)))
+
+      ;; the fixnums (racket/fixnum) not in the tables of annot+.rkt
+      (fl->fx           (fixnum?) procedure? (flonum?)) ; truncates
+      (fxand            (fixnum?) procedure? ((... fixnum?)))
+      (fxior            (fixnum?) procedure? ((... fixnum?)))
+      (fxxor            (fixnum?) procedure? ((... fixnum?)))
+      (fxnot            (fixnum?) procedure? (fixnum?))
+      (fxlshift         (fixnum?) procedure? (fixnum? fixnum?))
+      (fxrshift         (fixnum?) procedure? (fixnum? fixnum?))
+      (fxvector-ref     (fixnum?) procedure? (fxvector? exact-nonnegative-integer?))
+      (fxvector-length  (fixnum?) procedure? (fxvector?))
+      (fx=              (boolean?) procedure? (fixnum? (... fixnum?)))
+      (fx<              (boolean?) procedure? (fixnum? (... fixnum?)))
+      (fx>              (boolean?) procedure? (fixnum? (... fixnum?)))
+      (fx<=             (boolean?) procedure? (fixnum? (... fixnum?)))
+      (fx>=             (boolean?) procedure? (fixnum? (... fixnum?)))
+
+      ;; the byte strings of Racket (the bytevectors of R7RS above are not in racket) : a length in memory is a fixnum , a
+      ;; byte is 0 to 255
+      (bytes-length     (fixnum?) procedure? (bytes?))
+      (bytes-ref        (fixnum?) procedure? (bytes? exact-nonnegative-integer?))
+
+      ;; the exact roundings (racket/math) : an error for +inf.0 and +nan.0 , an exact integer otherwise
+      (exact-round      (exact-integer?) procedure? (rational?))
+      (exact-floor      (exact-integer?) procedure? (rational?))
+      (exact-ceiling    (exact-integer?) procedure? (rational?))
+      (exact-truncate   (exact-integer?) procedure? (rational?))
+
+      ;; the bits of the exact integers
+      (bitwise-and      (exact-integer?) procedure? ((... exact-integer?)))
+      (bitwise-ior      (exact-integer?) procedure? ((... exact-integer?)))
+      (bitwise-xor      (exact-integer?) procedure? ((... exact-integer?)))
+      (arithmetic-shift (exact-integer?) procedure? (exact-integer? exact-integer?))
 
       ))
 

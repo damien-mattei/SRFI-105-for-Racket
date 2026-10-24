@@ -9,17 +9,19 @@
 ;; It reports also the inconsistencies (X and orig-X , binary and n-ary , the tables written twice in the source) and ,
 ;; for the operators , the couples of types without a row , with the return type that the oracle finds always true.
 ;;
-;; racket check.rkt [path-of-bootstrapping/annot+.rkt]
+;; racket check.rkt [path-of-bootstrapping/annot+.rkt (or "" for the installed one) [converted file or directory]]
+;;   the converted files (Racket code written by curly-infix2prefix4racket.rkt) give the procedures of Racket called
+;;   without any return type in the tables
 ;;
 ;; Author: Damien Mattei
 
-(require racket/list racket/string racket/file racket/format
+(require racket/list racket/string racket/file racket/format racket/flonum racket/fixnum racket/port
          (only-in srfi/69 hash-table-ref hash-table-keys hash-table-exists?)
          SRFI-105/annot+
          SRFI-105/scheme-types)
 
 (define source (let ((args (current-command-line-arguments)))
-                 (if (> (vector-length args) 0)
+                 (if (and (> (vector-length args) 0) (not (string=? (vector-ref args 0) "")))
                      (vector-ref args 0)
                      (path->string (collection-file-path "bootstrapping/annot+.rkt" "SRFI-105")))))
 
@@ -45,6 +47,7 @@
 (define (predicate-of type)
   (case type
     ((natural-fixnum?) (λ (x) (and (fixnum? x) (>= x 0))))
+    ((any?) (λ (x) #t)) ; the pseudo-predicate of scheme-types.rkt
     (else (value-of type))))
 
 ;; the values : the small ones , and the large fixnums (an overflow of a fixnum is a known risk of fx+ , fx* ...)
@@ -92,7 +95,7 @@
 
 ;; an exponentiation with a large exact exponent does not end ((expt 2^70 2^70) , or (** 100 100 100) that is
 ;; 100^(100^100)) : the exponents are kept small and the powers have two arguments at most
-(define power-keys '(** expt orig-** orig-expt))
+(define power-keys '(** expt orig-** orig-expt arithmetic-shift)) ; (arithmetic-shift 1 2^70) does not end too
 
 (define (safe-args? key args)
   (or (not (memq key power-keys))
@@ -119,18 +122,7 @@
 
 (define (param-base p) (if (pair? p) (second p) p))
 
-(define (scheme-type-argument-lists params)
-  (define required (filter symbol? params))
-  (define optional (filter (λ (p) (and (pair? p) (eq? (first p) 'opt))) params))
-  (define rest (filter (λ (p) (and (pair? p) (eq? (first p) '...))) params))
-  (define (types-lists)
-    (append (list required)
-            (for/list ((i (in-range 1 (add1 (length optional)))))
-              (append required (map second (take optional i))))
-            (if (null? rest) '()
-                (list (append required (list (second (car rest))))
-                      (append required (list (second (car rest)) (second (car rest))))))))
-  (append* (map (λ (ts) (argument-lists ts #f small-values)) (types-lists))))
+(define (scheme-type-argument-lists params) (scheme-type-argument-lists* params small-values))
 
 (define (check-scheme-types)
   (for ((entry scheme-types))
@@ -143,7 +135,7 @@
                (not (memq 'any? rets)))
       (define preds (map predicate-of rets))
       (define bad
-        (for/first ((args (scheme-type-argument-lists params))
+        (for/first ((args (filter (λ (a) (safe-args? name a)) (scheme-type-argument-lists params)))
                     #:when (with-handlers ((exn:fail? (λ (e) #f)))
                              (define vs (call-with-values (λ () (apply proc args)) list))
                              (not (and (= (length vs) (length preds))
@@ -151,6 +143,147 @@
           (format "(~a ~a) = ~s is not ~a" name (show-args args)
                   (call-with-values (λ () (apply proc args)) list) rets)))
       (when bad (report! 'scheme-types name entry bad)))))
+
+;; the other procedures of scheme-types.rkt (lists , strings , characters , vectors , ports ...) : only the first return
+;; type is read by annot+.rkt (scheme-return-type) , any? says nothing ; the procedures returning void? (side effects :
+;; display , set-car! ...) and the macros are not called ; the sizes are small (make-list of 2^70 would not end)
+(define (other-values)
+  (list 0 1 2 7 -1 1.5 -2.0 1/2
+        #t #f "" "abc" #\a #\é 'a 'abc
+        '() '(1 2 3) '(1.0 2.0) '(a b) '((a . 1) (b . 2)) '(1 . 2)
+        (vector) (vector 1 2 3) (vector 1.0 2.0)
+        values (λ (x) x) char<? <
+        (open-input-string "ab") (open-output-string) eof
+        (flvector 1.0 2.0) (fxvector 1 2) (bytes 1 255) (make-pseudo-random-generator)))
+
+(define (check-scheme-types-others)
+  (for ((entry scheme-types))
+    (define name (first entry))
+    (define rets (second entry))
+    (define kind (third entry))
+    (define params (fourth entry))
+    (define proc (value-of name))
+    (cond
+      ((not (eq? kind 'procedure?)))
+      ((andmap (λ (p) (memq (param-base p) numeric-types)) params)) ; checked by check-scheme-types
+      ((memq (car rets) '(any? void?)))
+      ((not proc) (report! 'scheme-types-unbound name entry (format "~a is not bound in racket" name)))
+      ((not (predicate-of (car rets))) (report! 'scheme-types-unbound name entry (format "return type ~a unbound" (car rets))))
+      (else
+       (define ret? (predicate-of (car rets)))
+       (define arg-lists (parameterize ((current-output-port (open-output-nowhere)))
+                           (scheme-type-argument-lists* params (other-values))))
+       (define applicable 0)
+       (define bad
+         (for/first ((args arg-lists)
+                     #:when (let ((r (parameterize ((current-output-port (open-output-nowhere))) (call proc args))))
+                              (unless (error-result? r) (set! applicable (add1 applicable)))
+                              (and (not (error-result? r)) (not (ret? r)))))
+           (format "(~a ~a) = ~s is not ~a" name (show-args args) (call proc args) (car rets))))
+       (cond (bad (report! 'scheme-types-others name entry bad))
+             ((zero? applicable) (report! 'scheme-types-untested name entry "no value of the pool is accepted")))))))
+
+(define (scheme-type-argument-lists* params pool) ; the required parameters , then each optional one , then 1 and 2 rest ones
+  (define required (filter symbol? params))
+  (define optional (filter (λ (p) (and (pair? p) (eq? (first p) 'opt))) params))
+  (define rest (filter (λ (p) (and (pair? p) (eq? (first p) '...))) params))
+  (define (types-lists)
+    (append (list required)
+            (for/list ((i (in-range 1 (add1 (length optional)))))
+              (append required (map second (take optional i))))
+            (if (null? rest) '()
+                (list (append required (list (second (car rest))))
+                      (append required (list (second (car rest)) (second (car rest))))))))
+  (append* (map (λ (ts) (argument-lists ts #f pool)) (types-lists))))
+
+;; container-procedures-types (scheme-types.rkt) : each rule is applied to lists and vectors of floats and of fixnums ,
+;; the result must have the type the rule gives : an element E (element) , a container of E (same) , of the fill value
+;; (fill) , of the values of the procedure (build) , the type of the accumulator (fold , reduce)
+(define srfi-1-names '(delete-duplicates delete fold fold-right reduce reduce-right list-copy))
+
+(define (container-procedure name)
+  (if (memq name srfi-1-names)
+      (dynamic-require 'srfi/1 name)
+      (value-of name)))
+
+(define element-kinds ; the type of the elements , the elements , a procedure ℕ -> E , a + on E , its neutral element
+  (list (list 'flonum? '(1.5 -2.0 3.0 0.5 -4.0) fx->fl fl+ 0.0) ; 5 elements for fifth
+        (list 'fixnum? '(3 -1 2 5 -4) add1 fx+ 0)))
+
+(define (check-container-procedures)
+  (for ((entry container-procedures-types))
+    (define name (first entry))
+    (define rule (second entry))
+    (define pos (third entry))
+    (define kind (fourth entry))
+    (define proc (container-procedure name))
+    (if (not proc)
+        (report! 'container-unbound name entry (format "~a is not bound in racket nor in srfi/1" name))
+        (for ((ek element-kinds))
+          (define-values (type elts to-e plus zero) (apply values ek))
+          (define e? (predicate-of type))
+          (define c (if (eq? kind 'vector) (list->vector elts) elts))
+          (define (container-of-e? r) ; a container of the kind of the entry , its elements of type E
+            (and (if (eq? kind 'vector) (vector? r) (list? r))
+                 (andmap e? (if (vector? r) (vector->list r) r))))
+          (define-values (args ok?)
+            (case rule
+              ((element same)
+               (define args
+                 (cond ((eq? pos 'all) (list c c))
+                       ((= pos 1) (list (case name
+                                          ((argmin argmax vector-argmin vector-argmax) (λ (x) x))
+                                          ((filter vector-filter) positive?)
+                                          (else (car elts))) ; remove , remq , remv , delete : an element
+                                        c))
+                       ((memq name '(list-ref list-tail take drop take-right drop-right vector-ref vector-take vector-drop))
+                        (list c 1))
+                       ((memq name '(sort vector-sort)) (list c <))
+                       (else (list c))))
+               (values args (if (eq? rule 'element) e? container-of-e?)))
+              ((fill) (values (list 3 (car elts)) container-of-e?))
+              ((build) (values (list 3 to-e) container-of-e?))
+              ((fold) (values (list plus zero c) e?))
+              ((reduce) (values (list plus zero c) e?))))
+          (define r (call proc args))
+          (when (or (error-result? r) (not (ok? r)))
+            (report! 'container name entry (format "(~a ~a) = ~s : not the type of the rule ~a with elements ~a"
+                                                   name (show-args args) r rule type)))
+          ;; the empty list of a reduce : ridentity
+          (when (eq? rule 'reduce)
+            (define r0 (call proc (list plus zero '())))
+            (unless (and (not (error-result? r0)) (e? r0))
+              (report! 'container name entry (format "(~a ~a ~a '()) = ~s" name plus zero r0))))))))
+
+;; the procedures of Racket called in converted programs (the Racket code written by the converter , one file or a
+;; directory of files) without any return type : not in scheme-types.rkt , not in the tables of annot+.rkt , not in
+;; container-procedures-types ; with the number of calls
+(define (check-usage dir)
+  (define files (if (directory-exists? dir)
+                    (for/list ((f (directory-list dir #:build? #t)) #:unless (regexp-match? #px"\\.exit$" (path->string f))) f)
+                    (list dir)))
+  (define counts (make-hasheq))
+  (define (walk x) ; the quoted data are not calls (the tables of annot+.rkt)
+    (cond ((and (pair? x) (memq (car x) '(quote quasiquote))))
+          ((pair? x)
+           (when (symbol? (car x)) (hash-update! counts (car x) add1 0))
+           (when (list? x) (for-each walk x)))
+          ((vector? x) (for ((y x)) (walk y)))))
+  (for ((f files))
+    (with-handlers ((exn:fail? (λ (e) (printf "  (~a : ~a)\n" f (car (string-split (exn-message e) "\n"))))))
+      (with-input-from-file f
+        (λ () (parameterize ((read-accept-reader #t) (read-accept-lang #t))
+                (let loop () (define d (read)) (unless (eof-object? d) (walk d) (loop))))))))
+  (define typed (append (map first scheme-types) (map first container-procedures-types)
+                        (hash-table-keys ovrld-ht) (hash-table-keys ovrld-ht-n-ary)
+                        '(sqr vector-map map vector->list list->vector vector list apply)))
+  (define untyped
+    (for/list (((name n) counts)
+               #:unless (memq name typed)
+               #:when (let ((v (value-of name))) (and (procedure? v) (not (struct-constructor-procedure? v)))))
+      (cons name n)))
+  (for ((p (sort untyped > #:key cdr)) (i (in-naturals)) #:when (< i 60))
+    (report! 'usage (car p) #f (format "~a calls" (cdr p)))))
 
 ;; check of one row
 (define (check-row key row n-ary?)
@@ -268,7 +401,13 @@
     (inconsistent . "Inconsistencies between X and orig-X")
     (duplicate . "Tables written several times in the source")
     (missing . "Couples of types without a row (fixnum? flonum? exact-integer?) , with the return type of the oracle")
-    (scheme-types . "scheme-types.rkt : wrong return types of the numeric procedures (small values)")))
+    (scheme-types . "scheme-types.rkt : wrong return types of the numeric procedures (small values)")
+    (scheme-types-others . "scheme-types.rkt : wrong return types of the other procedures")
+    (scheme-types-unbound . "scheme-types.rkt : names not bound in racket")
+    (scheme-types-untested . "scheme-types.rkt : procedures not tested (no value of the pool)")
+    (container-unbound . "container-procedures-types : names not bound")
+    (container . "container-procedures-types : results not of the type of the rule")
+    (usage . "Procedures of Racket called in the converted files without any return type (the 60 most called)")))
 
 (check-table ovrld-ht #f)
 (check-table ovrld-ht-n-ary #t)
@@ -277,6 +416,10 @@
 (check-duplicates)
 (check-completeness)
 (check-scheme-types)
+(check-scheme-types-others)
+(check-container-procedures)
+(let ((args (current-command-line-arguments)))
+  (when (> (vector-length args) 1) (check-usage (vector-ref args 1))))
 
 (printf "Source : ~a\n~a binary keys , ~a n-ary keys\n" source (length (keys ovrld-ht)) (length (keys ovrld-ht-n-ary)))
 (for ((t titles))

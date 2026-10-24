@@ -200,6 +200,14 @@
                                  [(fixnum?) square (fixnum?)])}
          {ovrld-ht['sqr] := '([(flonum?) sqr (flonum?)]
                               [(fixnum?) sqr (fixnum?)])}
+         ; add1 and sub1 of Racket : the procedure is kept , only the type is given (as fx+ , an add1 too big for a fixnum
+         ; is an error of the next fx operation)
+         {ovrld-ht['add1] := '([(flonum?) add1 (flonum?)]
+                               [(fixnum?) add1 (fixnum?)]
+                               [(exact-integer?) add1 (exact-integer?)])}
+         {ovrld-ht['sub1] := '([(flonum?) sub1 (flonum?)]
+                               [(fixnum?) sub1 (fixnum?)]
+                               [(exact-integer?) sub1 (exact-integer?)])}
 
          ; the specialized procedures themselves , for the type of an argument already rewritten : (fl* (flsin x) 2.0)
          {ovrld-ht['flfloor] := '([(flonum?) flfloor (flonum?)])}

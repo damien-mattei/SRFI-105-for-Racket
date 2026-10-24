@@ -152,6 +152,16 @@
           ($bracket-apply$ ovrld-ht 'sqr)
           '(((flonum?) sqr (flonum?)) ((fixnum?) sqr (fixnum?))))
          (:=
+          ($bracket-apply$ ovrld-ht 'add1)
+          '(((flonum?) add1 (flonum?))
+            ((fixnum?) add1 (fixnum?))
+            ((exact-integer?) add1 (exact-integer?))))
+         (:=
+          ($bracket-apply$ ovrld-ht 'sub1)
+          '(((flonum?) sub1 (flonum?))
+            ((fixnum?) sub1 (fixnum?))
+            ((exact-integer?) sub1 (exact-integer?))))
+         (:=
           ($bracket-apply$ ovrld-ht 'flfloor)
           '(((flonum?) flfloor (flonum?))))
          (:=
