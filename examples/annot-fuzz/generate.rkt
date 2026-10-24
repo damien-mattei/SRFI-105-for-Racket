@@ -54,8 +54,8 @@
   (case (if (and false-types? (eq? ty 'fx) (chance false-p)) 'false (if (eq? ty 'cnt) 'nat ty))
     ((false) 'flonum?)                ; a fixnum declared flonum? : only with FUZZ_FALSE_TYPES
     ((nat) (pick '(ℕ fixnum? ℤ)))     ; a natural is also a fixnum
-    ((fx) (pick '(fixnum? ℤ)))
-    ((fl) (pick '(flonum? ℝ)))
+    ((fx) (pick '(fixnum? ℤ fixnum? ℤ exact-integer?))) ; exact-integer? : a true declaration , less precise
+    ((fl) (pick '(flonum? ℝ flonum? ℝ real?)))          ; real? : a true declaration , less precise
     ((vfl) (pick '("#(flonum?)" "#(ℝ)" vector?)))
     ((vfx) (pick '("#(fixnum?)" vector?)))
     ((mfl) (pick '("#(#(flonum?))" "#(#(ℝ))" vector?)))
@@ -117,7 +117,10 @@
                           (λ () (ex 'fx 'ref (list (gen-vec-var 'vfx env d fenv) (gen-index env d))))
                           (λ () (ex 'fx 'call (list 'twice (sub 'fx))))     ; an overloaded procedure
                           (λ () (gen-element 'fx env d fenv))
-                          (λ () (gen-fold 'fx env d fenv))))
+                          (λ () (gen-fold 'fx env d fenv))
+                          ;; fx+ ... written in the program : typed fixnum? whatever the types of the arguments
+                          (λ () (ex 'fx 'call (list (pick '(fx+ fx-)) (sub 'fx) (sub 'fx))))
+                          (λ () (ex 'fx 'call (list 'fx* (sub 'fx) (lit-of 'fx))))))
               ((fl) (list (λ () (bin '+ 'fl))
                           (λ () (bin '- 'fl))
                           (λ () (ex 'fl 'op (list '* (chance 0.6) (sub 'fl) (lit-of 'fl))))
@@ -130,10 +133,15 @@
                           (λ () (ex 'fl 'refref (list (gen-vec-var 'mfl env d fenv) (gen-index env d) (gen-index env d)))) ; M[i][j]
                           (λ () (ex 'fl 'call (list 'twice (sub 'fl))))
                           (λ () (gen-element 'fl env d fenv))
-                          (λ () (gen-fold 'fl env d fenv))))
+                          (λ () (gen-fold 'fl env d fenv))
+                          ;; fl+ ... written in the program : typed flonum? whatever the types of the arguments
+                          (λ () (ex 'fl 'call (list (pick '(fl+ fl- fl*)) (sub 'fl) (sub 'fl))))
+                          (λ () (ex 'fl 'call (list 'fl/ (sub 'fl) (ex 'fl 'lit '(2.0)))))))
               ((bool) (list (λ () (let ((t (pick '(fx fl nat))))
                                     (ex 'bool 'op (list (pick '(< > = <=)) (chance 0.6) (sub t) (sub t)))))
                             (λ () (ex 'bool 'call (list 'not (sub 'bool))))
+                            (λ () (ex 'bool 'call (list (pick '(fl< fl= fl<=)) (sub 'fl) (sub 'fl))))
+                            (λ () (ex 'bool 'call (list (pick '(fx< fx= fx<=)) (sub 'fx) (sub 'fx))))
                             (λ () (ex 'bool 'call (list 'char=? (sub 'chr) (sub 'chr))))))
               ((chr) (list (λ () (lit-of 'chr))
                            (λ () (ex 'chr 'ref (list (gen-vec-var 'str env d fenv) (gen-index env d))))))

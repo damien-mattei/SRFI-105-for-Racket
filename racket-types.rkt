@@ -45,6 +45,12 @@
 
       ;; the flonums (racket/flonum) not in the tables of annot+.rkt : out of their domain they return +nan.0 , never a
       ;; complex ((flsqrt -1.0) is +nan.0)
+      ;; the arithmetic : the tables of annot+.rkt keep only the rows of flonums , the return type is given here for all the
+      ;; arguments (fl+ returns a flonum or raises an error)
+      (fl+              (flonum?) procedure? ((... flonum?)))
+      (fl-              (flonum?) procedure? (flonum? (... flonum?)))
+      (fl*              (flonum?) procedure? ((... flonum?)))
+      (fl/              (flonum?) procedure? (flonum? (... flonum?)))
       (flsqrt           (flonum?) procedure? (flonum?))
       (fllog            (flonum?) procedure? (flonum?))
       (flasin           (flonum?) procedure? (flonum?))
@@ -62,6 +68,11 @@
       (fl>=             (boolean?) procedure? (flonum? (... flonum?)))
 
       ;; the fixnums (racket/fixnum) not in the tables of annot+.rkt
+      ;; the arithmetic : the tables of annot+.rkt keep only the rows of fixnums , the return type is given here for all the
+      ;; arguments (fx+ returns a fixnum or raises an error , as on a bignum : the annotation does not change it in orig-+)
+      (fx+              (fixnum?) procedure? ((... fixnum?)))
+      (fx-              (fixnum?) procedure? (fixnum? (... fixnum?)))
+      (fx*              (fixnum?) procedure? ((... fixnum?)))
       (fl->fx           (fixnum?) procedure? (flonum?)) ; truncates
       (fxand            (fixnum?) procedure? ((... fixnum?)))
       (fxior            (fixnum?) procedure? ((... fixnum?)))

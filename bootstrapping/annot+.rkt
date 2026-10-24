@@ -946,37 +946,39 @@
          ;; uncomment below if you want args-types-after-annot being displayed
 
          ; now flonum  overload with itself !!!
+         ; only the row of flonums is kept : the other rows gave only the return type flonum? , that racket-types.rkt gives
+         ; now for all the arguments (fl+ returns a flonum or raises an error)
          {ovrld-ht['fl+] := '(#;[(flonum?) fl+ (fixnum? fixnum?)]
                              #;[(flonum?) fl+ (exact-integer? fixnum?)]
                              #;[(flonum?) fl+ (fixnum? exact-integer?)]
                              #;[(flonum?) fl+ (exact-integer? exact-integer?)]
-                             [(flonum?) fl+ (integer? integer?)]
-                             [(flonum?) fl+ (number? number?)]
+                             #;[(flonum?) fl+ (integer? integer?)]
+                             #;[(flonum?) fl+ (number? number?)]
                              [(flonum?) fl+ (flonum? flonum?)]
                               ;[(flonum?) fl+ (integer? flonum?)]
                               ;[(flonum?) fl+ (flonum? integer?)]
-                             [(flonum?) fl+ (real? real?)]
-                             [(flonum?) fl+ (rational? rational?)] ; error !
-                             [(flonum?) fl+ (complex? complex?)] ; error
-                             [(flonum?) fl+ (inexact? number?)]
-                             [(flonum?) fl+ (number? inexact?)]
-                             [(flonum?) fl+ (inexact? inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
+                             #;[(flonum?) fl+ (real? real?)]
+                             #;[(flonum?) fl+ (rational? rational?)] ; error !
+                             #;[(flonum?) fl+ (complex? complex?)] ; error
+                             #;[(flonum?) fl+ (inexact? number?)]
+                             #;[(flonum?) fl+ (number? inexact?)]
+                             #;[(flonum?) fl+ (inexact? inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
          {ovrld-ht['fl-] := '(#;[(flonum?) fl- (fixnum? fixnum?)]
                              #;[(flonum?) fl- (exact-integer? fixnum?)]
                              #;[(flonum?) fl- (fixnum? exact-integer?)]
                              #;[(flonum?) fl- (exact-integer? exact-integer?)]
-                             [(flonum?) fl- (integer? integer?)]
-                             [(flonum?) fl- (number? number?)]
+                             #;[(flonum?) fl- (integer? integer?)]
+                             #;[(flonum?) fl- (number? number?)]
                              [(flonum?) fl- (flonum? flonum?)]
                               ;[(flonum?) fl- (integer? flonum?)]
                               ;[(flonum?) fl- (flonum? integer?)]
-                             [(flonum?) fl- (real? real?)]
-                             [(flonum?) fl- (rational? rational?)] ; error !
-                             [(flonum?) fl- (complex? complex?)] ; error
-                             [(flonum?) fl- (inexact? number?)]
-                             [(flonum?) fl- (number? inexact?)]
-                             [(flonum?) fl- (inexact? inexact?)] ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
+                             #;[(flonum?) fl- (real? real?)]
+                             #;[(flonum?) fl- (rational? rational?)] ; error !
+                             #;[(flonum?) fl- (complex? complex?)] ; error
+                             #;[(flonum?) fl- (inexact? number?)]
+                             #;[(flonum?) fl- (number? inexact?)]
+                             #;[(flonum?) fl- (inexact? inexact?)] ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
                              )} 
 
 
@@ -985,17 +987,17 @@
                              #;[(flonum?) fl/ (exact-integer? fixnum?)]
                              #;[(flonum?) fl/ (fixnum? exact-integer?)]
                              #;[(flonum?) fl/ (exact-integer? exact-integer?)]
-                             [(flonum?) fl/ (integer? integer?)]
-                             [(flonum?) fl/ (number? number?)]
+                             #;[(flonum?) fl/ (integer? integer?)]
+                             #;[(flonum?) fl/ (number? number?)]
                              [(flonum?) fl/ (flonum? flonum?)]
                               ;[(flonum?) fl/ (integer? flonum?)]
                               ;[(flonum?) fl/ (flonum? integer?)]
-                             [(flonum?) fl/ (real? real?)]
-                             [(flonum?) fl/ (rational? rational?)] ; error !
-                             [(flonum?) fl/ (complex? complex?)] ; error
-                             [(flonum?) fl/ (inexact? number?)]
-                             [(flonum?) fl/ (number? inexact?)]
-                             [(flonum?) fl/ (inexact? inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
+                             #;[(flonum?) fl/ (real? real?)]
+                             #;[(flonum?) fl/ (rational? rational?)] ; error !
+                             #;[(flonum?) fl/ (complex? complex?)] ; error
+                             #;[(flonum?) fl/ (inexact? number?)]
+                             #;[(flonum?) fl/ (number? inexact?)]
+                             #;[(flonum?) fl/ (inexact? inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
 
 
@@ -1005,71 +1007,73 @@
                              #;[(flonum?) fl* (exact-integer? fixnum?)]
                              #;[(flonum?) fl* (fixnum? exact-integer?)]
                              #;[(flonum?) fl* (exact-integer? exact-integer?)]
-                             [(flonum?) fl* (integer? integer?)]
-                             [(flonum?) fl* (number? number?)]
+                             #;[(flonum?) fl* (integer? integer?)]
+                             #;[(flonum?) fl* (number? number?)]
                              [(flonum?) fl* (flonum? flonum?)]
                               ;[(flonum?) fl* (integer? flonum?)]
                               ;[(flonum?) fl* (flonum? integer?)]
-                             [(flonum?) fl* (real? real?)]
-                             [(flonum?) fl* (rational? rational?)] ; error !
-                             [(flonum?) fl* (complex? complex?)] ; error
-                             [(flonum?) fl* (inexact? number?)]
-                             [(flonum?) fl* (number? inexact?)]
-                             [(flonum?) fl* (inexact? inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
+                             #;[(flonum?) fl* (real? real?)]
+                             #;[(flonum?) fl* (rational? rational?)] ; error !
+                             #;[(flonum?) fl* (complex? complex?)] ; error
+                             #;[(flonum?) fl* (inexact? number?)]
+                             #;[(flonum?) fl* (number? inexact?)]
+                             #;[(flonum?) fl* (inexact? inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
 
 
          {ovrld-ht-n-ary['fl+] := '(#;[(flonum?) fl+ (fixnum?)]
                                      #;[(flonum?) fl+ (exact-integer?)]
-                                     [(flonum?) fl+ (integer?)]
-                                     [(flonum?) fl+ (number?)]
+                                     #;[(flonum?) fl+ (integer?)]
+                                     #;[(flonum?) fl+ (number?)]
                                      [(flonum?) fl+ (flonum?)]
-                                     [(flonum?) fl+ (real?)]
-                                     [(flonum?) fl+ (rational?)] ; error !
-                                     [(flonum?) fl+ (complex?)] ; error ;
-                                     [(flonum?) fl+ (inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
+                                     #;[(flonum?) fl+ (real?)]
+                                     #;[(flonum?) fl+ (rational?)] ; error !
+                                     #;[(flonum?) fl+ (complex?)] ; error ;
+                                     #;[(flonum?) fl+ (inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
          {ovrld-ht-n-ary['fl-] := '(#;[(flonum?) fl- (fixnum?)]
                                      #;[(flonum?) fl- (exact-integer?)]
-                                     [(flonum?) fl- (integer?)]
-                                     [(flonum?) fl- (number?)]
+                                     #;[(flonum?) fl- (integer?)]
+                                     #;[(flonum?) fl- (number?)]
                                      [(flonum?) fl- (flonum?)]
-                                     [(flonum?) fl- (real?)]
-                                     [(flonum?) fl- (rational?)] ; error !
-                                     [(flonum?) fl- (complex?)] ; error ;
-                                     [(flonum?) fl- (inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
+                                     #;[(flonum?) fl- (real?)]
+                                     #;[(flonum?) fl- (rational?)] ; error !
+                                     #;[(flonum?) fl- (complex?)] ; error ;
+                                     #;[(flonum?) fl- (inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
 
 
          {ovrld-ht-n-ary['fl/] := '(#;[(flonum?) fl/ (fixnum?)]
                                      #;[(flonum?) fl/ (exact-integer?)]
-                                     [(flonum?) fl/ (integer?)]
-                                     [(flonum?) fl/ (number?)]
+                                     #;[(flonum?) fl/ (integer?)]
+                                     #;[(flonum?) fl/ (number?)]
                                      [(flonum?) fl/ (flonum?)]
-                                     [(flonum?) fl/ (real?)]
-                                     [(flonum?) fl/ (rational?)] ; error !
-                                     [(flonum?) fl/ (complex?)] ; error ;
-                                     [(flonum?) fl/ (inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
+                                     #;[(flonum?) fl/ (real?)]
+                                     #;[(flonum?) fl/ (rational?)] ; error !
+                                     #;[(flonum?) fl/ (complex?)] ; error ;
+                                     #;[(flonum?) fl/ (inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
 
 
          {ovrld-ht-n-ary['fl*] := '(#;[(flonum?) fl* (fixnum?)]
                                      #;[(flonum?) fl* (exact-integer?)]
-                                     [(flonum?) fl* (integer?)]
-                                     [(flonum?) fl* (number?)]
+                                     #;[(flonum?) fl* (integer?)]
+                                     #;[(flonum?) fl* (number?)]
                                      [(flonum?) fl* (flonum?)]
-                                     [(flonum?) fl* (real?)]
-                                     [(flonum?) fl* (rational?)] ; error !
-                                     [(flonum?) fl* (complex?)] ; error ;
-                                     [(flonum?) fl* (inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
+                                     #;[(flonum?) fl* (real?)]
+                                     #;[(flonum?) fl* (rational?)] ; error !
+                                     #;[(flonum?) fl* (complex?)] ; error ;
+                                     #;[(flonum?) fl* (inexact?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
          ; fixnums :
 
          ;; ; now fixnum  overload with itself !!!
+         ; the rows of exact integers are commented : they rewrote a fx+ written by the programmer on a bignum in orig-+ ,
+         ; a value with the annotation where Racket raises an error without it ; the return type of fx+ is in racket-types.rkt
          {ovrld-ht['fx+] := '([(fixnum?) fx+ (fixnum? fixnum?)]
-                              [(exact-integer?) orig-+ (exact-integer? fixnum?)]
-                              [(exact-integer?) orig-+ (fixnum? exact-integer?)] ; if you got an exact-integer? it is that it is bigger than fixnum? so the result should be exact-integer? and not fixnum? (fixnum? is a subset of exact-integer?)
-                              [(exact-integer?) orig-+ (exact-integer? exact-integer?)]
+                              #;[(exact-integer?) orig-+ (exact-integer? fixnum?)]
+                              #;[(exact-integer?) orig-+ (fixnum? exact-integer?)] ; if you got an exact-integer? it is that it is bigger than fixnum? so the result should be exact-integer? and not fixnum? (fixnum? is a subset of exact-integer?)
+                              #;[(exact-integer?) orig-+ (exact-integer? exact-integer?)]
                               ;;;;;;[(flonum?) orig-+ (flonum? exact-integer?)]
                               ;; [(fixnum?) fx+ (integer? integer?)] ; error for a lot of commented items:
                               ;; [(fixnum?) fx+ (number? number?)]
@@ -1085,9 +1089,9 @@
                               )} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
          {ovrld-ht['fx-] := '([(fixnum?) fx- (fixnum? fixnum?)]
-                              [(exact-integer?) orig-- (exact-integer? fixnum?)]
-                              [(exact-integer?) orig-- (fixnum? exact-integer?)] ; if you got an exact-integer? it is that it is bigger than fixnum? so the result should be exact-integer? and not fixnum? (fixnum? is a subset of exact-integer?)
-                              [(exact-integer?) orig-- (exact-integer? exact-integer?)]
+                              #;[(exact-integer?) orig-- (exact-integer? fixnum?)]
+                              #;[(exact-integer?) orig-- (fixnum? exact-integer?)] ; if you got an exact-integer? it is that it is bigger than fixnum? so the result should be exact-integer? and not fixnum? (fixnum? is a subset of exact-integer?)
+                              #;[(exact-integer?) orig-- (exact-integer? exact-integer?)]
                               ;; [(fixnum?) fx- (integer? integer?)] ; error for a lot of commented items:
                               ;; [(fixnum?) fx- (number? number?)]
                               ;; [(fixnum?) fx- (flonum? flonum?)]
@@ -1103,9 +1107,9 @@
          
       
          {ovrld-ht['fx*] := '([(fixnum?) fx* (fixnum? fixnum?)]
-                              [(exact-integer?) orig-* (exact-integer? fixnum?)]
-                              [(exact-integer?) orig-* (fixnum? exact-integer?)] ; if you got an exact-integer? it is that it is bigger than fixnum? so the result should be exact-integer? and not fixnum? (fixnum? is a subset of exact-integer?)
-                              [(exact-integer?) orig-* (exact-integer? exact-integer?)]
+                              #;[(exact-integer?) orig-* (exact-integer? fixnum?)]
+                              #;[(exact-integer?) orig-* (fixnum? exact-integer?)] ; if you got an exact-integer? it is that it is bigger than fixnum? so the result should be exact-integer? and not fixnum? (fixnum? is a subset of exact-integer?)
+                              #;[(exact-integer?) orig-* (exact-integer? exact-integer?)]
                               ;; [(fixnum?) fx* (integer? integer?)] ; error for a lot of commented items:
                               ;; [(fixnum?) fx* (number? number?)]
                               ;; [(fixnum?) fx* (flonum? flonum?)]
@@ -2568,7 +2572,11 @@
                        (error "annot+.rkt : find-type n-ary and binary : warning args types changed after annot."))
                      (display "annot+.rkt : find-type n-ary and binary : warning args types changed after annot." err-port) (newline err-port))
                    
-                   ret-type)
+                   ; no entry for these types : the general type given by scheme-types.rkt or racket-types.rkt , if any , as in
+                   ; the binary branch below : (fl+ a b) with a and b of type real? is flonum?
+                   #;ret-type
+                   (or ret-type
+                       (scheme-return-type proc/mac)))
 
                   ; n-ary : exist only in n-ary table
                   ((hash-table-exists? ovrld-ht-n-ary proc/mac)
@@ -2605,7 +2613,10 @@
                        (error "annot+.rkt : find-type n-ary : warning args types changed after annot."))
                      (display "annot+.rkt : find-type n-ary : warning args types changed after annot." err-port) (newline err-port))
 
-                   ret-type)
+                   ; no entry for these types : the general type of scheme-types.rkt or racket-types.rkt , if any
+                   #;ret-type
+                   (or ret-type
+                       (scheme-return-type proc/mac)))
 
 
                   ; binary or unary : exist only in the table of the overloads with an exact number of arguments , 2 or 1 arguments

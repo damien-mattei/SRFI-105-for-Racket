@@ -28,6 +28,8 @@
   (string-append
    "#lang reader SRFI-105\n\n(module fuzz racket\n(require Scheme+)\n"
    "(require (only-in srfi/1 fold fold-right reduce delete-duplicates list-copy))\n" ; the accumulations of SRFI 1
+   ;; the procedures of flonums and fixnums written in the programs (their type is in racket-types.rkt)
+   "(require (only-in racket/flonum fl+ fl- fl* fl/ fl< fl= fl<=) (only-in racket/fixnum fx+ fx- fx* fx< fx= fx<=))\n"
    (if annotation? "ANNOTATION-ON\n" "")
    "(define (opaque z) z) ; a procedure the pass does not know : the type of its result is unknown\n"
    ;; overloads : a procedure twice on the floats and the fixnums , + on the vectors (element by element)
