@@ -101,9 +101,6 @@
   ; and must not replace a known type , as in {k := (if ...)})
   (define (scheme-return-type name)
     (and (hash-table-exists? scheme-ht name)
-         #;(let ((rv (caar {scheme-ht[name]})))
-           (and (not (eq? rv 'any?))
-                rv))
          ($+> {rv := (caar {scheme-ht[name]})}
               (and (not (eq? rv 'any?))
                    rv))))
@@ -1899,10 +1896,6 @@
   (define (indexes-kind s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
     (define indexes (parse-square-brackets-arguments-lister-syntax (cddr s) '()))
     (define (kind-by-type index) ; by the type of the expression : ℕ , ℤ or unknown
-      #;(let ((t (find-type index ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
-        (cond ((eq? t 'natural-fixnum?) 'natural)
-              ((eq? t 'fixnum?) 'integer)
-              (else #f)))
       {t := (find-type index ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)}
       (cond ((eq? t 'natural-fixnum?) 'natural)
             ((eq? t 'fixnum?) 'integer)
@@ -1914,10 +1907,6 @@
     (define (kind index)
       (cond ((fixnum? index) (if {index >= 0} 'natural 'integer)) ; a literal
             ((and (pair? index) (not (operator? (car index)))) ; an infix expression alone between parenthesis : (j + 1)
-             #;(let ((parsed (parse-square-brackets-arguments-lister-syntax index '())))
-               (if (and (pair? parsed) (null? (cdr parsed)) (not (equal? (car parsed) index)))
-                   (kind (car parsed))
-                   (kind-by-type index)))
              {parsed := (parse-square-brackets-arguments-lister-syntax index '())}
              (if (and (pair? parsed) (null? (cdr parsed)) (not (equal? (car parsed) index)))
                  (kind (car parsed))
@@ -1966,10 +1955,6 @@
   ; the type of an access s to a string : {s[i]} --> char? , a slice {s[i : j]} --> string? , otherwise #f
   (define (string-access-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
     (and (eq? (type-base (find-type (cadr s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)) 'string?)
-         #;(let ((nb (square-brackets-nb-indexes s)))
-           (cond ((not nb) 'string?)
-                 ({nb = 1} 'char?)
-                 (else #f)))
          ($+> {nb := (square-brackets-nb-indexes s)}
               (cond ((not nb) 'string?)
                     ({nb = 1} 'char?)
@@ -2518,14 +2503,6 @@
   (define (if-branches s)
     (define blocks (cddr s)) ; after the test
     (cond ((memq 'else blocks)
-           #;(let* ((then-block (let loop ((l blocks)) ; the expressions before else , without then
-                                (cond ((eq? (car l) 'else) '())
-                                      ((eq? (car l) 'then) (loop (cdr l)))
-                                      (else (cons (car l) (loop (cdr l)))))))
-                  (else-block (cdr (memq 'else blocks))))
-             (and (pair? then-block)
-                  (pair? else-block)
-                  (list (last then-block) (last else-block))))
            {then-block := (let loop ((l blocks)) ; the expressions before else , without then
                             (cond ((eq? (car l) 'else) '())
                                   ((eq? (car l) 'then) (loop (cdr l)))
@@ -3499,10 +3476,6 @@
          (eq? (type-base (find-type (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)) 'flonum?) ; also a ℝ⁺
          (hash-table-exists? ovrld-ht op)
          (memq (find-if-exists-matching-types-with-ovrld {ovrld-ht[op]} '(flonum? fixnum?)) '(orig-** orig-expt)) ; no overload of the user
-         #;(let ((b (annot (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
-           (if (symbol? b)
-               (list 'fl* b b)
-               (list 'let (list (list '$power-base$ b)) '(fl* $power-base$ $power-base$))))
          ($+> {b := (annot (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)}
               (if (symbol? b)
                   (list 'fl* b b)
@@ -3574,13 +3547,6 @@
                   (any float? (rest s))
                   (fold-left-binary (rest s)))
          (and {(length s) = 3}
-         #;(let ((a (second s))
-               (b (third s)))
-           (cond ((and (convertible? a) (float? b) (generic? (list (type-of a) (type-of b))))
-                  (list op (exact->inexact a) b))
-                 ((and (float? a) (convertible? b) (generic? (list (type-of a) (type-of b))))
-                  (list op a (exact->inexact b)))
-                 (else #f)))
          ($+> {a := (second s)}
               {b := (third s)}
               (cond ((and (convertible? a) (float? b) (generic? (list (type-of a) (type-of b))))
@@ -4311,11 +4277,6 @@
            (list (append (third decl) '(->) (first decl))))
           ((not (null? overloads)) overloads)
           (else
-           #;(let ((t (with-handlers ((exn:fail? (λ (e) #f))) ; an expression that find-type can not process : unknown
-                      (find-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))))
-             (if (and t (not (memq t '(sexpr local-binding-without-type))))
-                 (list t)
-                 '()))
            {t := (with-handlers ((exn:fail? (λ (e) #f))) ; an expression that find-type can not process : unknown
                    (find-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))}
            (if (and t (not (memq t '(sexpr local-binding-without-type))))
