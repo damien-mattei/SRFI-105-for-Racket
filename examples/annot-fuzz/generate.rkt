@@ -28,6 +28,10 @@
 (define (chance p) (< (random) p))
 
 (define names '(a b i k x y))         ; few names : shadowing is frequent
+;; the names that the counter of a for must not take : {c := 0} would be a set! of a name being defined (a variable in
+;; its initial value , the counter and the accumulator of a do ... while in their init , the names of a letrec in their
+;; inits : "cannot assign before initialization")
+(define reserved-names (make-parameter '()))
 (define fnames '(f g))
 (define chars '(#\a #\b #\c #\d))
 (define value-types '(nat fx fl flp vfl vfx mfl lfl lfx str chr)) ; the types of the variables
@@ -93,6 +97,14 @@
                           (cons (caar e) acc)
                           acc))))))
 
+;; the procedures of fenv that are not hidden by a procedure of the same name defined in a nested body (the innermost
+;; first)
+(define (innermost-procedures fenv)
+  (let loop ((fs fenv) (seen '()) (acc '()))
+    (cond ((null? fs) (reverse acc))
+          ((memq (first (car fs)) seen) (loop (cdr fs) seen acc))
+          (else (loop (cdr fs) (cons (first (car fs)) seen) (cons (car fs) acc))))))
+
 ;; ------------------------------------------------------------------ expressions
 ;; an index of a vector of length 4 , always in range
 (define (gen-index env d)
@@ -109,7 +121,10 @@
          (if (and (pair? vs) (chance 0.6)) (ex ty 'var (list (pick vs))) (lit-of ty)))
         ((and (pair? vs) (chance 0.25)) (ex ty 'var (list (pick vs))))
         (else
-         (define fs (filter (λ (f) (eq? (third f) ty)) fenv))
+         #;(define fs (filter (λ (f) (eq? (third f) ty)) fenv))
+         ;; the innermost definition of each procedure : a procedure defined again in a nested body hides the outer one
+         ;; (calling it with the parameters of the outer one was an arity error)
+         (define fs (filter (λ (f) (eq? (third f) ty)) (innermost-procedures fenv)))
          (define choices
            (append
             (case ty
@@ -169,7 +184,13 @@
                           (λ () (if (chance 0.5)
                                     (ex 'fl 'call (list 'min (sub 'fl) (sub 'fx)))
                                     (ex 'fl 'call (list 'min (sub 'fx) (sub 'fl)))))
-                          (λ () (ex 'fl 'op (list '/ (chance 0.6) (sub 'fl) (sub 'fx))))
+                          #;(λ () (ex 'fl 'op (list '/ (chance 0.6) (sub 'fl) (sub 'fx))))
+                          ;; x / i : a divisor not 0 ({n + 1} of a natural) , a fixnum that can be 0 one time out of ten (the
+                          ;; error of the generic procedure kept by the guard) ; a division by 0 stops the whole program
+                          (λ () (ex 'fl 'op (list '/ (chance 0.6) (sub 'fl)
+                                                  (if (chance 0.1)
+                                                      (sub 'fx)
+                                                      (ex 'fx 'op (list '+ (chance 0.6) (sub 'nat) (ex 'nat 'lit '(1))))))))
                           (λ () (ex 'fl 'op (list (pick '(+ -)) (chance 0.6) (sub 'fl) (sub 'fx) (sub 'fl))))))
               ;; a float not negative : abs , exp , sqr of a float , sqrt of a ℝ⁺ , + and * of ℝ⁺
               ((flp) (list (λ () (ex 'flp 'call (list (pick '(abs exp sqr)) (sub 'fl))))
@@ -310,7 +331,10 @@
                          ((let) env)
                          ((let*) e)
                          ((letrec) (filter (λ (p) (not (memq (car p) bound))) e))))   ; an init can not read a letrec name
-      (values (append bs (list (list nm (gen-ex t init-env (sub1 d) fenv))))
+      (values (append bs (list (list nm (parameterize ((reserved-names (if (eq? kind 'letrec)
+                                                                              (append bound (reserved-names))
+                                                                              (reserved-names))))
+                                          (gen-ex t init-env (sub1 d) fenv)))))
               (cons (cons nm t) e))))
   (define env2 (if (eq? kind 'let)
                    (append (map (λ (b) (cons (first b) (ex-type (second b)))) bindings) env)
@@ -324,7 +348,8 @@
   (define k (pick names))
   (define acc (pick (remq k names)))
   ;; the do ... while defines k and acc in a (let () ...) : its init can not read them
-  (define init (gen-ex ty (if (eq? kind 'do-while) (filter (λ (p) (not (memq (car p) (list k acc)))) env) env) (sub1 d) fenv))
+  (define init (parameterize ((reserved-names (if (eq? kind 'do-while) (list* k acc (reserved-names)) (reserved-names))))
+                 (gen-ex ty (if (eq? kind 'do-while) (filter (λ (p) (not (memq (car p) (list k acc)))) env) env) (sub1 d) fenv)))
   (define loop-env (list* (cons k 'cnt) (cons acc ty) env)) ; the counter k is never assigned in the loop
   (define step (ex ty 'op (list (if (eq? ty 'fl) '+ (pick '(+ +))) (chance 0.6) (ex ty 'var (list acc))
                                 (gen-ex ty loop-env (sub1 d) fenv))))
@@ -351,6 +376,9 @@
                    ((assign eassign eassign2 walrus) (list (first (ex-args e))))
                    ((chain massign) (list (first (ex-args e)) (second (ex-args e))))
                    ((type) (list (second (ex-args e))))   ; a define of x after (type T x) in a body : the type of the new x
+                   ;; the counter of a for in a nested body : {c := 0} is a set! of a c defined later in an enclosing body
+                   ;; ("cannot assign before initialization")
+                   ((for) (list (first (ex-args e))))
                    (else '()))
                  (refs (ex-args e))))
         ((pair? e) (append (refs (car e)) (refs (cdr e))))
@@ -371,7 +399,8 @@
                  (loop (add1 i) env fenv stmts defined)
                  (let* ((nm (pick free-names))
                         (t (pick value-types))
-                        (init (gen-ex t (filter (λ (p) (not (eq? (car p) nm))) env) d fenv))
+                        (init (parameterize ((reserved-names (cons nm (reserved-names)))) ; {nm <+ ... (for ({nm := 0} ...} ...)}
+                                (gen-ex t (filter (λ (p) (not (eq? (car p) nm))) env) d fenv)))
                         (before (and (chance 0.3) (ex 'stmt 'type (list (type-name t) nm))))) ; the type before the definition
                    (loop (add1 i) (cons (cons nm t) env) fenv
                          (append (list (ex 'stmt 'def (list nm init (chance 0.5))))
@@ -451,7 +480,7 @@
                        (cons (ex 'stmt 'eassign2 (list (pick ms) (gen-index env d) (gen-index env d) (gen-ex 'fl env d fenv))) stmts)
                        defined)))
             ((for) ; the for of C : its counter is a name not visible and not defined later in the body
-             (define taken (append (map car (visible env)) used defined))
+             (define taken (append (map car (visible env)) used defined (reserved-names)))
              (define cs (filter (λ (nm) (not (memq nm taken))) names))
              (if (or (null? cs) (<= d 1))
                  (loop (add1 i) env fenv stmts defined)
@@ -495,11 +524,12 @@
        (define e (gen-ex 'fl env (sub1 depth) fenv))
        (define lit (ex 'fx 'lit (list (pick '(0 0 1 -3 9007199254740993)))))
        (define op (pick '(+ - * /)))
-       (ex 'raw 'op (if (chance 0.5) (list op (chance 0.6) e lit) (list op (chance 0.6) lit e))))
+       ;; / : the literal as the dividend only ((/ 0 x) is the exact 0) : a division by 0 stops the whole program
+       (ex 'raw 'op (if (and (not (eq? op '/)) (chance 0.5)) (list op (chance 0.6) e lit) (list op (chance 0.6) lit e))))
      (list (let ((e (gen-ex 'fl env (sub1 depth) fenv))
                  (i (gen-ex 'fx env (sub1 depth) fenv))
                  (op (pick '(* * / -))))
-             (ex 'raw 'op (if (chance 0.5) (list op (chance 0.6) e i) (list op (chance 0.6) i e))))
+             (ex 'raw 'op (if (and (not (eq? op '/)) (chance 0.5)) (list op (chance 0.6) e i) (list op (chance 0.6) i e))))
            (let ((e (gen-ex 'fl env (sub1 depth) fenv))
                  (big (ex 'fx 'lit (list (pick '(9007199254740992 9007199254740993 -9007199254740993 1152921504606846975)))))
                  (op (pick '(< > = <= >= ≠))))
