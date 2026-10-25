@@ -42,8 +42,14 @@
   (namespace-require 'Scheme+))
 
 (define (value-of sym)
-  (with-handlers ((exn:fail? (λ (e) #f)))
+  (with-handlers ((exn:fail:syntax? (λ (e) (macro-of sym))) ; a macro (fl+/fx of Scheme+/flonum-fixnum) : called by a λ
+                  (exn:fail? (λ (e) #f)))
     (eval sym ns)))
+
+;; a macro of two arguments written by the annotation in a call : a procedure that calls it
+(define (macro-of sym)
+  (with-handlers ((exn:fail? (λ (e) #f)))
+    (eval `(λ (a b) (,sym a b)) ns)))
 
 (define (predicate-of type)
   (case type

@@ -159,7 +159,18 @@
                                       (ex 'fl 'op (list op (chance 0.6) (sub 'fl) lit))
                                       (ex 'fl 'op (list op (chance 0.6) lit (sub 'fl))))))
                           (λ () (ex 'fl 'call (list (pick '(max min)) (sub 'fl) (int-literal 'max))))
-                          (λ () (ex 'fl 'op (list (pick '(+ *)) (chance 0.6) (int-literal '*) (sub 'fl) (int-literal '*)))))) ; n-ary : {3 * x * 2}
+                          (λ () (ex 'fl 'op (list (pick '(+ *)) (chance 0.6) (int-literal '*) (sub 'fl) (int-literal '*))))  ; n-ary : {3 * x * 2}
+                          ;; a float and a fixnum (C1 : fl+/fx , fx/fl- ... with a guard at run time) : + - min in the two orders ,
+                          ;; x / i (an error for i = 0 , as the generic procedure) , n-ary {x + i + y}
+                          (λ () (let ((op (pick '(+ - + -))))
+                                  (if (chance 0.5)
+                                      (ex 'fl 'op (list op (chance 0.6) (sub 'fl) (sub (pick '(fx nat)))))
+                                      (ex 'fl 'op (list op (chance 0.6) (sub (pick '(fx nat))) (sub 'fl))))))
+                          (λ () (if (chance 0.5)
+                                    (ex 'fl 'call (list 'min (sub 'fl) (sub 'fx)))
+                                    (ex 'fl 'call (list 'min (sub 'fx) (sub 'fl)))))
+                          (λ () (ex 'fl 'op (list '/ (chance 0.6) (sub 'fl) (sub 'fx))))
+                          (λ () (ex 'fl 'op (list (pick '(+ -)) (chance 0.6) (sub 'fl) (sub 'fx) (sub 'fl))))))
               ;; a float not negative : abs , exp , sqr of a float , sqrt of a ℝ⁺ , + and * of ℝ⁺
               ((flp) (list (λ () (ex 'flp 'call (list (pick '(abs exp sqr)) (sub 'fl))))
                            ;; a square of a float : {e ** 2} , {x * x} of a variable x of type fl
@@ -176,6 +187,11 @@
                             (λ () (ex 'bool 'call (list 'not (sub 'bool))))
                             (λ () (ex 'bool 'call (list (pick '(fl< fl= fl<=)) (sub 'fl) (sub 'fl))))
                             (λ () (ex 'bool 'op (list (pick '(< > = <=)) (chance 0.6) (sub 'fl) (int-literal '<))))
+                            ;; a float and a fixnum compared (C1 : fl</fx , fx/fl<= ... , the generic comparison when |i| > 2^53)
+                            (λ () (let ((op (pick '(< > = <= >= ≠))))
+                                    (if (chance 0.5)
+                                        (ex 'bool 'op (list op (chance 0.6) (sub 'fl) (sub (pick '(fx nat)))))
+                                        (ex 'bool 'op (list op (chance 0.6) (sub (pick '(fx nat))) (sub 'fl))))))
                             (λ () (ex 'bool 'call (list (pick '(fx< fx= fx<=)) (sub 'fx) (sub 'fx))))
                             (λ () (ex 'bool 'call (list 'char=? (sub 'chr) (sub 'chr))))))
               ((chr) (list (λ () (lit-of 'chr))
@@ -471,12 +487,23 @@
   (define shown (take (visible env) (min 3 (length (visible env)))))
   ;; two expressions of a float and an integer literal , 0 included ((* x 0) is the exact 0 , (+ -0.0 0) is -0.0) : only
   ;; in the list of the results , never assigned to a declared variable (their value is not always a float)
+  ;; and a float with a fixnum expression (C1 : {x * i} , {i / x} are the exact 0 for i = 0) , a float compared to a
+  ;; fixnum beyond 2^53 (the guard of the comparisons)
   (define extras
-    (for/list ((k 2))
-      (define e (gen-ex 'fl env (sub1 depth) fenv))
-      (define lit (ex 'fx 'lit (list (pick '(0 0 1 -3 9007199254740993)))))
-      (define op (pick '(+ - * /)))
-      (ex 'raw 'op (if (chance 0.5) (list op (chance 0.6) e lit) (list op (chance 0.6) lit e)))))
+    (append
+     (for/list ((k 2))
+       (define e (gen-ex 'fl env (sub1 depth) fenv))
+       (define lit (ex 'fx 'lit (list (pick '(0 0 1 -3 9007199254740993)))))
+       (define op (pick '(+ - * /)))
+       (ex 'raw 'op (if (chance 0.5) (list op (chance 0.6) e lit) (list op (chance 0.6) lit e))))
+     (list (let ((e (gen-ex 'fl env (sub1 depth) fenv))
+                 (i (gen-ex 'fx env (sub1 depth) fenv))
+                 (op (pick '(* * / -))))
+             (ex 'raw 'op (if (chance 0.5) (list op (chance 0.6) e i) (list op (chance 0.6) i e))))
+           (let ((e (gen-ex 'fl env (sub1 depth) fenv))
+                 (big (ex 'fx 'lit (list (pick '(9007199254740992 9007199254740993 -9007199254740993 1152921504606846975)))))
+                 (op (pick '(< > = <= >= ≠))))
+             (ex 'raw 'op (if (chance 0.5) (list op (chance 0.6) e big) (list op (chance 0.6) big e)))))))
   (ex 'prog 'prog (list stmts (map car shown) (gen-ex (pick scalar-types) env depth fenv) extras)))
 
 ;; ------------------------------------------------------------------ printing

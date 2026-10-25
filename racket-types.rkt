@@ -89,6 +89,31 @@
       (fx<=             (boolean?) procedure? (fixnum? (... fixnum?)))
       (fx>=             (boolean?) procedure? (fixnum? (... fixnum?)))
 
+      ;; the operations of a flonum and a fixnum of Scheme+ (Scheme+/flonum-fixnum) , written by the type annotation
+      ;; (the rows of the mixed types of annot+.rkt) : macros , the same results as the generic procedures
+      (fl+/fx           (flonum?) macro? (flonum? fixnum?))
+      (fx/fl+           (flonum?) macro? (fixnum? flonum?))
+      (fl-/fx           (flonum?) macro? (flonum? fixnum?))
+      (fx/fl-           (flonum?) macro? (fixnum? flonum?))
+      (fl*/fx           (real?) macro? (flonum? fixnum?)) ; (* x 0) is the exact 0
+      (fx/fl*           (real?) macro? (fixnum? flonum?))
+      (fl//fx           (flonum?) macro? (flonum? fixnum?)) ; (/ x 0) is an error
+      (fx/fl/           (real?) macro? (fixnum? flonum?)) ; (/ 0 x) is the exact 0
+      (flmin/fx         (flonum?) macro? (flonum? fixnum?))
+      (fx/flmin         (flonum?) macro? (fixnum? flonum?))
+      (fl</fx           (boolean?) macro? (flonum? fixnum?))
+      (fx/fl<           (boolean?) macro? (fixnum? flonum?))
+      (fl>/fx           (boolean?) macro? (flonum? fixnum?))
+      (fx/fl>           (boolean?) macro? (fixnum? flonum?))
+      (fl<=/fx          (boolean?) macro? (flonum? fixnum?))
+      (fx/fl<=          (boolean?) macro? (fixnum? flonum?))
+      (fl>=/fx          (boolean?) macro? (flonum? fixnum?))
+      (fx/fl>=          (boolean?) macro? (fixnum? flonum?))
+      (fl=/fx           (boolean?) macro? (flonum? fixnum?))
+      (fx/fl=           (boolean?) macro? (fixnum? flonum?))
+      (fl≠/fx           (boolean?) macro? (flonum? fixnum?))
+      (fx/fl≠           (boolean?) macro? (fixnum? flonum?))
+
       ;; the byte strings of Racket (the bytevectors of R7RS above are not in racket) : a length in memory is a fixnum , a
       ;; byte is 0 to 255
       (bytes-length     (natural-fixnum?) procedure? (bytes?)) ; ℕ

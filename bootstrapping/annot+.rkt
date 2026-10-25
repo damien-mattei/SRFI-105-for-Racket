@@ -140,9 +140,12 @@
                            [(inexact?) orig-+ (inexact? number?)]
                            [(inexact?) orig-+ (number? inexact?)]
                            [(inexact?) #; fl+ orig-+ (inexact? inexact?)]
-                           ; mixed types : the generic procedure , only the return type is given
-                           [(flonum?) orig-+ (fixnum? flonum?)]
-                           [(flonum?) orig-+ (flonum? fixnum?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
+                           ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                           ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                           #;[(flonum?) orig-+ (fixnum? flonum?)]
+                           [(flonum?) fx/fl+ (fixnum? flonum?)]
+                           #;[(flonum?) orig-+ (flonum? fixnum?)]
+                           [(flonum?) fl+/fx (flonum? fixnum?)])} ; note here[ ] are only ( ) , works with Racket,Guile, not Kawa
 
          ; ~ (bitwise not) , unary : in the table of the overloads with an exact number of arguments
          {ovrld-ht['~] := '([(fixnum?) fxnot (fixnum?)]
@@ -170,9 +173,12 @@
          {ovrld-ht['log] := '([(flonum?) fllog (nonnegative-flonum?)])} ; one argument only
          {ovrld-ht['min] := '([(flonum?) flmin (flonum? flonum?)]
                               [(fixnum?) fxmin (fixnum? fixnum?)]
-                              ; mixed types : the generic procedure , only the return type is given ((max 3 2.0) is 3.0)
-                              [(flonum?) min (fixnum? flonum?)]
-                              [(flonum?) min (flonum? fixnum?)]
+                              ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                              ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given ((max 3 2.0) is 3.0)
+                              #;[(flonum?) min (fixnum? flonum?)]
+                              [(flonum?) fx/flmin (fixnum? flonum?)]
+                              #;[(flonum?) min (flonum? fixnum?)]
+                              [(flonum?) flmin/fx (flonum? fixnum?)]
                               [(flonum?) min (flonum? exact-integer?)]
                               [(flonum?) min (exact-integer? flonum?)]
                               [(exact-integer?) min (fixnum? exact-integer?)]
@@ -263,9 +269,12 @@
                            ; as in the table of +
                            [(flonum?) orig-+ (flonum? exact-integer?)]
                            [(flonum?) orig-+ (exact-integer? flonum?)]
-                           ; mixed types : the generic procedure , only the return type is given
-                           [(flonum?) orig-+ (fixnum? flonum?)]
-                           [(flonum?) orig-+ (flonum? fixnum?)])}
+                           ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                           ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                           #;[(flonum?) orig-+ (fixnum? flonum?)]
+                           [(flonum?) fx/fl+ (fixnum? flonum?)]
+                           #;[(flonum?) orig-+ (flonum? fixnum?)]
+                           [(flonum?) fl+/fx (flonum? fixnum?)])}
 
          {ovrld-ht['-] := '([(fixnum?) fx- (fixnum? fixnum?)]
                            [(exact-integer?) orig-- (exact-integer? fixnum?)]
@@ -279,9 +288,12 @@
                            [(complex?) orig-- (complex? complex?)]
                            [(inexact?) orig-- (inexact? inexact?)]
                            #;[(inexact?) orig-- (inexact?)]
-                           ; mixed types : the generic procedure , only the return type is given
-                           [(flonum?) orig-- (fixnum? flonum?)]
-                           [(flonum?) orig-- (flonum? fixnum?)]
+                           ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                           ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                           #;[(flonum?) orig-- (fixnum? flonum?)]
+                           [(flonum?) fx/fl- (fixnum? flonum?)]
+                           #;[(flonum?) orig-- (flonum? fixnum?)]
+                           [(flonum?) fl-/fx (flonum? fixnum?)]
                            [(flonum?) orig-- (flonum? exact-integer?)]
                            [(flonum?) orig-- (exact-integer? flonum?)])} ; unary is only a special case of n-ary
 
@@ -296,9 +308,12 @@
                            [(rational?) orig-- (rational? rational?)]
                            [(complex?) orig-- (complex? complex?)]
                            [(inexact?) orig-- (inexact? inexact?)]
-                           ; mixed types : the generic procedure , only the return type is given
-                           [(flonum?) orig-- (fixnum? flonum?)]
-                           [(flonum?) orig-- (flonum? fixnum?)]
+                           ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                           ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                           #;[(flonum?) orig-- (fixnum? flonum?)]
+                           [(flonum?) fx/fl- (fixnum? flonum?)]
+                           #;[(flonum?) orig-- (flonum? fixnum?)]
+                           [(flonum?) fl-/fx (flonum? fixnum?)]
                            [(flonum?) orig-- (flonum? exact-integer?)]
                            [(flonum?) orig-- (exact-integer? flonum?)])}
 
@@ -311,8 +326,11 @@
                             [(rational?) orig-/ (rational? rational?)]
                             [(complex?) orig-/ (complex? complex?)]
                             [(inexact?) orig-/ (inexact? inexact?)]
-                            ; mixed types : the generic procedure , only the return type is given (a division by an exact 0 is an error , (/ 0 2.0) is the exact 0)
-                            [(flonum?) orig-/ (flonum? fixnum?)]
+                            ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                            ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given (a division by an exact 0 is an error , (/ 0 2.0) is the exact 0)
+                            #;[(flonum?) orig-/ (flonum? fixnum?)]
+                            [(flonum?) fl//fx (flonum? fixnum?)]
+                            [(real?) fx/fl/ (fixnum? flonum?)] ; (/ 0 x) is the exact 0
                             [(flonum?) orig-/ (flonum? exact-integer?)])}
 
          {ovrld-ht['orig-/] := '(#;[(fixnum?) fx/ (fixnum? fixnum?)] ; fx/ does not exist !
@@ -324,8 +342,11 @@
                            [(rational?) orig-/ (rational? rational?)]
                            [(complex?) orig-/ (complex? complex?)]
                            [(inexact?) orig-/ (inexact? inexact?)]
-                           ; mixed types : the generic procedure , only the return type is given (a division by an exact 0 is an error , (/ 0 2.0) is the exact 0)
-                           [(flonum?) orig-/ (flonum? fixnum?)]
+                           ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                           ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given (a division by an exact 0 is an error , (/ 0 2.0) is the exact 0)
+                           #;[(flonum?) orig-/ (flonum? fixnum?)]
+                           [(flonum?) fl//fx (flonum? fixnum?)]
+                           [(real?) fx/fl/ (fixnum? flonum?)] ; (/ 0 x) is the exact 0
                            [(flonum?) orig-/ (flonum? exact-integer?)])}
 
          {ovrld-ht['%] := '([(fixnum?) fxmodulo (fixnum? fixnum?)]
@@ -366,7 +387,10 @@
                            [(real?) orig-* (real? real?)]
                            [(rational?) orig-* (rational? rational?)]
                            [(complex?) orig-* (complex? complex?)]
-                           [(inexact?) orig-* (inexact? inexact?)])}
+                           [(inexact?) orig-* (inexact? inexact?)]
+                           ; a flonum and a fixnum : fl*/fx , fx/fl* of Scheme+/flonum-fixnum , a guard at run time : real? ((* x 0) is the exact 0)
+                           [(real?) fl*/fx (flonum? fixnum?)]
+                           [(real?) fx/fl* (fixnum? flonum?)])}
 
          {ovrld-ht['orig-*] := '([(nonnegative-flonum?) fl* (nonnegative-flonum? nonnegative-flonum?)]
                                  [(fixnum?) fx* (fixnum? fixnum?)]
@@ -379,7 +403,10 @@
                            [(real?) orig-* (real? real?)]
                            [(rational?) orig-* (rational? rational?)]
                            [(complex?) orig-* (complex? complex?)]
-                           [(inexact?) orig-* (inexact? inexact?)])}
+                           [(inexact?) orig-* (inexact? inexact?)]
+                           ; a flonum and a fixnum : fl*/fx , fx/fl* of Scheme+/flonum-fixnum , a guard at run time : real? ((* x 0) is the exact 0)
+                           [(real?) fl*/fx (flonum? fixnum?)]
+                           [(real?) fx/fl* (fixnum? flonum?)])}
 
          ; END-STRICT-SRFI-105-REGION
          {ovrld-ht['·] := '([(nonnegative-flonum?) fl* (nonnegative-flonum? nonnegative-flonum?)]
@@ -393,7 +420,10 @@
                            [(real?) orig-· (real? real?)]
                            [(rational?) orig-· (rational? rational?)]
                            [(complex?) orig-· (complex? complex?)]
-                           [(inexact?) orig-· (inexact? inexact?)])}
+                           [(inexact?) orig-· (inexact? inexact?)]
+                           ; a flonum and a fixnum : fl*/fx , fx/fl* of Scheme+/flonum-fixnum , a guard at run time : real? ((* x 0) is the exact 0)
+                           [(real?) fl*/fx (flonum? fixnum?)]
+                           [(real?) fx/fl* (fixnum? flonum?)])}
 
          {ovrld-ht['orig-·] := '([(nonnegative-flonum?) fl* (nonnegative-flonum? nonnegative-flonum?)]
                                  [(fixnum?) fx* (fixnum? fixnum?)]
@@ -406,7 +436,10 @@
                            [(real?) orig-· (real? real?)]
                            [(rational?) orig-· (rational? rational?)]
                            [(complex?) orig-· (complex? complex?)]
-                           [(inexact?) orig-· (inexact? inexact?)])}
+                           [(inexact?) orig-· (inexact? inexact?)]
+                           ; a flonum and a fixnum : fl*/fx , fx/fl* of Scheme+/flonum-fixnum , a guard at run time : real? ((* x 0) is the exact 0)
+                           [(real?) fl*/fx (flonum? fixnum?)]
+                           [(real?) fx/fl* (fixnum? flonum?)])}
 
          ; × is also a Scheme+ multiplication, same overloads as ·
          {ovrld-ht['×] := '([(nonnegative-flonum?) fl* (nonnegative-flonum? nonnegative-flonum?)]
@@ -420,7 +453,10 @@
                            [(real?) orig-× (real? real?)]
                            [(rational?) orig-× (rational? rational?)]
                            [(complex?) orig-× (complex? complex?)]
-                           [(inexact?) orig-× (inexact? inexact?)])}
+                           [(inexact?) orig-× (inexact? inexact?)]
+                           ; a flonum and a fixnum : fl*/fx , fx/fl* of Scheme+/flonum-fixnum , a guard at run time : real? ((* x 0) is the exact 0)
+                           [(real?) fl*/fx (flonum? fixnum?)]
+                           [(real?) fx/fl* (fixnum? flonum?)])}
 
          {ovrld-ht['orig-×] := '([(nonnegative-flonum?) fl* (nonnegative-flonum? nonnegative-flonum?)]
                                  [(fixnum?) fx* (fixnum? fixnum?)]
@@ -433,7 +469,10 @@
                            [(real?) orig-× (real? real?)]
                            [(rational?) orig-× (rational? rational?)]
                            [(complex?) orig-× (complex? complex?)]
-                           [(inexact?) orig-× (inexact? inexact?)])}
+                           [(inexact?) orig-× (inexact? inexact?)]
+                           ; a flonum and a fixnum : fl*/fx , fx/fl* of Scheme+/flonum-fixnum , a guard at run time : real? ((* x 0) is the exact 0)
+                           [(real?) fl*/fx (flonum? fixnum?)]
+                           [(real?) fx/fl* (fixnum? flonum?)])}
 
          {ovrld-ht['**] := '([(flonum?) flexpt (nonnegative-flonum? flonum?)] ; a ℝ⁺ to a float power : a float , not a complex (before the rows of flonums)
                             [(fixnum?) orig-** (fixnum? fixnum?)]
@@ -508,9 +547,12 @@
                            [(boolean?) orig-< (real? real?)]
                            [(boolean?) orig-< (complex? complex?)]
                            [(boolean?) orig-< (inexact? inexact?)]
-                           ; mixed types : the generic procedure , only the return type is given
-                           [(boolean?) orig-< (fixnum? flonum?)]
-                           [(boolean?) orig-< (flonum? fixnum?)]
+                           ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                           ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                           #;[(boolean?) orig-< (fixnum? flonum?)]
+                           [(boolean?) fx/fl< (fixnum? flonum?)]
+                           #;[(boolean?) orig-< (flonum? fixnum?)]
+                           [(boolean?) fl</fx (flonum? fixnum?)]
                            [(boolean?) orig-< (fixnum? exact-integer?)]
                            [(boolean?) orig-< (exact-integer? fixnum?)]
                            [(boolean?) orig-< (flonum? exact-integer?)]
@@ -524,9 +566,12 @@
                            [(boolean?) orig-< (real? real?)]
                            [(boolean?) orig-< (complex? complex?)]
                            [(boolean?) orig-< (inexact? inexact?)]
-                           ; mixed types : the generic procedure , only the return type is given
-                           [(boolean?) orig-< (fixnum? flonum?)]
-                           [(boolean?) orig-< (flonum? fixnum?)]
+                           ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                           ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                           #;[(boolean?) orig-< (fixnum? flonum?)]
+                           [(boolean?) fx/fl< (fixnum? flonum?)]
+                           #;[(boolean?) orig-< (flonum? fixnum?)]
+                           [(boolean?) fl</fx (flonum? fixnum?)]
                            [(boolean?) orig-< (fixnum? exact-integer?)]
                            [(boolean?) orig-< (exact-integer? fixnum?)]
                            [(boolean?) orig-< (flonum? exact-integer?)]
@@ -540,9 +585,12 @@
                            [(boolean?) orig-> (real? real?)]
                            [(boolean?) orig-> (complex? complex?)]
                            [(boolean?) orig-> (inexact? inexact?)]
-                           ; mixed types : the generic procedure , only the return type is given
-                           [(boolean?) orig-> (fixnum? flonum?)]
-                           [(boolean?) orig-> (flonum? fixnum?)]
+                           ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                           ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                           #;[(boolean?) orig-> (fixnum? flonum?)]
+                           [(boolean?) fx/fl> (fixnum? flonum?)]
+                           #;[(boolean?) orig-> (flonum? fixnum?)]
+                           [(boolean?) fl>/fx (flonum? fixnum?)]
                            [(boolean?) orig-> (fixnum? exact-integer?)]
                            [(boolean?) orig-> (exact-integer? fixnum?)]
                            [(boolean?) orig-> (flonum? exact-integer?)]
@@ -556,9 +604,12 @@
                            [(boolean?) orig-> (real? real?)]
                            [(boolean?) orig-> (complex? complex?)]
                            [(boolean?) orig-> (inexact? inexact?)]
-                           ; mixed types : the generic procedure , only the return type is given
-                           [(boolean?) orig-> (fixnum? flonum?)]
-                           [(boolean?) orig-> (flonum? fixnum?)]
+                           ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                           ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                           #;[(boolean?) orig-> (fixnum? flonum?)]
+                           [(boolean?) fx/fl> (fixnum? flonum?)]
+                           #;[(boolean?) orig-> (flonum? fixnum?)]
+                           [(boolean?) fl>/fx (flonum? fixnum?)]
                            [(boolean?) orig-> (fixnum? exact-integer?)]
                            [(boolean?) orig-> (exact-integer? fixnum?)]
                            [(boolean?) orig-> (flonum? exact-integer?)]
@@ -573,9 +624,12 @@
                             [(boolean?) orig-<= (real? real?)]
                             [(boolean?) orig-<= (complex? complex?)]
                             [(boolean?) orig-<= (inexact? inexact?)]
-                            ; mixed types : the generic procedure , only the return type is given
-                            [(boolean?) orig-<= (fixnum? flonum?)]
-                            [(boolean?) orig-<= (flonum? fixnum?)]
+                            ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                            ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                            #;[(boolean?) orig-<= (fixnum? flonum?)]
+                            [(boolean?) fx/fl<= (fixnum? flonum?)]
+                            #;[(boolean?) orig-<= (flonum? fixnum?)]
+                            [(boolean?) fl<=/fx (flonum? fixnum?)]
                             [(boolean?) orig-<= (fixnum? exact-integer?)]
                             [(boolean?) orig-<= (exact-integer? fixnum?)]
                             [(boolean?) orig-<= (flonum? exact-integer?)]
@@ -589,9 +643,12 @@
                                   [(boolean?) orig-<= (real? real?)]
                                   [(boolean?) orig-<= (complex? complex?)]
                                   [(boolean?) orig-<= (inexact? inexact?)]
-                                  ; mixed types : the generic procedure , only the return type is given
-                                  [(boolean?) orig-<= (fixnum? flonum?)]
-                                  [(boolean?) orig-<= (flonum? fixnum?)]
+                                  ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                                  ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                                  #;[(boolean?) orig-<= (fixnum? flonum?)]
+                                  [(boolean?) fx/fl<= (fixnum? flonum?)]
+                                  #;[(boolean?) orig-<= (flonum? fixnum?)]
+                                  [(boolean?) fl<=/fx (flonum? fixnum?)]
                                   [(boolean?) orig-<= (fixnum? exact-integer?)]
                                   [(boolean?) orig-<= (exact-integer? fixnum?)]
                                   [(boolean?) orig-<= (flonum? exact-integer?)]
@@ -606,9 +663,12 @@
                             [(boolean?) orig-<= (real? real?)]
                             [(boolean?) orig-<= (complex? complex?)]
                             [(boolean?) orig-<= (inexact? inexact?)]
-                            ; mixed types : the generic procedure , only the return type is given
-                            [(boolean?) orig-<= (fixnum? flonum?)]
-                            [(boolean?) orig-<= (flonum? fixnum?)]
+                            ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                            ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                            #;[(boolean?) orig-<= (fixnum? flonum?)]
+                            [(boolean?) fx/fl<= (fixnum? flonum?)]
+                            #;[(boolean?) orig-<= (flonum? fixnum?)]
+                            [(boolean?) fl<=/fx (flonum? fixnum?)]
                             [(boolean?) orig-<= (fixnum? exact-integer?)]
                             [(boolean?) orig-<= (exact-integer? fixnum?)]
                             [(boolean?) orig-<= (flonum? exact-integer?)]
@@ -622,9 +682,12 @@
                             [(boolean?) orig->= (real? real?)]
                             [(boolean?) orig->= (complex? complex?)]
                             [(boolean?) orig->= (inexact? inexact?)]
-                            ; mixed types : the generic procedure , only the return type is given
-                            [(boolean?) orig->= (fixnum? flonum?)]
-                            [(boolean?) orig->= (flonum? fixnum?)]
+                            ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                            ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                            #;[(boolean?) orig->= (fixnum? flonum?)]
+                            [(boolean?) fx/fl>= (fixnum? flonum?)]
+                            #;[(boolean?) orig->= (flonum? fixnum?)]
+                            [(boolean?) fl>=/fx (flonum? fixnum?)]
                             [(boolean?) orig->= (fixnum? exact-integer?)]
                             [(boolean?) orig->= (exact-integer? fixnum?)]
                             [(boolean?) orig->= (flonum? exact-integer?)]
@@ -640,9 +703,12 @@
                             [(boolean?) orig-≠ (real? real?)]
                             [(boolean?) orig-≠ (complex? complex?)]
                             [(boolean?) orig-≠ (inexact? inexact?)]
-                            ; mixed types : the generic procedure , only the return type is given
-                            [(boolean?) orig-≠ (fixnum? flonum?)]
-                            [(boolean?) orig-≠ (flonum? fixnum?)]
+                            ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                            ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                            #;[(boolean?) orig-≠ (fixnum? flonum?)]
+                            [(boolean?) fx/fl≠ (fixnum? flonum?)]
+                            #;[(boolean?) orig-≠ (flonum? fixnum?)]
+                            [(boolean?) fl≠/fx (flonum? fixnum?)]
                             [(boolean?) orig-≠ (fixnum? exact-integer?)]
                             [(boolean?) orig-≠ (exact-integer? fixnum?)]
                             [(boolean?) orig-≠ (flonum? exact-integer?)]
@@ -656,9 +722,12 @@
                                  [(boolean?) orig-≠ (real? real?)]
                                  [(boolean?) orig-≠ (complex? complex?)]
                                  [(boolean?) orig-≠ (inexact? inexact?)]
-                                 ; mixed types : the generic procedure , only the return type is given
-                                 [(boolean?) orig-≠ (fixnum? flonum?)]
-                                 [(boolean?) orig-≠ (flonum? fixnum?)]
+                                 ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                                 ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                                 #;[(boolean?) orig-≠ (fixnum? flonum?)]
+                                 [(boolean?) fx/fl≠ (fixnum? flonum?)]
+                                 #;[(boolean?) orig-≠ (flonum? fixnum?)]
+                                 [(boolean?) fl≠/fx (flonum? fixnum?)]
                                  [(boolean?) orig-≠ (fixnum? exact-integer?)]
                                  [(boolean?) orig-≠ (exact-integer? fixnum?)]
                                  [(boolean?) orig-≠ (flonum? exact-integer?)]
@@ -672,9 +741,12 @@
                              [(boolean?) orig-<> (real? real?)]
                              [(boolean?) orig-<> (complex? complex?)]
                              [(boolean?) orig-<> (inexact? inexact?)]
-                             ; mixed types : the generic procedure , only the return type is given
-                             [(boolean?) orig-<> (fixnum? flonum?)]
-                             [(boolean?) orig-<> (flonum? fixnum?)]
+                             ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                             ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                             #;[(boolean?) orig-<> (fixnum? flonum?)]
+                             [(boolean?) fx/fl≠ (fixnum? flonum?)]
+                             #;[(boolean?) orig-<> (flonum? fixnum?)]
+                             [(boolean?) fl≠/fx (flonum? fixnum?)]
                              [(boolean?) orig-<> (fixnum? exact-integer?)]
                              [(boolean?) orig-<> (exact-integer? fixnum?)]
                              [(boolean?) orig-<> (flonum? exact-integer?)]
@@ -688,9 +760,12 @@
                                   [(boolean?) orig-<> (real? real?)]
                                   [(boolean?) orig-<> (complex? complex?)]
                                   [(boolean?) orig-<> (inexact? inexact?)]
-                                  ; mixed types : the generic procedure , only the return type is given
-                                  [(boolean?) orig-<> (fixnum? flonum?)]
-                                  [(boolean?) orig-<> (flonum? fixnum?)]
+                                  ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                                  ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                                  #;[(boolean?) orig-<> (fixnum? flonum?)]
+                                  [(boolean?) fx/fl≠ (fixnum? flonum?)]
+                                  #;[(boolean?) orig-<> (flonum? fixnum?)]
+                                  [(boolean?) fl≠/fx (flonum? fixnum?)]
                                   [(boolean?) orig-<> (fixnum? exact-integer?)]
                                   [(boolean?) orig-<> (exact-integer? fixnum?)]
                                   [(boolean?) orig-<> (flonum? exact-integer?)]
@@ -705,9 +780,12 @@
                             [(boolean?) orig->= (real? real?)]
                             [(boolean?) orig->= (complex? complex?)]
                             [(boolean?) orig->= (inexact? inexact?)]
-                            ; mixed types : the generic procedure , only the return type is given
-                            [(boolean?) orig->= (fixnum? flonum?)]
-                            [(boolean?) orig->= (flonum? fixnum?)]
+                            ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                            ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                            #;[(boolean?) orig->= (fixnum? flonum?)]
+                            [(boolean?) fx/fl>= (fixnum? flonum?)]
+                            #;[(boolean?) orig->= (flonum? fixnum?)]
+                            [(boolean?) fl>=/fx (flonum? fixnum?)]
                             [(boolean?) orig->= (fixnum? exact-integer?)]
                             [(boolean?) orig->= (exact-integer? fixnum?)]
                             [(boolean?) orig->= (flonum? exact-integer?)]
@@ -721,9 +799,12 @@
                             [(boolean?) orig->= (real? real?)]
                             [(boolean?) orig->= (complex? complex?)]
                             [(boolean?) orig->= (inexact? inexact?)]
-                            ; mixed types : the generic procedure , only the return type is given
-                            [(boolean?) orig->= (fixnum? flonum?)]
-                            [(boolean?) orig->= (flonum? fixnum?)]
+                            ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                            ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                            #;[(boolean?) orig->= (fixnum? flonum?)]
+                            [(boolean?) fx/fl>= (fixnum? flonum?)]
+                            #;[(boolean?) orig->= (flonum? fixnum?)]
+                            [(boolean?) fl>=/fx (flonum? fixnum?)]
                             [(boolean?) orig->= (fixnum? exact-integer?)]
                             [(boolean?) orig->= (exact-integer? fixnum?)]
                             [(boolean?) orig->= (flonum? exact-integer?)]
@@ -737,9 +818,12 @@
                            [(boolean?) orig-= (real? real?)]
                            [(boolean?) orig-= (complex? complex?)]
                            [(boolean?) orig-= (inexact? inexact?)]
-                           ; mixed types : the generic procedure , only the return type is given
-                           [(boolean?) orig-= (fixnum? flonum?)]
-                           [(boolean?) orig-= (flonum? fixnum?)]
+                           ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                           ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                           #;[(boolean?) orig-= (fixnum? flonum?)]
+                           [(boolean?) fx/fl= (fixnum? flonum?)]
+                           #;[(boolean?) orig-= (flonum? fixnum?)]
+                           [(boolean?) fl=/fx (flonum? fixnum?)]
                            [(boolean?) orig-= (fixnum? exact-integer?)]
                            [(boolean?) orig-= (exact-integer? fixnum?)]
                            [(boolean?) orig-= (flonum? exact-integer?)]
@@ -753,9 +837,12 @@
                            [(boolean?) orig-= (real? real?)]
                            [(boolean?) orig-= (complex? complex?)]
                            [(boolean?) orig-= (inexact? inexact?)]
-                           ; mixed types : the generic procedure , only the return type is given
-                           [(boolean?) orig-= (fixnum? flonum?)]
-                           [(boolean?) orig-= (flonum? fixnum?)]
+                           ; mixed types : a flonum and a fixnum , fl+/fx , fx/fl+ ... of Scheme+/flonum-fixnum (the same result as the
+                           ; generic procedure , a guard at run time) ; an exact integer : the generic procedure , only the return type is given
+                           #;[(boolean?) orig-= (fixnum? flonum?)]
+                           [(boolean?) fx/fl= (fixnum? flonum?)]
+                           #;[(boolean?) orig-= (flonum? fixnum?)]
+                           [(boolean?) fl=/fx (flonum? fixnum?)]
                            [(boolean?) orig-= (fixnum? exact-integer?)]
                            [(boolean?) orig-= (exact-integer? fixnum?)]
                            [(boolean?) orig-= (flonum? exact-integer?)]
@@ -3424,6 +3511,11 @@
   ; among them the arithmetic : (+ a b c) is computed (+ (+ a b) c) by Racket , from the left
   (define float-literal-folds '(fl+ fl- fl* fl/))
 
+  ; the operations of a flonum and a fixnum of Scheme+/flonum-fixnum (the rows of the mixed types) : the same results as
+  ; the generic procedures (a guard at run time) , not an overload of the user
+  (define float-fixnum-procedures '(fl+/fx fx/fl+ fl-/fx fx/fl- fl*/fx fx/fl* fl//fx fx/fl/ flmin/fx fx/flmin
+                                    fl</fx fx/fl< fl>/fx fx/fl> fl<=/fx fx/fl<= fl>=/fx fx/fl>= fl=/fx fx/fl= fl≠/fx fx/fl≠))
+
   ; an integer literal with a float , {x * 2} --> (fl* x 2.0) , {x + 1} --> (fl+ x 1.0) , {x < 1} --> (fl< x 1.0) :
   ; the expression with the literal written as a float , or #f. The literal is converted at the reading , as the generic
   ; procedure would convert it at run time : not 0 , and |n| <= 2^53 (exactly a float). Two arguments only (in
@@ -3441,6 +3533,7 @@
       (define p (find-if-exists-matching-types-with-ovrld rows types))
       (or (not p)
           (eq? p op)
+          (memq p float-fixnum-procedures) ; the literal written as a float is faster than the guard : (fl* x 2.0)
           (eq? p (find-if-exists-matching-types-with-ovrld rows '(number? number?)))
           (eq? p (find-if-exists-matching-types-with-ovrld rows '(real? real?)))))
     (define (fold-left-binary args) ; (a b c d) --> (op (op (op a b) c) d)
