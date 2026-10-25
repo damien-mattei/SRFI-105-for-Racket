@@ -54,8 +54,9 @@
   (populate-scheme-ht! scheme-ht racket-types)
   (define (scheme-return-type name)
     (and (hash-table-exists? scheme-ht name)
-         (let ((rv (caar ($bracket-apply$ scheme-ht name))))
-           (and (not (eq? rv 'any?)) rv))))
+         ($+>
+          (:= rv (caar ($bracket-apply$ scheme-ht name)))
+          (and (not (eq? rv 'any?)) rv))))
   (define-syntax init-annot-data
     (syntax-rules ()
       ((_ ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
@@ -1322,17 +1323,13 @@
     (define indexes
       (parse-square-brackets-arguments-lister-syntax (cddr s) '()))
     (define (kind-by-type index)
-      (let ((t
-             (find-type
-              index
-              ovrld-ht
-              ovrld-ht-n-ary
-              ovrld-ht-proc
-              annot-ht-lst)))
-        (cond
-         ((eq? t 'natural-fixnum?) 'natural)
-         ((eq? t 'fixnum?) 'integer)
-         (else #f))))
+      (:=
+       t
+       (find-type index ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+      (cond
+       ((eq? t 'natural-fixnum?) 'natural)
+       ((eq? t 'fixnum?) 'integer)
+       (else #f)))
     (define (kinds-of-operands kinds)
       (cond
        ((memq #f kinds) #f)
@@ -1342,13 +1339,12 @@
       (cond
        ((fixnum? index) (if (>= index 0) 'natural 'integer))
        ((and (pair? index) (not (operator? (car index))))
-        (let ((parsed
-               (parse-square-brackets-arguments-lister-syntax index '())))
-          (if (and (pair? parsed)
-                   (null? (cdr parsed))
-                   (not (equal? (car parsed) index)))
-            (kind (car parsed))
-            (kind-by-type index))))
+        (:= parsed (parse-square-brackets-arguments-lister-syntax index '()))
+        (if (and (pair? parsed)
+                 (null? (cdr parsed))
+                 (not (equal? (car parsed) index)))
+          (kind (car parsed))
+          (kind-by-type index)))
        ((and (pair? index)
              (pair? (cdr index))
              (or (ADD-op? (car index)) (MULTIPLY-op? (car index))))
@@ -1421,8 +1417,9 @@
             ovrld-ht-proc
             annot-ht-lst))
           'string?)
-         (let ((nb (square-brackets-nb-indexes s)))
-           (cond ((not nb) 'string?) ((= nb 1) 'char?) (else #f)))))
+         ($+>
+          (:= nb (square-brackets-nb-indexes s))
+          (cond ((not nb) 'string?) ((= nb 1) 'char?) (else #f)))))
   (define (overloaded-square-brackets-for tip)
     (if (and tip (not (eq? tip 'sexpr)))
       (filter
@@ -2008,16 +2005,17 @@
     (define blocks (cddr s))
     (cond
      ((memq 'else blocks)
-      (let* ((then-block
-              (let loop ((l blocks))
-                (cond
-                 ((eq? (car l) 'else) '())
-                 ((eq? (car l) 'then) (loop (cdr l)))
-                 (else (cons (car l) (loop (cdr l)))))))
-             (else-block (cdr (memq 'else blocks))))
-        (and (pair? then-block)
-             (pair? else-block)
-             (list (last then-block) (last else-block)))))
+      (:=
+       then-block
+       (let loop ((l blocks))
+         (cond
+          ((eq? (car l) 'else) '())
+          ((eq? (car l) 'then) (loop (cdr l)))
+          (else (cons (car l) (loop (cdr l)))))))
+      (:= else-block (cdr (memq 'else blocks)))
+      (and (pair? then-block)
+           (pair? else-block)
+           (list (last then-block) (last else-block))))
      ((memq 'then blocks) #f)
      ((and (pair? blocks) (pair? (cdr blocks)) (null? (cddr blocks))) blocks)
      (else #f)))
@@ -2815,19 +2813,21 @@
            ($bracket-apply$ ovrld-ht op)
            '(flonum? fixnum?))
           '(orig-** orig-expt))
-         (let ((b
-                (annot
-                 (second s)
-                 ovrld-ht
-                 ovrld-ht-n-ary
-                 ovrld-ht-proc
-                 annot-ht-lst)))
-           (if (symbol? b)
-             (list 'fl* b b)
-             (list
-              'let
-              (list (list '$power-base$ b))
-              '(fl* $power-base$ $power-base$))))))
+         ($+>
+          (:=
+           b
+           (annot
+            (second s)
+            ovrld-ht
+            ovrld-ht-n-ary
+            ovrld-ht-proc
+            annot-ht-lst))
+          (if (symbol? b)
+            (list 'fl* b b)
+            (list
+             'let
+             (list (list '$power-base$ b))
+             '(fl* $power-base$ $power-base$))))))
   (define (square-of-float?
            s
            ovrld-ht
@@ -2923,17 +2923,19 @@
                 (any float? (rest s))
                 (fold-left-binary (rest s)))
            (and (= (length s) 3)
-                (let ((a (second s)) (b (third s)))
-                  (cond
-                   ((and (convertible? a)
-                         (float? b)
-                         (generic? (list (type-of a) (type-of b))))
-                    (list op (exact->inexact a) b))
-                   ((and (float? a)
-                         (convertible? b)
-                         (generic? (list (type-of a) (type-of b))))
-                    (list op a (exact->inexact b)))
-                   (else #f)))))))
+                ($+>
+                 (:= a (second s))
+                 (:= b (third s))
+                 (cond
+                  ((and (convertible? a)
+                        (float? b)
+                        (generic? (list (type-of a) (type-of b))))
+                   (list op (exact->inexact a) b))
+                  ((and (float? a)
+                        (convertible? b)
+                        (generic? (list (type-of a) (type-of b))))
+                   (list op a (exact->inexact b)))
+                  (else #f)))))))
   (define (parse-expressions
            s
            ovrld-ht
@@ -3708,18 +3710,14 @@
       (list (append (third decl) '(->) (first decl))))
      ((not (null? overloads)) overloads)
      (else
-      (let ((t
-             (with-handlers
-              ((exn:fail? (λ (e) #f)))
-              (find-type
-               s
-               ovrld-ht
-               ovrld-ht-n-ary
-               ovrld-ht-proc
-               annot-ht-lst))))
-        (if (and t (not (memq t '(sexpr local-binding-without-type))))
-          (list t)
-          '())))))
+      (:=
+       t
+       (with-handlers
+        ((exn:fail? (λ (e) #f)))
+        (find-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
+      (if (and t (not (memq t '(sexpr local-binding-without-type))))
+        (list t)
+        '()))))
   (define (overload-signatures name ovrld-table n-ary?)
     (if (hash-table-exists? ovrld-table name)
       (map-in-order

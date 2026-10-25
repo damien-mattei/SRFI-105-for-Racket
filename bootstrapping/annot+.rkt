@@ -101,9 +101,12 @@
   ; and must not replace a known type , as in {k := (if ...)})
   (define (scheme-return-type name)
     (and (hash-table-exists? scheme-ht name)
-         (let ((rv (caar {scheme-ht[name]})))
+         #;(let ((rv (caar {scheme-ht[name]})))
            (and (not (eq? rv 'any?))
-                rv))))
+                rv))
+         ($+> {rv := (caar {scheme-ht[name]})}
+              (and (not (eq? rv 'any?))
+                   rv))))
 
   ; this macro reinitialise data in procedure in case of re-entring when requiring sub module in a parent module
   ; put here to be shared between SRFI 105 and SRFI 110 for curly infix and with Scheme+
@@ -1896,10 +1899,14 @@
   (define (indexes-kind s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
     (define indexes (parse-square-brackets-arguments-lister-syntax (cddr s) '()))
     (define (kind-by-type index) ; by the type of the expression : ℕ , ℤ or unknown
-      (let ((t (find-type index ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
+      #;(let ((t (find-type index ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
         (cond ((eq? t 'natural-fixnum?) 'natural)
               ((eq? t 'fixnum?) 'integer)
-              (else #f))))
+              (else #f)))
+      {t := (find-type index ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)}
+      (cond ((eq? t 'natural-fixnum?) 'natural)
+            ((eq? t 'fixnum?) 'integer)
+            (else #f)))
     (define (kinds-of-operands kinds) ; all naturals --> natural , all naturals or integers --> integer
       (cond ((memq #f kinds) #f)
             ((every (λ (k) (eq? k 'natural)) kinds) 'natural)
@@ -1907,10 +1914,14 @@
     (define (kind index)
       (cond ((fixnum? index) (if {index >= 0} 'natural 'integer)) ; a literal
             ((and (pair? index) (not (operator? (car index)))) ; an infix expression alone between parenthesis : (j + 1)
-             (let ((parsed (parse-square-brackets-arguments-lister-syntax index '())))
+             #;(let ((parsed (parse-square-brackets-arguments-lister-syntax index '())))
                (if (and (pair? parsed) (null? (cdr parsed)) (not (equal? (car parsed) index)))
                    (kind (car parsed))
-                   (kind-by-type index))))
+                   (kind-by-type index)))
+             {parsed := (parse-square-brackets-arguments-lister-syntax index '())}
+             (if (and (pair? parsed) (null? (cdr parsed)) (not (equal? (car parsed) index)))
+                 (kind (car parsed))
+                 (kind-by-type index)))
             ((and (pair? index) (pair? (cdr index))
                   (or (ADD-op? (car index)) (MULTIPLY-op? (car index)))) ; ℕ + ℕ , ℕ × ℕ are naturals
              (kinds-of-operands (map kind (cdr index))))
@@ -1955,10 +1966,14 @@
   ; the type of an access s to a string : {s[i]} --> char? , a slice {s[i : j]} --> string? , otherwise #f
   (define (string-access-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
     (and (eq? (type-base (find-type (cadr s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)) 'string?)
-         (let ((nb (square-brackets-nb-indexes s)))
+         #;(let ((nb (square-brackets-nb-indexes s)))
            (cond ((not nb) 'string?)
                  ({nb = 1} 'char?)
-                 (else #f)))))
+                 (else #f)))
+         ($+> {nb := (square-brackets-nb-indexes s)}
+              (cond ((not nb) 'string?)
+                    ({nb = 1} 'char?)
+                    (else #f)))))
 
   ; the overloads of the square brackets for an object of type tip : those whose predicate of the object matches
   (define (overloaded-square-brackets-for tip)
@@ -2503,14 +2518,22 @@
   (define (if-branches s)
     (define blocks (cddr s)) ; after the test
     (cond ((memq 'else blocks)
-           (let* ((then-block (let loop ((l blocks)) ; the expressions before else , without then
+           #;(let* ((then-block (let loop ((l blocks)) ; the expressions before else , without then
                                 (cond ((eq? (car l) 'else) '())
                                       ((eq? (car l) 'then) (loop (cdr l)))
                                       (else (cons (car l) (loop (cdr l)))))))
                   (else-block (cdr (memq 'else blocks))))
              (and (pair? then-block)
                   (pair? else-block)
-                  (list (last then-block) (last else-block)))))
+                  (list (last then-block) (last else-block))))
+           {then-block := (let loop ((l blocks)) ; the expressions before else , without then
+                            (cond ((eq? (car l) 'else) '())
+                                  ((eq? (car l) 'then) (loop (cdr l)))
+                                  (else (cons (car l) (loop (cdr l))))))}
+           {else-block := (cdr (memq 'else blocks))}
+           (and (pair? then-block)
+                (pair? else-block)
+                (list (last then-block) (last else-block))))
           ((memq 'then blocks) #f) ; then without else
           ((and (pair? blocks) (pair? (cdr blocks)) (null? (cddr blocks))) ; (if test a b)
            blocks)
@@ -3476,10 +3499,14 @@
          (eq? (type-base (find-type (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)) 'flonum?) ; also a ℝ⁺
          (hash-table-exists? ovrld-ht op)
          (memq (find-if-exists-matching-types-with-ovrld {ovrld-ht[op]} '(flonum? fixnum?)) '(orig-** orig-expt)) ; no overload of the user
-         (let ((b (annot (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
+         #;(let ((b (annot (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
            (if (symbol? b)
                (list 'fl* b b)
-               (list 'let (list (list '$power-base$ b)) '(fl* $power-base$ $power-base$))))))
+               (list 'let (list (list '$power-base$ b)) '(fl* $power-base$ $power-base$))))
+         ($+> {b := (annot (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)}
+              (if (symbol? b)
+                  (list 'fl* b b)
+                  (list 'let (list (list '$power-base$ b)) '(fl* $power-base$ $power-base$))))))
 
   ; the square of a float : {x ²} , {x ** 2} , (expt x 2) of a float x (the literal exact integer 2 , without an overload
   ; of the user as in square-of-flonum) , or {x * x} , (fl* x x) of a variable x (fl* x x is written by square-of-flonum) :
@@ -3547,13 +3574,20 @@
                   (any float? (rest s))
                   (fold-left-binary (rest s)))
          (and {(length s) = 3}
-         (let ((a (second s))
+         #;(let ((a (second s))
                (b (third s)))
            (cond ((and (convertible? a) (float? b) (generic? (list (type-of a) (type-of b))))
                   (list op (exact->inexact a) b))
                  ((and (float? a) (convertible? b) (generic? (list (type-of a) (type-of b))))
                   (list op a (exact->inexact b)))
-                 (else #f)))))))
+                 (else #f)))
+         ($+> {a := (second s)}
+              {b := (third s)}
+              (cond ((and (convertible? a) (float? b) (generic? (list (type-of a) (type-of b))))
+                     (list op (exact->inexact a) b))
+                    ((and (float? a) (convertible? b) (generic? (list (type-of a) (type-of b))))
+                     (list op a (exact->inexact b)))
+                    (else #f)))))))
 
   (define (parse-expressions s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
 
@@ -4277,11 +4311,16 @@
            (list (append (third decl) '(->) (first decl))))
           ((not (null? overloads)) overloads)
           (else
-           (let ((t (with-handlers ((exn:fail? (λ (e) #f))) ; an expression that find-type can not process : unknown
+           #;(let ((t (with-handlers ((exn:fail? (λ (e) #f))) ; an expression that find-type can not process : unknown
                       (find-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))))
              (if (and t (not (memq t '(sexpr local-binding-without-type))))
                  (list t)
-                 '())))))
+                 '()))
+           {t := (with-handlers ((exn:fail? (λ (e) #f))) ; an expression that find-type can not process : unknown
+                   (find-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))}
+           (if (and t (not (memq t '(sexpr local-binding-without-type))))
+               (list t)
+               '()))))
 
   ; the signatures of the overloads stored for the key name in one table of overloads : an entry
   ; ((ret ...) proc (pred ...)) or (proc (pred ...)) (no return type : ?) gives (pred ... -> ret ...) ; in the table of
