@@ -37,7 +37,7 @@
   (case ty
     ((nat) (ex 'nat 'lit (list (random 6))))
     ((fx) (ex 'fx 'lit (list (- (random 11) 5))))
-    ((fl) (ex 'fl 'lit (list (exact->inexact (/ (- (random 13) 6) 2))))) ; (/ 0 2.0) is the exact 0 in Racket
+    ((fl) (ex 'fl 'lit (list (if (chance 0.05) -0.0 (exact->inexact (/ (- (random 13) 6) 2)))))) ; (/ 0 2.0) is the exact 0 in Racket ; -0.0 : (+ -0.0 0) is -0.0 , (fl+ -0.0 0.0) is 0.0
     ((flp) (ex 'flp 'lit (list (if (chance 0.1) -0.0 (exact->inexact (/ (random 7) 2)))))) ; ℝ⁺ : -0.0 included
     ((bool) (ex 'bool 'lit (list (chance 0.5))))
     ((vfl) (ex 'vfl 'vec (for/list ((n 4)) (lit-of 'fl))))
@@ -47,6 +47,14 @@
     ((lfx) (ex 'lfx 'lst (for/list ((n 4)) (lit-of 'fx))))
     ((str) (ex 'str 'str (list (for/list ((n 4)) (pick chars)))))
     ((chr) (ex 'chr 'lit (list (pick chars))))))
+
+;; an integer literal mixed with a float (the literal is written as a float by the pass when it is not 0 and
+;; |n| <= 2^53) : small , 0 for + and - only (with * and / the exact 0 would not be a float) , beyond 2^53 sometimes
+(define (int-literal op)
+  (define n (if (chance 0.1)
+                (pick '(9007199254740992 9007199254740993 -9007199254740993))
+                (- (random 11) 5)))
+  (if (and (zero? n) (memq op '(* /))) (int-literal op) (ex 'fx 'lit (list n))))
 
 ;; the type names of the declarations , several spellings of the same type
 (define false-types? (getenv "FUZZ_FALSE_TYPES")) ; a check of the tool : the probability of a false declaration
@@ -144,7 +152,14 @@
                           ;; sqrt , log , expt of a ℝ⁺ : flsqrt , fllog , flexpt (a float , not a complex)
                           (λ () (ex 'fl 'call (list (pick '(sqrt √ log)) (sub 'flp))))
                           (λ () (ex 'fl 'op (list '** (chance 0.6) (sub 'flp) (lit-of 'fl))))
-                          (λ () (ex 'fl 'call (list 'expt (sub 'flp) (sub 'fl))))))
+                          (λ () (ex 'fl 'call (list 'expt (sub 'flp) (sub 'fl))))
+                          ;; a float and an integer literal : {x * 2} , {1 - x} , (max x 3)
+                          (λ () (let* ((op (pick '(+ - * /))) (lit (int-literal op)))
+                                  (if (chance 0.5)
+                                      (ex 'fl 'op (list op (chance 0.6) (sub 'fl) lit))
+                                      (ex 'fl 'op (list op (chance 0.6) lit (sub 'fl))))))
+                          (λ () (ex 'fl 'call (list (pick '(max min)) (sub 'fl) (int-literal 'max))))
+                          (λ () (ex 'fl 'op (list (pick '(+ *)) (chance 0.6) (int-literal '*) (sub 'fl) (int-literal '*)))))) ; n-ary : {3 * x * 2}
               ;; a float not negative : abs , exp , sqr of a float , sqrt of a ℝ⁺ , + and * of ℝ⁺
               ((flp) (list (λ () (ex 'flp 'call (list (pick '(abs exp sqr)) (sub 'fl))))
                            ;; a square of a float : {e ** 2} , {x * x} of a variable x of type fl
@@ -160,6 +175,7 @@
                                     (ex 'bool 'op (list (pick '(< > = <=)) (chance 0.6) (sub t) (sub t)))))
                             (λ () (ex 'bool 'call (list 'not (sub 'bool))))
                             (λ () (ex 'bool 'call (list (pick '(fl< fl= fl<=)) (sub 'fl) (sub 'fl))))
+                            (λ () (ex 'bool 'op (list (pick '(< > = <=)) (chance 0.6) (sub 'fl) (int-literal '<))))
                             (λ () (ex 'bool 'call (list (pick '(fx< fx= fx<=)) (sub 'fx) (sub 'fx))))
                             (λ () (ex 'bool 'call (list 'char=? (sub 'chr) (sub 'chr))))))
               ((chr) (list (λ () (lit-of 'chr))
@@ -453,7 +469,15 @@
 (define (gen-program [depth 4])
   (define-values (stmts env fenv) (gen-body '() '() depth (+ 2 (random 5)) #f))
   (define shown (take (visible env) (min 3 (length (visible env)))))
-  (ex 'prog 'prog (list stmts (map car shown) (gen-ex (pick scalar-types) env depth fenv))))
+  ;; two expressions of a float and an integer literal , 0 included ((* x 0) is the exact 0 , (+ -0.0 0) is -0.0) : only
+  ;; in the list of the results , never assigned to a declared variable (their value is not always a float)
+  (define extras
+    (for/list ((k 2))
+      (define e (gen-ex 'fl env (sub1 depth) fenv))
+      (define lit (ex 'fx 'lit (list (pick '(0 0 1 -3 9007199254740993)))))
+      (define op (pick '(+ - * /)))
+      (ex 'raw 'op (if (chance 0.5) (list op (chance 0.6) e lit) (list op (chance 0.6) lit e)))))
+  (ex 'prog 'prog (list stmts (map car shown) (gen-ex (pick scalar-types) env depth fenv) extras)))
 
 ;; ------------------------------------------------------------------ printing
 (define (num->string v)
@@ -477,9 +501,9 @@
     ((refref) (format "{~a[~a][~a]}" (pr (first a)) (pr (second a)) (pr (third a))))
     ((walrus) (format "{~a :=> ~a}" (first a) (pr (second a))))
     ((var) (symbol->string (first a)))
-    ((op) (if (second a)
-              (format "{~a ~a ~a}" (pr (third a)) (first a) (pr (fourth a)))
-              (format "(~a ~a ~a)" (first a) (pr (third a)) (pr (fourth a)))))
+    ((op) (if (second a) ; two operands or more : {a op b op c} , (op a b c)
+              (format "{~a}" (string-join (map pr (cddr a)) (format " ~a " (first a))))
+              (format "(~a ~a)" (first a) (string-join (map pr (cddr a)) " "))))
     ((call) (format "(~a ~a)" (first a) (string-join (map pr (rest a)) " ")))
     ((fcall) (format "(~a~a)" (first a) (string-append* (map (λ (x) (string-append " " (pr x))) (rest a)))))
     ((ref) (format "{~a[~a]}" (pr-container (first a)) (pr-index (second a))))
@@ -532,7 +556,8 @@
           (format "\n(type ((~a) procedure? (~a)) ~a)" (type-name (first sig))
                   (string-join (map (λ (t) (format "~a" (type-name t))) (second sig)) " ") fname)
           "")))
-    ((prog) (format "~a(list ~a ~a)" (pr-body (first a)) (string-join (map symbol->string (second a)) " ") (pr (third a))))))
+    ((prog) (format "~a(list ~a ~a ~a)" (pr-body (first a)) (string-join (map symbol->string (second a)) " ") (pr (third a))
+                    (string-join (map pr (fourth a)) " ")))))
 
 ;; a vector inside { } : a variable , or a vector between parenthesis
 (define (pr-container e) (pr e))

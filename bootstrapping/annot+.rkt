@@ -178,7 +178,11 @@
                               [(exact-integer?) min (fixnum? exact-integer?)]
                               [(exact-integer?) min (exact-integer? fixnum?)]
                               [(exact-integer?) min (exact-integer? exact-integer?)])}
-         {ovrld-ht['max] := '([(flonum?) flmax (flonum? flonum?)]
+         ; not flmax : on 0.0 and -0.0 , Racket CS 9.2 flmax returns the first or the second argument according to the
+         ; compilation (the first when an argument comes from vector-ref : (flmax 0.0 (vector-ref v i)) is 0.0 with v[i] = -0.0)
+         ; , max and flmin always the second : the generic max , its return type only
+         {ovrld-ht['max] := '(#;[(flonum?) flmax (flonum? flonum?)]
+                              [(flonum?) max (flonum? flonum?)]
                               [(fixnum?) fxmax (fixnum? fixnum?)]
                               ; mixed types : the generic procedure , only the return type is given ((max 3 2.0) is 3.0)
                               [(flonum?) max (fixnum? flonum?)]
@@ -1565,6 +1569,12 @@
   ;      (più in basso in questo file) — questa funzione è usata solo per il caso binario (arità fissa 2, nessuna
   ;      associatività da gestire); per il caso n-ario, la stessa decisione precalcolo/specializzazione/dispatch
   ;      è duplicata in linea dentro operator-associativity-recursion.
+  ; the computation of literals at the reading : (list value) , or #f when it raises an error ({2.5 / 0} is not computed :
+  ; the error happens at run time , as without the annotation) ; a list because the value can be #f ({2 < 1})
+  (define (fold-literals kp argus)
+    (with-handlers ((exn:fail? (λ (e) #f)))
+      (list (apply kp argus))))
+
   (define (rewrite/compute-operational-expression proc proc-base argus argus-types) ; proc is function matching types if found (example: fl+, proc-orig is the original operator/procedure symbol (like +), argus is the list of arguments, argus-types is the list of types of arguments
 
     {kp := (known-proc-ref proc-base)} ; known-proc-ref returns the procedure bound to 'key in known-proc if it exists, #f otherwise
@@ -1572,8 +1582,11 @@
     (display "annot+.rkt : rewrite/compute-operational-expression : kwnown procedure : kp =" err-port) (display kp err-port) (newline err-port)
     (display "annot+.rkt : rewrite/compute-operational-expression : argus is (or not) a litteral list : lla =" err-port) (display lla err-port) (newline err-port)
 
-    (cond ({proc and kp and lla and (all-numbers? argus)} ; all arguments are litterals, we can compute the result at parsing time
+    {folded := (and proc kp lla (all-numbers? argus) (fold-literals kp argus))} ; (value) , #f if not computed
+    (cond #;({proc and kp and lla and (all-numbers? argus)} ; all arguments are litterals, we can compute the result at parsing time
            (apply kp argus)) ; operator found in hash table of known procedures,example (fl+ 1.0 2.0), this is the fastest pre-runtime computation as we evaluate the litterals arguments
+          (folded ; all arguments are litterals : the result computed at parsing time (not when the computation raises an error)
+           (car folded))
 
           (proc ; specialization at parsing but computation at runtime, example: (fl+ 1.0 2.0), this is the fastest runtime computation
             (display "annot+.rkt : rewrite/compute-operational-expression : (cons proc argus) =" err-port) (display (cons proc argus) err-port) (newline err-port)
@@ -2527,6 +2540,11 @@
                   ; exponent : {x ³} can be negative) , see square-of-float?
                   ((square-of-float? s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst) 'nonnegative-flonum?)
 
+                  ; an integer literal with a float : the type of the expression with the literal written as a float ,
+                  ; {x * 2} is a flonum? as (fl* x 2.0) (see float-literal)
+                  (exec {with-float-literal := (float-literal s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)})
+                  (with-float-literal (find-type with-float-literal ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+
                   ; check first for literal lists possibility:
                   ; (list ...)
                   ; (quote (...))
@@ -3297,8 +3315,12 @@
     (display "annot+.rkt : operator-associativity-recursion (was rewrite/compute-operational-expression) : kwnown procedure : kp =" err-port) (display kp err-port) (newline err-port)
     (display "annot+.rkt : operator-associativity-recursion (was rewrite/compute-operational-expression) : argus-after-annot is (or not) a litteral list : lla =" err-port) (display lla err-port) (newline err-port)
     
-    (when {proc-after-annot and kp and lla and (all-numbers? argus-after-annot)} ; all arguments are litterals, we can compute the result at parsing time, TODO? could we apply this to other litterals like string, string-append overloading + for example, or even string-append with litteral strings but does in Racket it brings any time optimisation?
+    #;(when {proc-after-annot and kp and lla and (all-numbers? argus-after-annot)} ; all arguments are litterals, we can compute the result at parsing time, TODO? could we apply this to other litterals like string, string-append overloading + for example, or even string-append with litteral strings but does in Racket it brings any time optimisation?
       (return (apply kp argus-after-annot))) ; operator found in hash table of known procedures,example (fl+ 1.0 2.0), this is the fastest pre-runtime computation as we evaluate the litterals arguments
+    ; all arguments are litterals : the result computed at parsing time , not when the computation raises an error ({2.5 / 0})
+    {folded := (and proc-after-annot kp lla (all-numbers? argus-after-annot) (fold-literals kp argus-after-annot))}
+    (when folded
+      (return (car folded)))
            
     (when proc-after-annot ; specialization at parsing time and computation at runtime, example: (fl+ 1.0 2.0), this is the fastest runtime computation
      (display "annot+.rkt : operator-associativity-recursion : (cons proc-after-annot argus-after-annot) =" err-port) (display (cons proc-after-annot argus-after-annot) err-port) (newline err-port)
@@ -3393,6 +3415,52 @@
                   (symbol? (second s))
                   (eq? (second s) (third s))
                   (float? (second s))))))
+
+  ; the procedures of two floats that give the same result as the generic procedure on a float and an integer converted
+  ; exactly to a float : (+ x 1) and (fl+ x 1.0) , (< x 1) and (fl< x 1.0) (not the exact 0 : (* 0 2.0) is the exact 0 ,
+  ; (+ -0.0 0) is -0.0 but (fl+ -0.0 0.0) is 0.0)
+  #;(define float-literal-procedures '(fl+ fl- fl* fl/ flmin flmax fl< fl> fl<= fl>= fl= fl≠))
+  (define float-literal-procedures '(fl+ fl- fl* fl/ flmin fl< fl> fl<= fl>= fl= fl≠)) ; not flmax (see the table of max)
+  ; among them the arithmetic : (+ a b c) is computed (+ (+ a b) c) by Racket , from the left
+  (define float-literal-folds '(fl+ fl- fl* fl/))
+
+  ; an integer literal with a float , {x * 2} --> (fl* x 2.0) , {x + 1} --> (fl+ x 1.0) , {x < 1} --> (fl< x 1.0) :
+  ; the expression with the literal written as a float , or #f. The literal is converted at the reading , as the generic
+  ; procedure would convert it at run time : not 0 , and |n| <= 2^53 (exactly a float). Two arguments only (in
+  ; (+ 2^53 1 x) the integers are added before , exactly). Not when the user has overloaded the operator for these types
+  ; (the procedure for a float and an integer must be the generic one) , nor for ** , expt , % (their procedure of two
+  ; floats is not in float-literal-procedures). With more arguments , + - * / with an integer literal and a float are
+  ; written from the left , (* 3 x 2) --> (* (* 3 x) 2) , as Racket computes them : each product then follows this rule.
+  (define (float-literal s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (define (type-of e) (find-type e ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+    (define (float? e) (eq? (type-base (type-of e)) 'flonum?))
+    (define (convertible? n) (and (exact-integer? n) (not (zero? n)) {(abs n) <= (expt 2 53)}))
+    (define op (first s))
+    (define (generic? types) ; the procedure chosen for these types is the generic one (no overload of the user)
+      (define rows {ovrld-ht[op]})
+      (define p (find-if-exists-matching-types-with-ovrld rows types))
+      (or (not p)
+          (eq? p op)
+          (eq? p (find-if-exists-matching-types-with-ovrld rows '(number? number?)))
+          (eq? p (find-if-exists-matching-types-with-ovrld rows '(real? real?)))))
+    (define (fold-left-binary args) ; (a b c d) --> (op (op (op a b) c) d)
+      (for/fold ((acc (first args))) ((e (rest args)))
+        (list op acc e)))
+    (and (hash-table-exists? ovrld-ht op)
+         (memq (find-if-exists-matching-types-with-ovrld {ovrld-ht[op]} '(flonum? flonum?)) float-literal-procedures)
+         (if {(length s) > 3} ; n-ary : from the left , only for the arithmetic with a literal and a float
+             (and (memq (find-if-exists-matching-types-with-ovrld {ovrld-ht[op]} '(flonum? flonum?)) float-literal-folds)
+                  (any convertible? (rest s))
+                  (any float? (rest s))
+                  (fold-left-binary (rest s)))
+         (and {(length s) = 3}
+         (let ((a (second s))
+               (b (third s)))
+           (cond ((and (convertible? a) (float? b) (generic? (list (type-of a) (type-of b))))
+                  (list op (exact->inexact a) b))
+                 ((and (float? a) (convertible? b) (generic? (list (type-of a) (type-of b))))
+                  (list op a (exact->inexact b)))
+                 (else #f)))))))
 
   (define (parse-expressions s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
 
@@ -3608,6 +3676,11 @@
           ; {x ²} of a float --> (fl* x x) : see square-of-flonum (before the general path of the operators)
           (exec {flonum-square := (square-of-flonum s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)})
           (flonum-square flonum-square)
+
+          ; an integer literal with a float : {x * 2} --> (fl* x 2.0) , see float-literal (the expression with the literal
+          ; written as a float follows then the usual path)
+          (exec {with-float-literal := (float-literal s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)})
+          (with-float-literal (annot with-float-literal ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
           
           ; binary and n-ary
 

@@ -123,7 +123,7 @@
             ((exact-integer?) min (exact-integer? exact-integer?))))
          (:=
           ($bracket-apply$ ovrld-ht 'max)
-          '(((flonum?) flmax (flonum? flonum?))
+          '(((flonum?) max (flonum? flonum?))
             ((fixnum?) fxmax (fixnum? fixnum?))
             ((flonum?) max (fixnum? flonum?))
             ((flonum?) max (flonum? fixnum?))
@@ -1157,6 +1157,8 @@
         markers-before
         (cdddr modul))))
      (else forms)))
+  (define (fold-literals kp argus)
+    (with-handlers ((exn:fail? (λ (e) #f))) (list (apply kp argus))))
   (define (rewrite/compute-operational-expression
            proc
            proc-base
@@ -1174,8 +1176,9 @@
      err-port)
     (display lla err-port)
     (newline err-port)
+    (:= folded (and proc kp lla (all-numbers? argus) (fold-literals kp argus)))
     (cond
-     ((and proc kp lla (all-numbers? argus)) (apply kp argus))
+     (folded (car folded))
      (proc
       (display
        "annot+.rkt : rewrite/compute-operational-expression : (cons proc argus) ="
@@ -2074,6 +2077,17 @@
        (if-type if-type)
        ((square-of-float? s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
         'nonnegative-flonum?)
+       (exec
+        (:=
+         with-float-literal
+         (float-literal s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
+       (with-float-literal
+        (find-type
+         with-float-literal
+         ovrld-ht
+         ovrld-ht-n-ary
+         ovrld-ht-proc
+         annot-ht-lst))
        ((eq? 'list proc/mac)
         (or (higher-order-type
              'list
@@ -2708,8 +2722,14 @@
     err-port)
    (display lla err-port)
    (newline err-port)
-   (when (and proc-after-annot kp lla (all-numbers? argus-after-annot))
-     (return (apply kp argus-after-annot)))
+   (:=
+    folded
+    (and proc-after-annot
+         kp
+         lla
+         (all-numbers? argus-after-annot)
+         (fold-literals kp argus-after-annot)))
+   (when folded (return (car folded)))
    (when proc-after-annot
      (display
       "annot+.rkt : operator-associativity-recursion : (cons proc-after-annot argus-after-annot) ="
@@ -2826,6 +2846,56 @@
                   (symbol? (second s))
                   (eq? (second s) (third s))
                   (float? (second s))))))
+  (define float-literal-procedures
+    '(fl+ fl- fl* fl/ flmin fl< fl> fl<= fl>= fl= fl≠))
+  (define float-literal-folds '(fl+ fl- fl* fl/))
+  (define (float-literal s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (define (type-of e)
+      (find-type e ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))
+    (define (float? e) (eq? (type-base (type-of e)) 'flonum?))
+    (define (convertible? n)
+      (and (exact-integer? n) (not (zero? n)) (<= (abs n) (expt 2 53))))
+    (define op (first s))
+    (define (generic? types)
+      (define rows ($bracket-apply$ ovrld-ht op))
+      (define p (find-if-exists-matching-types-with-ovrld rows types))
+      (or (not p)
+          (eq? p op)
+          (eq?
+           p
+           (find-if-exists-matching-types-with-ovrld rows '(number? number?)))
+          (eq?
+           p
+           (find-if-exists-matching-types-with-ovrld rows '(real? real?)))))
+    (define (fold-left-binary args)
+      (for/fold ((acc (first args))) ((e (rest args))) (list op acc e)))
+    (and (hash-table-exists? ovrld-ht op)
+         (memq
+          (find-if-exists-matching-types-with-ovrld
+           ($bracket-apply$ ovrld-ht op)
+           '(flonum? flonum?))
+          float-literal-procedures)
+         (if (> (length s) 3)
+           (and (memq
+                 (find-if-exists-matching-types-with-ovrld
+                  ($bracket-apply$ ovrld-ht op)
+                  '(flonum? flonum?))
+                 float-literal-folds)
+                (any convertible? (rest s))
+                (any float? (rest s))
+                (fold-left-binary (rest s)))
+           (and (= (length s) 3)
+                (let ((a (second s)) (b (third s)))
+                  (cond
+                   ((and (convertible? a)
+                         (float? b)
+                         (generic? (list (type-of a) (type-of b))))
+                    (list op (exact->inexact a) b))
+                   ((and (float? a)
+                         (convertible? b)
+                         (generic? (list (type-of a) (type-of b))))
+                    (list op a (exact->inexact b)))
+                   (else #f)))))))
   (define (parse-expressions
            s
            ovrld-ht
@@ -2986,6 +3056,17 @@
         ovrld-ht-proc
         annot-ht-lst)))
      (flonum-square flonum-square)
+     (exec
+      (:=
+       with-float-literal
+       (float-literal s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
+     (with-float-literal
+      (annot
+       with-float-literal
+       ovrld-ht
+       ovrld-ht-n-ary
+       ovrld-ht-proc
+       annot-ht-lst))
      ((and (hash-table-exists? ovrld-ht-n-ary proc/mac)
            (hash-table-exists? ovrld-ht proc/mac))
       (display
