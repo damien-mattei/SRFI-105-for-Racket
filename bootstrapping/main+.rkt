@@ -420,7 +420,32 @@
   (datum->syntax #f '(void))) ; nothing to evaluate
 
 
-(define (literal-read-syntax-for-repl src in) ; do the annotation too, must have access to the hash tables
+; the expeditor (the line editor of the REPL of Racket CS in a terminal) calls the reader on the line typed , given in
+; a string port , while the terminal is still in raw mode : a newline goes down without going back to the column 0 and
+; the displays of the reader were written as a staircase. In this case the displays are written to a string and then
+; to the terminal with \r\n (a first \r\n ends the line typed , the newlines at the end are removed : the expeditor
+; then ends the line itself) ; otherwise (readline , a pipe , a file , the REPL of DrRacket) unchanged.
+(define (call-with-repl-output in thunk)
+  (if (and (string-port? in)
+           (terminal-port? (current-output-port)))
+      (let ((out (current-output-port))
+            (displays (open-output-string)))
+        (dynamic-wind
+         void
+         (lambda () (parameterize ((current-output-port displays))
+                      (thunk)))
+         (lambda () ; also when the reading or the annotation raises an error
+           (write-string (regexp-replace* "\n"
+                                          (string-append "\n" (regexp-replace #rx"\n+$" (get-output-string displays) ""))
+                                          "\r\n")
+                         out)
+           (flush-output out))))
+      (thunk)))
+
+(define (literal-read-syntax-for-repl src in)
+  (call-with-repl-output in (lambda () (read-syntax-for-repl src in))))
+
+(define (read-syntax-for-repl src in) ; do the annotation too, must have access to the hash tables
 
   (define result (curly-infix-read in))
 
@@ -440,7 +465,7 @@
     (when (verify-if-declaration-for-parser-then-store-it result) ; postfix operators , procedures , data
       (display "Parser : main.rkt : Postfix operators list :") (display (get-postfix-lst)) (newline))
     
-    (write-char (integer->char 13)) ; put a Carriage Return
+    #;(write-char (integer->char 13)) ; put a Carriage Return ; now done by call-with-repl-output for the expeditor
     (pretty-print result
 		  (current-output-port)
 		  1))

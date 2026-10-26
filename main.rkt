@@ -266,7 +266,26 @@
         (display ":print-type : the annotation is not active (ANNOTATION-ON)")
         (newline)))
     (datum->syntax #f '(void)))
+  (define (call-with-repl-output in thunk)
+    (if (and (string-port? in) (terminal-port? (current-output-port)))
+      (let ((out (current-output-port)) (displays (open-output-string)))
+        (dynamic-wind
+         void
+         (lambda () (parameterize ((current-output-port displays)) (thunk)))
+         (lambda ()
+           (write-string
+            (regexp-replace*
+             "\n"
+             (string-append
+              "\n"
+              (regexp-replace (regexp "\n+$") (get-output-string displays) ""))
+             "\r\n")
+            out)
+           (flush-output out))))
+      (thunk)))
   (define (literal-read-syntax-for-repl src in)
+    (call-with-repl-output in (lambda () (read-syntax-for-repl src in))))
+  (define (read-syntax-for-repl src in)
     (define result (curly-infix-read in))
     (when (process-strict-pragma result) (set! result '(values)))
     (unless (eof-object? result)
@@ -278,7 +297,6 @@
         (display "Parser : main.rkt : Postfix operators list :")
         (display (get-postfix-lst))
         (newline))
-      (write-char (integer->char 13))
       (pretty-print result (current-output-port) 1))
     (if (eof-object? result)
       result
