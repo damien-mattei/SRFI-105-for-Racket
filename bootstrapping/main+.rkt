@@ -419,6 +419,16 @@
 	(newline)))
   (datum->syntax #f '(void))) ; nothing to evaluate
 
+; the tables of the annotation , created only if no file read with ANNOTATION-ON has created them (annot-ht-lst is the
+; '() of declare) : a pragma ANNOTATION-ON typed in a REPL started without such a file ; the tables of a file already
+; read (REPL-Scheme-PLUS.rkt , the definitions of DrRacket) and the types typed at the REPL are kept
+(define (ensure-annotation-tables!)
+  (when (null? annot-ht-lst)
+    {ovrld-ht := (make-hash-table)} ; this hash table will be used for overloading operators
+    {ovrld-ht-n-arity := (make-hash-table)} ; this hash table will be used for overloading operators
+    {ovrld-ht-proc := (make-hash-table)} ; this hash table will be used for overloading procedures
+    (init-annot-data ovrld-ht ovrld-ht-n-arity ovrld-ht-proc annot-ht-lst)))
+
 
 ; the expeditor (the line editor of the REPL of Racket CS in a terminal) calls the reader on the line typed , given in
 ; a string port , while the terminal is still in raw mode : a newline goes down without going back to the column 0 and
@@ -451,6 +461,14 @@
 
   ; a pragma BEGIN-STRICT-SRFI-105-REGION / END-STRICT-SRFI-105-REGION alone : it changes the mode , there is nothing to evaluate
   (when (process-strict-pragma result)
+    (set! result '(values)))
+
+  ; a pragma ANNOTATION-ON / ANNOTATION-OFF alone : it changes the mode for the rest of the session (the expressions typed
+  ; between ANNOTATION-ON and ANNOTATION-OFF are a region) , there is nothing to evaluate ; ANNOTATION-ON creates the
+  ; tables of the annotation if no file read has created them
+  (when (process-annotation-pragma result)
+    (when (get-annot-flag)
+      (ensure-annotation-tables!))
     (set! result '(values)))
 
   ; the pragmas CARE-OF-QUOTES-ON / CARE-OF-QUOTES-OFF : the last one read acts on the rest of the session (Scheme+/care-of-quotes)
