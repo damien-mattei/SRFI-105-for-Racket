@@ -3416,7 +3416,8 @@
                           ((integer) '$bracket-apply-vector-integer$)
                           (else '$bracket-apply-vector$))
                         a1_N)) ; we must recall annot() on the arguments also
-                 ((eq? tip-a1 'flomat?)
+                 ; flomat removed from Scheme+ (sci requires libgfortran) : a flomat uses overload-square-brackets
+                 #;((eq? tip-a1 'flomat?)
                   (cons '$bracket-apply-flomat$
                         a1_N))
                  ((eq? tip-a1 'string?)

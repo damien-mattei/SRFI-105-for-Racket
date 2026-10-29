@@ -3060,7 +3060,6 @@
            ((integer) '$bracket-apply-vector-integer$)
            (else '$bracket-apply-vector$))
          a1_N))
-       ((eq? tip-a1 'flomat?) (cons '$bracket-apply-flomat$ a1_N))
        ((eq? tip-a1 'string?)
         (cons
          (case (and (eqv? (square-brackets-nb-indexes s) 1)
