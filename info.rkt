@@ -3,7 +3,7 @@
 (define pkg-name "SRFI-105-for-Racket")
 (define collection "SRFI-105")
 (define compile-omit-paths '("src" "deprecated" "compiled" "bootstrapping"))
-(define test-omit-paths '("src" "compiled" "bootstrapping"))
+(define test-omit-paths '("src" "deprecated" "compiled" "bootstrapping" "examples/annot-fuzz/run.rkt")) ; run.rkt : a long fuzzing , not a test
 (define pkg-desc "SRFI-105 Curly Infix for Racket and R6RS (autodetection)")
 (define version "15.0")
 (define pkg-authors '(mattei))
