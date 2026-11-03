@@ -43,6 +43,10 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 The type annotation and inference system to improve speed to top is now available, see version 15.0 below.
 <br>
 
+**Changes of version 15.1:**
+
+The code read has an empty source location: without locations Racket gave to every identifier the location of the whole file, so the language server of VS Code (Magic Racket) underlined the whole file with a blue wave for each unused variable.
+
 **Changes of version 15.0:**
 
 Support for DrRacket literal hash table, examples: `#hash((a . 1) (b . 2))` , `#hasheq((a . 1) (b . 2))` ,  `#hasheqv((a . 1) (b . 2))` .
