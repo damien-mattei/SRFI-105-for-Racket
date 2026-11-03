@@ -20,7 +20,8 @@
 ;;(require syntax/strip-context) ;; is this useful?
 
 (provide (rename-out [literal-read read]
-                     [literal-read-syntax read-syntax])
+                     ; old line : [literal-read-syntax read-syntax]
+                     [literal-read-syntax-empty-location read-syntax])
 	 ;get-info
 	 )
 
@@ -136,6 +137,12 @@
   (syntax->datum
    (literal-read-syntax #f in)))
 
+
+; the code read has no source locations , without them Racket gives to every identifier the location of the whole file
+; (DrRacket and the language server of VS Code then underline the whole file for each unused variable) : an empty
+; location at the beginning of the file. The source is kept , for the relative paths.
+(define (literal-read-syntax-empty-location src in)
+  (datum->syntax #f (literal-read-syntax src in) (vector src 1 0 1 0)))
 
 ; this one should be used for a whole file parsing only
 (define (literal-read-syntax src in)
