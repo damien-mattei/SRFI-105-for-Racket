@@ -31,6 +31,7 @@
 		 Scheme+/alternating-parameters
 		 Scheme+/operators
 		 Scheme+/infix-with-precedence-to-prefix
+		 Scheme+/source-locations ; the locations of the code in the source file
 		 syntax/readerr
 		 racket/path
                  Scheme+/operators-list
@@ -701,7 +702,9 @@
 
        (#t ; here we should be ready to read something serious (token, expression,...)
 	;;(read-error "my-read=" my-read) ; my-read= #<procedure:curly-infix-read-real>
-        (let* ((datum (my-read port)) ; should read a token, i think scheme read it and return a real scheme object (for example a quoted symbol or a string of type string), thus it is not returning code as string or as syntax (? to be checked on complex expression) but code as (quoted) sexpr.
+        (let* ((datum-start (location-start port)) ; here the spaces and the comments are skipped
+	       (datum (my-read port)) ; should read a token, i think scheme read it and return a real scheme object (for example a quoted symbol or a string of type string), thus it is not returning code as string or as syntax (? to be checked on complex expression) but code as (quoted) sexpr.
+	       (datum-location (location-from datum-start port))
 	       (strict-srfi-105-pragma #f)
 	       (annotation-pragma #f) ; ANNOTATION-ON / ANNOTATION-OFF found : drop the datum
 	       (q-reg (check*quote* datum))) ; *quote* (i mean backquote,quasiquote ...) region and also set a local flag for entering a critical region
@@ -788,8 +791,12 @@
                       (set! postfix-flag #f))
                     (set! expression (my-read-delimited-list my-read stop-char port))) ; drop the datum as it is a pragma directive or a commented expression (or postfix-declare)
 		  ; keep the datum
-		  (set! expression (cons datum ;; normal case
-					 (my-read-delimited-list my-read stop-char port))))
+		  #;(set! expression (cons datum ;; normal case
+					 (my-read-delimited-list my-read stop-char port)))
+		  (set! expression (record-datum! (cons datum ;; normal case
+							(my-read-delimited-list my-read stop-char port))
+						  datum
+						  datum-location)))
 	      
 	      (when q-reg
 		;;(display "expression=") (display expression) (newline) ; here we possibly have finished a *quote* region ,pop
@@ -845,8 +852,9 @@
           ((char=? c #\{ )  ; Implement f{x}
             (read-char port)
             (neoteric-process-tail port
-              (let ((tail (process-curly
-			   (my-read-delimited-list neoteric-read-real #\} port))))
+              (let ((tail (let ((lyst (my-read-delimited-list neoteric-read-real #\} port)))
+			    #;(process-curly lyst)
+			    (relink-symbols! (process-curly lyst) lyst)))) ; the symbols keep their locations
                 (if (eqv? tail '())
                   (list prefix) ; Map f{} to (f), not (f ()).
                   (list prefix tail)))))
@@ -880,6 +888,17 @@
   ; This is a simple R5RS reader, with a few minor (common) extensions.
   ; The "my-read" is called if it has to recurse.
   (define (underlying-read my-read port)
+    (let ((c (peek-char port)))
+      (if (or (eof-object? c)
+	      (char=? c #\;)
+	      (my-char-whitespace? c))
+	  (underlying-read-real my-read port) ; the location will be recorded by the recursive call
+	  (let* ((start (location-start port))
+		 (datum (underlying-read-real my-read port)))
+	    (record-form! datum (location-from start port))
+	    datum))))
+
+  (define (underlying-read-real my-read port)
     (let* ((c (peek-char port)))
       (cond
         ((eof-object? c) c)
@@ -916,7 +935,8 @@
 		 pragma)
 	       (begin
 		 (set! strict-pragma-in-curly #f)
-		 (process-curly lyst)))));)
+		 #;(process-curly lyst)
+		 (relink-symbols! (process-curly lyst) lyst)))));) ; the symbols keep their locations in the infix expression
 	
         ; Handle missing (, [, { :
         ((char=? c #\) )
@@ -1058,10 +1078,14 @@
   (define (curly-infix-read . port-src)
     ;;(set! dpth 0)
     (set! comment #f)
-    (when (and (not (null? port-src))
+    #;(when (and (not (null? port-src))
 	       (not (null? (cdr port-src)))
 	       (path? (cadr port-src)))
       (set! source (some-system-path->string (cadr port-src))))
+    (when (and (not (null? port-src))
+	       (not (null? (cdr port-src)))
+	       (cadr port-src))
+      (set! source (cadr port-src))) ; as given by Racket (a path , or something else in an editor) : the tools compare it to their file
     (if (null? port-src)
       (curly-infix-read-real (current-input-port))
       (curly-infix-read-real (car port-src))))
@@ -1071,10 +1095,30 @@
   ; after it reads in some datum (the "prefix"), it calls
   ; neoteric-process-tail to see if there's a "tail".
   (define (neoteric-read-real port)
-    (let* ((prefix (underlying-read neoteric-read-real port)))
+    #;(let* ((prefix (underlying-read neoteric-read-real port)))
       (if (eof-object? prefix)
         prefix
-        (neoteric-process-tail port prefix))))
+        (neoteric-process-tail port prefix)))
+    (let* ((c (peek-char port))
+	   (start (and (char? c) ; the location of the prefix f of f(x) , f[x] or f{x}
+		       (not (char=? c #\;))
+		       (not (my-char-whitespace? c))
+		       (location-start port)))
+	   (prefix (underlying-read neoteric-read-real port))
+	   (prefix-location (location-from start port)))
+      (if (eof-object? prefix)
+        prefix
+        (let ((result (neoteric-process-tail port prefix)))
+	  (record-prefix! result prefix prefix-location)
+	  result))))
+
+  ;; the symbol of a neoteric form is in the pairs built by neoteric-process-tail : (f x) or ($bracket-apply$ f x)
+  (define (record-prefix! result prefix location)
+    (when (and (symbol? prefix) (pair? result))
+      (cond ((eq? (car result) prefix)
+	     (record-element! result location))
+	    ((and (pair? (cdr result)) (eq? (cadr result) prefix))
+	     (record-element! (cdr result) location)))))
   
 
   (define (neoteric-read . port)

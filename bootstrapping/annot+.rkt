@@ -35,6 +35,7 @@
            Scheme+ ; with bootstrapping we can use Scheme+ and curly infix syntax.
            Scheme+/operators
            Scheme+/type
+           (only-in Scheme+/source-locations link-form! link-cell! relink-form! enter-form! leave-form!) ; the locations of the code in the source file
            SRFI-105/scheme-types ; static R7RS (scheme base)/(scheme inexact)/core-syntax type table, see scheme-types.rkt
            SRFI-105/racket-types ; the same for the procedures of Racket not in R7RS , see racket-types.rkt
            (only-in Scheme+/parse-square-brackets parse-square-brackets-arguments-lister-syntax) ; to count the indexes of {M[i j]}
@@ -1032,11 +1033,19 @@
   ; (remove-expr '(() a (b (c d) e) f) (lambda (x) (equal? x '(c d))))
   ; '(() a (b e) f)
   ; warning: predicat p? works on list sexp, with that remove-expr is ok,unless do not remove atoms
-  (define (remove-expr s p?)
+  #;(define (remove-expr s p?)
     (cond ((pair? s) (if (p? (car s))
                          (remove-expr (cdr s) p?) ; forget the head
                          (cons (remove-expr (car s) p?)
                                (remove-expr (cdr s) p?))))
+          (else s)))
+
+  (define (remove-expr s p?)
+    (cond ((pair? s) (if (p? (car s))
+                         (link-form! (remove-expr (cdr s) p?) s) ; forget the head
+                         (link-cell! (cons (remove-expr (car s) p?) ; the copy keeps the locations of the source
+                                           (remove-expr (cdr s) p?))
+                                     s)))
           (else s)))
 
 
@@ -1068,9 +1077,12 @@
           ((or (quote-or-quasi? (car s)) ; (quote ...) , (quasiquote ...)
                (SYNTAX-QUOTE-op? (car s))) ; (syntax ...) , (quasisyntax ...) , (quote-syntax ...)
            s)
-          ((annotation-marker? (car s)) (remove-annotation-markers (cdr s)))
-          (else (cons (remove-annotation-markers (car s))
-                      (remove-annotation-markers (cdr s))))))
+          ((annotation-marker? (car s)) (link-form! (remove-annotation-markers (cdr s)) s))
+          #;(else (cons (remove-annotation-markers (car s))
+                      (remove-annotation-markers (cdr s))))
+          (else (link-cell! (cons (remove-annotation-markers (car s)) ; the copy keeps the locations of the source
+                                  (remove-annotation-markers (cdr s)))
+                            s))))
 
   ; when the annotation pass does not run : remove the type annotations (as before) and the markers of the pragmas
   (define (remove-types-and-annotation-markers s)
@@ -1316,9 +1328,13 @@
                 (eq? 'module (car (car code))))
            {modul := (car code)}
            {markers-before := (take-while annotation-marker? forms)}
-           (list (append (list (first modul) (second modul) (third modul)) ; (module name language
+           #;(list (append (list (first modul) (second modul) (third modul)) ; (module name language
                          markers-before
-                         (cdddr modul)))) ; body ...)
+                         (cdddr modul))) ; body ...)
+           (list (relink-form! (append (list (first modul) (second modul) (third modul)) ; (module name language
+                                       markers-before
+                                       (cdddr modul)) ; body ...)
+                               modul)))
           (else forms)))
 
 
@@ -3990,7 +4006,15 @@
   ; annotate a level of expression
   ; we also need for agument some hash tables , possibly multiples
   ; s = (s1 s2 ...)
+  ; the forms made by the annotation keep the location of the form they come from
   (define (annot s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    #;(relink-form! (annot-rewrite s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst) s)
+    (let* ((saved (enter-form! s)) ; an error of the pass is reported at the location of the form being processed
+           (result (annot-rewrite s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)))
+      (leave-form! saved)
+      (relink-form! result s)))
+
+  (define (annot-rewrite s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
     (cond ((null? s) '()) ; empty list
           ((list? s) ; we must process all the elements at the same level of recursion , so not by diving in a recursion over the rest of list
            ; do we have an interesting thing to parse and modify? when expression itself should be modified

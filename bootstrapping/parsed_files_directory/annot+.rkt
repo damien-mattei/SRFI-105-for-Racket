@@ -18,6 +18,13 @@
            Scheme+
            Scheme+/operators
            Scheme+/type
+           (only-in
+            Scheme+/source-locations
+            link-form!
+            link-cell!
+            relink-form!
+            enter-form!
+            leave-form!)
            SRFI-105/scheme-types
            SRFI-105/racket-types
            (only-in
@@ -981,8 +988,10 @@
     (cond
      ((pair? s)
       (if (p? (car s))
-        (remove-expr (cdr s) p?)
-        (cons (remove-expr (car s) p?) (remove-expr (cdr s) p?))))
+        (link-form! (remove-expr (cdr s) p?) s)
+        (link-cell!
+         (cons (remove-expr (car s) p?) (remove-expr (cdr s) p?))
+         s)))
      (else s)))
   (define annotation-on-symbol (string->symbol "ANNOTATION-ON"))
   (define annotation-off-symbol (string->symbol "ANNOTATION-OFF"))
@@ -993,11 +1002,14 @@
     (cond
      ((not (pair? s)) s)
      ((or (quote-or-quasi? (car s)) (SYNTAX-QUOTE-op? (car s))) s)
-     ((annotation-marker? (car s)) (remove-annotation-markers (cdr s)))
+     ((annotation-marker? (car s))
+      (link-form! (remove-annotation-markers (cdr s)) s))
      (else
-      (cons
-       (remove-annotation-markers (car s))
-       (remove-annotation-markers (cdr s))))))
+      (link-cell!
+       (cons
+        (remove-annotation-markers (car s))
+        (remove-annotation-markers (cdr s)))
+       s))))
   (define (remove-types-and-annotation-markers s)
     (remove-annotation-markers (remove-expr s is-type-expression?)))
   (define (macro-definition? s)
@@ -1167,10 +1179,12 @@
       (:= modul (car code))
       (:= markers-before (take-while annotation-marker? forms))
       (list
-       (append
-        (list (first modul) (second modul) (third modul))
-        markers-before
-        (cdddr modul))))
+       (relink-form!
+        (append
+         (list (first modul) (second modul) (third modul))
+         markers-before
+         (cdddr modul))
+        modul)))
      (else forms)))
   (define (fold-literals kp argus)
     (with-handlers ((exn:fail? (λ (e) #f))) (list (apply kp argus))))
@@ -3729,6 +3743,17 @@
        ($bracket-apply$ ovrld-table name))
       '()))
   (define (annot s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (let* ((saved (enter-form! s))
+           (result
+            (annot-rewrite
+             s
+             ovrld-ht
+             ovrld-ht-n-ary
+             ovrld-ht-proc
+             annot-ht-lst)))
+      (leave-form! saved)
+      (relink-form! result s)))
+  (define (annot-rewrite s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
     (cond
      ((null? s) '())
      ((list? s)

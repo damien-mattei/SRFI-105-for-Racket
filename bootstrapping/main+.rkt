@@ -21,7 +21,8 @@
 
 (provide (rename-out [literal-read read]
                      ; old line : [literal-read-syntax read-syntax]
-                     [literal-read-syntax-empty-location read-syntax])
+                     ; old line : [literal-read-syntax-empty-location read-syntax]
+                     [literal-read-syntax-located read-syntax])
 	 ;get-info
 	 )
 
@@ -33,6 +34,7 @@
 	 SRFI-105/annot+
          srfi/69 ; basic hash tables , brings compatibility on hash tables between scheme implementations
          Scheme+/operators-list
+         (only-in Scheme+/source-locations reset-source-locations! datum->located-syntax call-with-located-errors)
          Scheme+
 	 Scheme+/type
          (only-in Scheme+/parser-declarations ; what the infix parser must know : postfix operators , procedures , data
@@ -141,8 +143,15 @@
 ; the code read has no source locations , without them Racket gives to every identifier the location of the whole file
 ; (DrRacket and the language server of VS Code then underline the whole file for each unused variable) : an empty
 ; location at the beginning of the file. The source is kept , for the relative paths.
-(define (literal-read-syntax-empty-location src in)
+#;(define (literal-read-syntax-empty-location src in)
   (datum->syntax #f (literal-read-syntax src in) (vector src 1 0 1 0)))
+
+; each form and each identifier have the location of their text in the source file , kept through the infix conversion
+; and the passes that follow (see Scheme+/source-locations)
+(define (literal-read-syntax-located src in)
+  #;(reset-source-locations!)
+  (reset-source-locations! src)
+  (datum->located-syntax (literal-read-syntax src in) src))
 
 ; this one should be used for a whole file parsing only
 (define (literal-read-syntax src in)
@@ -340,7 +349,9 @@
                                  (printf " (~s → ~s)\n" k v)))
               (newline)
               (newline))
-	    (let ((parsed-annotated-module (annot result-modul ovrld-ht ovrld-ht-n-arity ovrld-ht-proc annot-ht-lst)))
+	    (let (#;(parsed-annotated-module (annot result-modul ovrld-ht ovrld-ht-n-arity ovrld-ht-proc annot-ht-lst))
+		  (parsed-annotated-module (call-with-located-errors ; an error of the annotation pass : at the location of the form it was processing
+					    (lambda () (annot result-modul ovrld-ht ovrld-ht-n-arity ovrld-ht-proc annot-ht-lst)))))
               (when annot-debug
                 (display "Annotation data after parsing annotation for src=") (display src) (newline)
                 (newline)
