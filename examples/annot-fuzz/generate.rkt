@@ -167,6 +167,8 @@
                           ;; sqrt , log , expt of a ℝ⁺ : flsqrt , fllog , flexpt (a float , not a complex)
                           (λ () (ex 'fl 'call (list (pick '(sqrt √ log)) (sub 'flp))))
                           (λ () (ex 'fl 'op (list '** (chance 0.6) (sub 'flp) (lit-of 'fl))))
+                          ;; a float to the power of a literal exponent not zero : a float , without any declaration (annot+.rkt)
+                          (λ () (ex 'fl 'op (list '** (chance 0.6) (sub 'fl) (ex 'nat 'lit (list (+ 1 (random 3)))))))
                           (λ () (ex 'fl 'call (list 'expt (sub 'flp) (sub 'fl))))
                           ;; a float and an integer literal : {x * 2} , {1 - x} , (max x 3)
                           (λ () (let* ((op (pick '(+ - * /))) (lit (int-literal op)))

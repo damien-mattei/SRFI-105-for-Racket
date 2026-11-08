@@ -455,16 +455,21 @@
                            [(real?) fx/fl* (fixnum? flonum?)])}
 
          {ovrld-ht['**] := '([(flonum?) flexpt (nonnegative-flonum? flonum?)] ; a ℝ⁺ to a float power : a float , not a complex (before the rows of flonums)
-                            [(fixnum?) orig-** (fixnum? fixnum?)]
+                             [(flonum?) orig-** (flonum? nonzero-fixnum?)] ; a float to the power of a ℤ* is a float
+                            #;[(fixnum?) orig-** (fixnum? fixnum?)]
+                            [(fixnum?) orig-** (fixnum? natural-fixnum?)] ; a ℕ exponent : an integer (the overflow is accepted)
+                            [(rational?) orig-** (fixnum? fixnum?)] ; (expt 2 -1) is 1/2 : declare the exponent ℕ for fx+ after
                             [(rational?) orig-** (exact-integer? exact-integer?)] ; (expt 2 -1) is 1/2
                             [(real?) orig-** (integer? integer?)] ; (expt 2 -1) is 1/2
                             [(number?) orig-** (number? number?)]
                             [(inexact?) orig-** (flonum? flonum?)] ; (expt -1.0 1.5) is a complex ; goal is also to return flonum? with orig-** but is it retrieved from here?? to avoid breaking floating point computation instead of real? scheme
-                            [(flonum?) orig-** (flonum? fixnum?)] ; a flonum to an integer power , as {z ²} : a flonum (the exponent 0 must be written 0.0)
+                            #;[(flonum?) orig-** (flonum? fixnum?)] ; a flonum to an integer power , as {z ²} : a flonum (the exponent 0 must be written 0.0)
+                            [(real?) orig-** (flonum? fixnum?)] ; (expt 2.0 0) is the exact 1 : declare the exponent ℤ* for fl+ after
                             [(number?) orig-** (real? real?)] ; (expt -1 1/2) is +i
                             [(complex?) orig-** (complex? complex?)]
                             [(inexact?) orig-** (inexact? inexact?)]
-                            [(inexact?) orig-** (inexact? integer?)]
+                            #;[(inexact?) orig-** (inexact? integer?)]
+                            [(number?) orig-** (inexact? integer?)] ; (expt 2.0 0) is the exact 1
                             [(number?) orig-** (integer? inexact?)])}
 
 
@@ -478,44 +483,59 @@
 
          ; overload with itself because if we recall annot on arguments we can get as result an orig- operator and need its return value type
          {ovrld-ht['orig-**] := '([(flonum?) flexpt (nonnegative-flonum? flonum?)] ; a ℝ⁺ to a float power : a float , not a complex (before the rows of flonums)
-                                  [(fixnum?) orig-** (fixnum? fixnum?)]
+                                  [(flonum?) orig-** (flonum? nonzero-fixnum?)] ; a float to the power of a ℤ* is a float
+                                  #;[(fixnum?) orig-** (fixnum? fixnum?)]
+                                  [(fixnum?) orig-** (fixnum? natural-fixnum?)] ; a ℕ exponent : an integer (the overflow is accepted)
+                                  [(rational?) orig-** (fixnum? fixnum?)] ; (expt 2 -1) is 1/2 : declare the exponent ℕ for fx+ after
                                   [(rational?) orig-** (exact-integer? exact-integer?)] ; (expt 2 -1) is 1/2
                                   [(real?) orig-** (integer? integer?)] ; (expt 2 -1) is 1/2
                                   [(number?) orig-** (number? number?)]
                                   [(inexact?) orig-** (flonum? flonum?)] ; (expt -1.0 1.5) is a complex
-                                  [(flonum?) orig-** (flonum? fixnum?)] ; a flonum to an integer power , as {z ²} : a flonum (the exponent 0 must be written 0.0)
+                                  #;[(flonum?) orig-** (flonum? fixnum?)] ; a flonum to an integer power , as {z ²} : a flonum (the exponent 0 must be written 0.0)
+                                  [(real?) orig-** (flonum? fixnum?)] ; (expt 2.0 0) is the exact 1 : declare the exponent ℤ* for fl+ after
                                   [(number?) orig-** (real? real?)] ; (expt -1 1/2) is +i
                                   [(complex?) orig-** (complex? complex?)]
                                   [(inexact?) orig-** (inexact? inexact?)]
-                                  [(inexact?) orig-** (inexact? integer?)]
+                                  #;[(inexact?) orig-** (inexact? integer?)]
+                                  [(number?) orig-** (inexact? integer?)] ; (expt 2.0 0) is the exact 1
                                   [(number?) orig-** (integer? inexact?)])}
 
          ; this continues overloading with others orig-*** operators
         
          {ovrld-ht['expt] := '([(flonum?) flexpt (nonnegative-flonum? flonum?)] ; a ℝ⁺ to a float power : a float , not a complex (before the rows of flonums)
-                              [(fixnum?) orig-expt (fixnum? fixnum?)]
+                               [(flonum?) orig-expt (flonum? nonzero-fixnum?)] ; a float to the power of a ℤ* is a float
+                              #;[(fixnum?) orig-expt (fixnum? fixnum?)]
+                              [(fixnum?) orig-expt (fixnum? natural-fixnum?)] ; a ℕ exponent : an integer (the overflow is accepted)
+                              [(rational?) orig-expt (fixnum? fixnum?)] ; (expt 2 -1) is 1/2 : declare the exponent ℕ for fx+ after
                               [(rational?) orig-expt (exact-integer? exact-integer?)] ; (expt 2 -1) is 1/2
                               [(real?) orig-expt (integer? integer?)] ; (expt 2 -1) is 1/2
                               [(number?) orig-expt (number? number?)]
                               [(inexact?) orig-expt (flonum? flonum?)] ; (expt -1.0 1.5) is a complex
-                              [(flonum?) orig-expt (flonum? fixnum?)] ; a flonum to an integer power , as {z ²} : a flonum (the exponent 0 must be written 0.0)
+                              #;[(flonum?) orig-expt (flonum? fixnum?)] ; a flonum to an integer power , as {z ²} : a flonum (the exponent 0 must be written 0.0)
+                              [(real?) orig-expt (flonum? fixnum?)] ; (expt 2.0 0) is the exact 1 : declare the exponent ℤ* for fl+ after
                               [(number?) orig-expt (real? real?)] ; (expt -1 1/2) is +i
                               [(complex?) orig-expt (complex? complex?)]
                               [(inexact?) orig-expt (inexact? inexact?)]
-                              [(inexact?) orig-expt (inexact? integer?)]
+                              #;[(inexact?) orig-expt (inexact? integer?)]
+                              [(number?) orig-expt (inexact? integer?)] ; (expt 2.0 0) is the exact 1
                               [(number?) orig-expt (integer? inexact?)])}
 
          {ovrld-ht['orig-expt] := '([(flonum?) flexpt (nonnegative-flonum? flonum?)] ; a ℝ⁺ to a float power : a float , not a complex (before the rows of flonums)
-                              [(fixnum?) orig-expt (fixnum? fixnum?)]
+                                    [(flonum?) orig-expt (flonum? nonzero-fixnum?)] ; a float to the power of a ℤ* is a float
+                              #;[(fixnum?) orig-expt (fixnum? fixnum?)]
+                              [(fixnum?) orig-expt (fixnum? natural-fixnum?)] ; a ℕ exponent : an integer (the overflow is accepted)
+                              [(rational?) orig-expt (fixnum? fixnum?)] ; (expt 2 -1) is 1/2 : declare the exponent ℕ for fx+ after
                               [(rational?) orig-expt (exact-integer? exact-integer?)] ; (expt 2 -1) is 1/2
                               [(real?) orig-expt (integer? integer?)] ; (expt 2 -1) is 1/2
                               [(number?) orig-expt (number? number?)]
                               [(inexact?) orig-expt (flonum? flonum?)] ; (expt -1.0 1.5) is a complex
-                              [(flonum?) orig-expt (flonum? fixnum?)] ; a flonum to an integer power , as {z ²} : a flonum (the exponent 0 must be written 0.0)
+                              #;[(flonum?) orig-expt (flonum? fixnum?)] ; a flonum to an integer power , as {z ²} : a flonum (the exponent 0 must be written 0.0)
+                              [(real?) orig-expt (flonum? fixnum?)] ; (expt 2.0 0) is the exact 1 : declare the exponent ℤ* for fl+ after
                               [(number?) orig-expt (real? real?)] ; (expt -1 1/2) is +i
                               [(complex?) orig-expt (complex? complex?)]
                               [(inexact?) orig-expt (inexact? inexact?)]
-                              [(inexact?) orig-expt (inexact? integer?)]
+                              #;[(inexact?) orig-expt (inexact? integer?)]
+                              [(number?) orig-expt (inexact? integer?)] ; (expt 2.0 0) is the exact 1
                               [(number?) orig-expt (integer? inexact?)])}
 
          
@@ -928,7 +948,9 @@
                                     [(complex?) orig-× (complex?)]
                                     [(inexact?) orig-× (inexact?)])}
 
-         {ovrld-ht-n-ary['**] := '([(fixnum?) orig-** (fixnum?)]
+         {ovrld-ht-n-ary['**] := '(#;[(fixnum?) orig-** (fixnum?)]
+                                   [(fixnum?) orig-** (natural-fixnum?)] ; ℕ exponents : an integer (the overflow is accepted)
+                                   [(rational?) orig-** (fixnum?)] ; (expt 2 -1) is 1/2
                                      [(rational?) orig-** (exact-integer?)] ; (expt 2 -1) is 1/2
                                      [(real?) orig-** (integer?)] ; (expt 2 -1) is 1/2
                                      [(number?) orig-** (number?)]
@@ -937,7 +959,9 @@
                                      [(complex?) orig-** (complex?)]
                                      [(inexact?) orig-** (inexact?)])}
 
-         {ovrld-ht-n-ary['orig-**] := '([(fixnum?) orig-** (fixnum?)]
+         {ovrld-ht-n-ary['orig-**] := '(#;[(fixnum?) orig-** (fixnum?)]
+                                        [(fixnum?) orig-** (natural-fixnum?)] ; ℕ exponents : an integer (the overflow is accepted)
+                                        [(rational?) orig-** (fixnum?)] ; (expt 2 -1) is 1/2
                                      [(rational?) orig-** (exact-integer?)] ; (expt 2 -1) is 1/2
                                      [(real?) orig-** (integer?)] ; (expt 2 -1) is 1/2
                                      [(number?) orig-** (number?)]
@@ -1603,8 +1627,10 @@
     (define indexes (parse-square-brackets-arguments-lister-syntax (cddr s) '()))
     (define (kind-by-type index) ; by the type of the expression : ℕ , ℤ or unknown
       {t := (find-type index ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)}
-      (cond ((eq? t 'natural-fixnum?) 'natural)
-            ((eq? t 'fixnum?) 'integer)
+      (cond #;((eq? t 'natural-fixnum?) 'natural)
+            ((memq t '(natural-fixnum? positive-fixnum?)) 'natural)
+            #;((eq? t 'fixnum?) 'integer)
+            ((memq t '(fixnum? nonzero-fixnum?)) 'integer)
             (else #f)))
     (define (kinds-of-operands kinds) ; all naturals --> natural , all naturals or integers --> integer
       (cond ((memq #f kinds) #f)
@@ -1813,7 +1839,9 @@
   (define (type-match? arg-type param-type)
     (or (equal? arg-type param-type)
         (and (symbol? param-type)
-             (equal? (type-base arg-type) param-type))))
+             #;(equal? (type-base arg-type) param-type)
+             (or (equal? (type-base arg-type) param-type)
+                 (memq param-type (domain-type-parents arg-type))))))
 
   (define (types-match? arg-types param-types)
     (and (list? arg-types) (list? param-types)
@@ -2332,6 +2360,8 @@
                   ; the square of a float is not negative : ℝ⁺ (a table compares only the types , not the value 2 of the
                   ; exponent : {x ³} can be negative) , see square-of-float?
                   ((square-of-float? s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst) 'nonnegative-flonum?)
+          (exec {literal-power-type := (power-with-literal-exponent-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)}) ; {x ** 3} : a float , without any declaration of the exponent
+          (literal-power-type literal-power-type)
 
                   ; an integer literal with a float : the type of the expression with the literal written as a float ,
                   ; {x * 2} is a flonum? as (fl* x 2.0) (see float-literal)
@@ -2997,6 +3027,8 @@
           #;((or (natural-type-name? t) (integer-type-name? t)) 'fixnum?)
           ((natural-type-name? t) 'natural-fixnum?) ; Scheme+/type : ℕ , a fixnum >= 0 (an index without negative value)
           ((integer-type-name? t) 'fixnum?) ; ℤ
+          ((nonzero-integer-type-name? t) 'nonzero-fixnum?) ; ℤ* , a float to its power is a float
+          ((positive-integer-type-name? t) 'positive-fixnum?) ; ℕ*
           ((real-type-name? t) 'flonum?)
           ((nonnegative-real-type-name? t) 'nonnegative-flonum?) ; ℝ⁺ , a float not negative (sqrt , log , expt of floats)
           ((pair? t) (cons (canonical-type (car t)) (canonical-type (cdr t))))
@@ -3186,6 +3218,23 @@
               (if (symbol? b)
                   (list 'fl* b b)
                   (list 'let (list (list '$power-base$ b)) '(fl* $power-base$ $power-base$))))))
+
+  ; the type of (** base literal) , #f if the literal does not tell it : a literal exponent has a known sign , so a float to
+  ; a literal not zero is a float , and a fixnum to a literal not negative an integer (the overflow is accepted). Only the
+  ; exponent which is a literal : the type of a variable that has received a literal stays fixnum? (it can change of value).
+  (define (power-with-literal-exponent-type s ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst)
+    (and (list? s)
+         {(length s) = 3}
+         (symbol? (first s))
+         (or (EXPONENTIATION-op? (first s))
+             (memq (first s) '(orig-** orig-expt))) ; the form can have been rewritten by the annotation
+         (fixnum? (third s))
+         (hash-table-exists? ovrld-ht (first s))
+         (memq (find-if-exists-matching-types-with-ovrld {ovrld-ht[(first s)]} '(flonum? fixnum?)) '(orig-** orig-expt)) ; no overload of the user
+         ($+> {base := (type-base (find-type (second s) ovrld-ht ovrld-ht-n-ary ovrld-ht-proc annot-ht-lst))}
+              (cond ((and (eq? base 'flonum?) (not {(third s) = 0})) 'flonum?)
+                    ((and (eq? base 'fixnum?) {(third s) >= 0}) 'fixnum?)
+                    (else #f)))))
 
   ; the square of a float : {x ²} , {x ** 2} , (expt x 2) of a float x (the literal exact integer 2 , without an overload
   ; of the user as in square-of-flonum) , or {x * x} , (fl* x x) of a variable x (fl* x x is written by square-of-flonum) :

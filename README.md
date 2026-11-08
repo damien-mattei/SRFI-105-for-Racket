@@ -43,6 +43,10 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 The type annotation and inference system to improve speed to top is now available, see version 15.0 below.
 <br>
 
+**Changes of version 17.1:**
+
+The type annotation knows the types ℤ* and ℕ* of Scheme+ version 20.1. The type of an exponentiation is now always true: a float to the power of a ℤ* or of a literal not zero is a float, a fixnum to the power of a ℕ or of a literal not negative is an integer, and an exponent declared only `fixnum?` leaves the operations that follow generic.
+
 **Changes of version 17.0:**
 
 Source locations (with Scheme+ version 20.0): each form and each identifier read keep the location of their text in the source file, through the infix conversion and the type annotation. Racket and its tools (error messages, Check Syntax, language servers, debuggers) work on the source code.
