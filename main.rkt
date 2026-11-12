@@ -238,7 +238,7 @@
                (first annot-ht-lst)
                (lambda (k v) (printf " (~s → ~s)\n" k v)))
               (newline))
-            (display "Annotated code")
+            (display "Annotated code :")
             (newline)
             (pretty-print parsed-annotated-module (current-output-port) 1)
             (newline)

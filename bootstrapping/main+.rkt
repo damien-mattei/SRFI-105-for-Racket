@@ -382,7 +382,7 @@
                                    (printf " (~s → ~s)\n" k v)))
                 (newline))
 
-              (display "Annotated code") (newline)
+              (display "Annotated code :") (newline)
 	      (pretty-print parsed-annotated-module
 			    (current-output-port)
 			    1)
