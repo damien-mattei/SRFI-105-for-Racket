@@ -43,6 +43,10 @@ A Makefile is also available in the same subdirectory, to parse Scheme+ file in 
 The type annotation and inference system to improve speed to top is now available, see version 15.0 below.
 <br>
 
+**Changes of version 17.3:**
+
+Datum comments: a ```#;``` written at the top level of the file (outside any list, for example before or after a ```module``` form) drops the next datum again. Since version 14.1 the commented form was kept and executed: ```#;(require foo)``` still required ```foo```. ```#;#;``` now comments two datums and ```#;#;#;``` three, as in Racket: ```(list 1 #;#;2 3 4)``` is ```(1 4)```, it was ```(1 3 4)```.
+
 **Changes of version 17.2:**
 
 The message displayed before the annotated code (the debugging output of the type annotation) is now `Annotated code :`.
