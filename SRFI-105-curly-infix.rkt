@@ -1086,9 +1086,19 @@
 	       (not (null? (cdr port-src)))
 	       (cadr port-src))
       (set! source (cadr port-src))) ; as given by Racket (a path , or something else in an editor) : the tools compare it to their file
-    (if (null? port-src)
+    #;(if (null? port-src)
       (curly-infix-read-real (current-input-port))
-      (curly-infix-read-real (car port-src))))
+      (curly-infix-read-real (car port-src)))
+    ; a datum comment #; at the top level (outside any list) : process-sharp returns the commented datum and sets the
+    ; comment flag , that only my-read-delimited-list tested (inside a list) , so the commented form was kept and
+    ; executed. Here the commented datum is dropped and the next datum is read (#; before EOF gives EOF).
+    (let ((port (if (null? port-src) (current-input-port) (car port-src))))
+      (let loop ()
+	(set! comment #f)
+	(let ((result (curly-infix-read-real port)))
+	  (if comment
+	      (loop) ; drop the commented datum
+	      result)))))
 
   ; Here's a real neoteric reader.
   ; The key part is that it implements [] and {} as delimiters, and
